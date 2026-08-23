@@ -3580,7 +3580,15 @@ function bevestigGoedkeuring(verzoekId, email) {
     beoordeelToegangsverzoek(verzoekId, "goedgekeurd");
     state.rechtenKeuzeVoor = null;
     laadTeamleden();
-    toonToast("Teamlid toegevoegd. Maak nu het account aan via Supabase (Authentication -> Users) met dit e-mailadres.");
+    supabaseClient.functions.invoke("hyper-function", { body: { email: email } }).then(function(fres){
+      if (fres.error || (fres.data && fres.data.error)) {
+        toonToast("Teamlid toegevoegd, maar de uitnodigingsmail kon niet automatisch worden verstuurd. Nodig " + email + " zelf uit via Supabase -> Authentication -> Users.");
+      } else {
+        toonToast("Teamlid toegevoegd! " + email + " ontvangt een e-mail om een wachtwoord in te stellen.");
+      }
+    }).catch(function(){
+      toonToast("Teamlid toegevoegd, maar de uitnodigingsmail kon niet automatisch worden verstuurd. Nodig " + email + " zelf uit via Supabase -> Authentication -> Users.");
+    });
   });
 }
 function laadTeamleden() {
