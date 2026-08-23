@@ -911,6 +911,7 @@ var state = {
   toegangsverzoekBusy: false,
   inlogHistorie: [],
   organisatieId: null,
+  organisatieFout: null,
   magBeheren: false,
   mijnRechten: {},
   teamleden: [],
@@ -1015,22 +1016,28 @@ function huidigeDataBundel() {
 }
 function ensureOrganisatie(callback) {
   supabaseClient.from("organisaties").select("id").eq("eigenaar_user_id", state.user.id).maybeSingle().then(function(res){
-    if (res.data) { state.organisatieId = res.data.id; state.magBeheren = true; callback(); return; }
+    if (res.error) { state.organisatieFout = "Fout bij ophalen organisatie: " + res.error.message; render(); callback(); return; }
+    if (res.data) { state.organisatieId = res.data.id; state.magBeheren = true; state.organisatieFout = null; callback(); return; }
     supabaseClient.from("organisatie_leden").select("id, organisatie_id, rechten, rol").eq("user_id", state.user.id).maybeSingle().then(function(res2){
+      if (res2.error) { state.organisatieFout = "Fout bij ophalen lidmaatschap: " + res2.error.message; render(); callback(); return; }
       if (res2.data) {
         state.organisatieId = res2.data.organisatie_id;
         state.mijnRechten = res2.data.rechten || {};
         state.magBeheren = res2.data.rol === "eigenaar";
+        state.organisatieFout = null;
         callback();
         return;
       }
       // Nog niet gekoppeld op account: was dit e-mailadres al uitgenodigd?
       supabaseClient.from("organisatie_leden").select("id, organisatie_id, rechten, rol").is("user_id", null).eq("email", state.user.email).maybeSingle().then(function(res3){
+        if (res3.error) { state.organisatieFout = "Fout bij ophalen uitnodiging: " + res3.error.message; render(); callback(); return; }
         if (res3.data) {
-          supabaseClient.from("organisatie_leden").update({ user_id: state.user.id }).eq("id", res3.data.id).then(function(){
+          supabaseClient.from("organisatie_leden").update({ user_id: state.user.id }).eq("id", res3.data.id).then(function(res4){
+            if (res4.error) { state.organisatieFout = "Fout bij koppelen uitnodiging: " + res4.error.message; render(); callback(); return; }
             state.organisatieId = res3.data.organisatie_id;
             state.mijnRechten = res3.data.rechten || {};
             state.magBeheren = res3.data.rol === "eigenaar";
+            state.organisatieFout = null;
             callback();
           });
         } else {
@@ -1043,13 +1050,25 @@ function ensureOrganisatie(callback) {
 function maakNieuweOrganisatie(callback) {
   var naam = (state.bedrijf && state.bedrijf.naam) || "Mijn bedrijf";
   supabaseClient.from("organisaties").insert({ naam: naam, eigenaar_user_id: state.user.id }).select().single().then(function(res){
-    if (res.error || !res.data) { callback(); return; }
+    if (res.error || !res.data) {
+      state.organisatieFout = "Kon geen bedrijfsaccount aanmaken: " + (res.error ? res.error.message : "onbekende fout");
+      render();
+      callback();
+      return;
+    }
     state.organisatieId = res.data.id;
     state.magBeheren = true;
-    supabaseClient.from("organisatie_leden").insert({ organisatie_id: res.data.id, user_id: state.user.id, email: state.user.email, rol: "eigenaar", rechten: {} }).then(function(){
+    supabaseClient.from("organisatie_leden").insert({ organisatie_id: res.data.id, user_id: state.user.id, email: state.user.email, rol: "eigenaar", rechten: {} }).then(function(res5){
+      if (res5.error) { state.organisatieFout = "Bedrijfsaccount aangemaakt, maar koppelen aan jouw account mislukte: " + res5.error.message; render(); callback(); return; }
+      state.organisatieFout = null;
       migreerOudeData(callback);
     });
   });
+}
+function opnieuwProberenOrganisatie() {
+  state.organisatieFout = null;
+  render();
+  ensureOrganisatie(function(){ laadAlleOrgTabellen(function(){ render(); }); });
 }
 function migreerOudeData(callback) {
   // Eenmalige overzet van de oude opslagvorm (1 datapakket per gebruiker) naar de nieuwe tabellen
@@ -2022,6 +2041,9 @@ function render() {
     html += '</div></nav>';
 
     html += '<div class="main-area"><div class="page">';
+    if (state.organisatieFout) {
+      html += '<div class="alert-box" style="margin-bottom:14px;"><b>Kon je bedrijfsgegevens niet laden:</b><br/>' + esc(state.organisatieFout) + '<br/><span style="text-decoration:underline;cursor:pointer;font-weight:700;" onclick="opnieuwProberenOrganisatie()">Opnieuw proberen</span></div>';
+    }
 
     // Mobiele header + tabs (alleen zichtbaar op smal scherm, CSS regelt dit)
     html += '<div class="mobile-header no-print"><div class="header-title" onclick="setTab(\'dashboard\')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><line x1="6" y1="20" x2="6" y2="12"/><line x1="12" y1="20" x2="12" y2="6"/><line x1="18" y1="20" x2="18" y2="15"/></svg> Boekhouding</div></div>';
