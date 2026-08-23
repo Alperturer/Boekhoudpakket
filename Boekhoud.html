@@ -1048,7 +1048,7 @@ function ensureOrganisatie(callback) {
   });
 }
 function maakNieuweOrganisatie(callback) {
-  var naam = (state.bedrijf && state.bedrijf.naam) || "Mijn bedrijf";
+  var naam = state.nieuweBedrijfsnaam || (state.bedrijf && state.bedrijf.naam) || "Mijn bedrijf";
   supabaseClient.from("organisaties").insert({ naam: naam, eigenaar_user_id: state.user.id }).select().single().then(function(res){
     if (res.error || !res.data) {
       state.organisatieFout = "Kon geen bedrijfsaccount aanmaken: " + (res.error ? res.error.message : "onbekende fout");
@@ -3727,6 +3727,8 @@ function bevestigOpslaanInstellingen() {
 function renderAuth() {
   if (state.authScreen === "aanvraag") return renderToegangAanvraagForm();
   if (state.authScreen === "aanvraag-verstuurd") return renderToegangAanvraagVerstuurd();
+  if (state.authScreen === "nieuw-bedrijf") return renderNieuwBedrijfForm();
+  if (state.authScreen === "nieuw-bedrijf-verstuurd") return renderNieuwBedrijfVerstuurd();
   var h = '<div style="max-width:380px;margin:60px auto;padding:0 16px;">';
   h += '<div style="font-size:32px;text-align:center;margin-bottom:8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><line x1="6" y1="20" x2="6" y2="12"/><line x1="12" y1="20" x2="12" y2="6"/><line x1="18" y1="20" x2="18" y2="15"/></svg></div>';
   h += '<div style="font-size:20px;font-weight:800;text-align:center;margin-bottom:4px;color:var(--navy);">Boekhouding</div>';
@@ -3737,9 +3739,58 @@ function renderAuth() {
   h += '<label class="fl">Wachtwoord</label><input class="f" type="password" id="auth-pass" />';
   h += '<button class="btn-primary" ' + (state.authBusy?"disabled":"") + ' onclick="submitAuth()">' + (state.authBusy ? "Bezig..." : "Inloggen") + '</button>';
   h += '</div>';
-  h += '<div style="text-align:center;font-size:12.5px;color:var(--muted);margin-top:14px;">Nog geen account? <span style="color:var(--navy);font-weight:700;cursor:pointer;" onclick="state.authScreen=\'aanvraag\';state.authError=\'\';render();">Toegang aanvragen</span></div>';
+  h += '<div style="text-align:center;font-size:12.5px;color:var(--muted);margin-top:14px;">Werk je mee in het bedrijf van iemand anders? <span style="color:var(--navy);font-weight:700;cursor:pointer;" onclick="state.authScreen=\'aanvraag\';state.authError=\'\';render();">Toegang aanvragen</span></div>';
+  h += '<div style="text-align:center;font-size:12.5px;color:var(--muted);margin-top:8px;">Ben je een ander bedrijf? <span style="color:var(--navy);font-weight:700;cursor:pointer;" onclick="state.authScreen=\'nieuw-bedrijf\';state.authError=\'\';render();">Start je eigen, aparte administratie</span></div>';
   h += '</div>';
   return h;
+}
+function renderNieuwBedrijfForm() {
+  var h = '<div style="max-width:380px;margin:60px auto;padding:0 16px;">';
+  h += '<div style="font-size:20px;font-weight:800;text-align:center;margin-bottom:4px;color:var(--navy);">Eigen bedrijf starten</div>';
+  h += '<div style="font-size:12.5px;color:var(--muted);text-align:center;margin-bottom:20px;">Je krijgt een compleet eigen, afgeschermde administratie. Niemand anders (ook de eigenaar van een ander bedrijf op deze app niet) kan hier ooit bij.</div>';
+  if (state.authError) h += '<div class="alert-box">' + esc(state.authError) + '</div>';
+  h += '<div class="section-card">';
+  h += '<label class="fl">Bedrijfsnaam</label><input class="f" id="nb-naam" />';
+  h += '<label class="fl">E-mailadres</label><input class="f" type="email" id="nb-email" autocapitalize="off" autocorrect="off" />';
+  h += '<label class="fl">Wachtwoord</label><input class="f" type="password" id="nb-pass" />';
+  h += '<button class="btn-primary" ' + (state.authBusy?"disabled":"") + ' onclick="submitNieuwBedrijf()">' + (state.authBusy ? "Bezig..." : "Eigen bedrijf aanmaken") + '</button>';
+  h += '</div>';
+  h += '<div style="text-align:center;font-size:12.5px;color:var(--muted);margin-top:14px;">Terug naar <span style="color:var(--navy);font-weight:700;cursor:pointer;" onclick="state.authScreen=\'login\';state.authError=\'\';render();">inloggen</span></div>';
+  h += '</div>';
+  return h;
+}
+function renderNieuwBedrijfVerstuurd() {
+  var h = '<div style="max-width:380px;margin:80px auto;padding:0 16px;text-align:center;">';
+  h += '<div style="font-size:20px;font-weight:800;margin-bottom:10px;color:var(--navy);">Bijna klaar</div>';
+  h += '<div style="font-size:13.5px;color:var(--muted);margin-bottom:20px;">We hebben een bevestigingsmail gestuurd. Klik op de link daarin om je e-mailadres te bevestigen, log daarna in &mdash; je eigen bedrijfsadministratie wordt dan automatisch voor je klaargezet.</div>';
+  h += '<span style="color:var(--navy);font-weight:700;cursor:pointer;text-decoration:underline;" onclick="state.authScreen=\'login\';render();">Terug naar inloggen</span>';
+  h += '</div>';
+  return h;
+}
+function submitNieuwBedrijf() {
+  var naam = document.getElementById("nb-naam").value.trim();
+  var email = document.getElementById("nb-email").value.trim();
+  var pass = document.getElementById("nb-pass").value;
+  if (!naam || !email || !pass) { state.authError = "Vul bedrijfsnaam, e-mailadres en wachtwoord in."; render(); return; }
+  if (!supabaseClient) { state.authError = "Kon geen verbinding maken. Probeer het later opnieuw."; render(); return; }
+  state.authBusy = true; state.authError = ""; render();
+  supabaseClient.auth.signUp({ email: email, password: pass, options: { data: { bedrijfsnaam: naam } } }).then(function(res){
+    state.authBusy = false;
+    if (res.error) { state.authError = res.error.message; render(); return; }
+    // Altijd met een schone lei beginnen, ook als dit toestel al lokale gegevens van een ander bedrijf/account had
+    state.klanten = []; state.producten = []; state.projectenCRM = []; state.facturen = []; state.offertes = [];
+    state.uitgaven = []; state.sjablonen = []; state.registraties = [];
+    state.bedrijf = emptyBedrijf(); state.bedrijf.naam = naam;
+    state.nieuweBedrijfsnaam = naam;
+    if (res.data && res.data.session) {
+      // E-mailbevestiging staat uit: meteen ingelogd
+      state.user = res.data.session.user;
+      naLogin();
+    } else {
+      state.authScreen = "nieuw-bedrijf-verstuurd";
+      render();
+    }
+  });
 }
 function renderConnectieFout() {
   var h = '<div style="max-width:380px;margin:80px auto;padding:0 16px;text-align:center;">';
