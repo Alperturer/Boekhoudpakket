@@ -1097,6 +1097,10 @@ function laadAlleOrgTabellen(callback) {
       if (res.data && res.data.data) {
         if (t[1] === "bedrijf") state.bedrijf = Object.assign(emptyBedrijf(), res.data.data);
         else state[t[1]] = res.data.data;
+      } else if (state.magBeheren) {
+        // Nog geen cloud-kopie voor dit onderdeel: zet de huidige lokale data (uit deze browser) als startpunt in de cloud
+        var lokaleWaarde = (t[1] === "bedrijf") ? state.bedrijf : state[t[1]];
+        slaOpInCloudSectie(t[0], lokaleWaarde);
       }
       over--; if (over === 0) callback();
     }).catch(function(){ over--; if (over === 0) callback(); });
