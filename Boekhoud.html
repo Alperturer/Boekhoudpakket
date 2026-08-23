@@ -276,8 +276,8 @@ function svgDonutChart(data, kleuren) {
 // ---------------------------------------------------------------------
 // SUPABASE (voor digitaal te ondertekenen offertes)
 // ---------------------------------------------------------------------
-var SUPABASE_URL = "https://lrieolazetnhcizaqlhx.supabase.co";
-var SUPABASE_KEY = "sb_publishable_wnTd6K9xyI41FdjHJzpJuw_diuWnbyg";
+var SUPABASE_URL = "https://rxlgrslufxoxxluqpict.supabase.co";
+var SUPABASE_KEY = "sb_publishable_x7_3-5JaMrCSolJStx8N6Q_RsCy_ewe";
 var supabaseClient = (typeof window.supabase !== "undefined")
   ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
   : null;
@@ -1071,30 +1071,17 @@ function opnieuwProberenOrganisatie() {
   ensureOrganisatie(function(){ laadAlleOrgTabellen(function(){ render(); }); });
 }
 function migreerOudeData(callback) {
-  // Eenmalige overzet van de oude opslagvorm (1 datapakket per gebruiker) naar de nieuwe tabellen
-  supabaseClient.from("boekhoud_userdata").select("data").eq("user_id", state.user.id).maybeSingle().then(function(res){
-    var d = (res.data && res.data.data) || null;
-    if (!d) { callback(); return; }
-    if (d.klanten) state.klanten = d.klanten;
-    if (d.producten) state.producten = d.producten;
-    if (d.projectenCRM) state.projectenCRM = d.projectenCRM;
-    if (d.facturen) state.facturen = d.facturen;
-    if (d.offertes) state.offertes = d.offertes;
-    if (d.uitgaven) state.uitgaven = d.uitgaven;
-    if (d.bedrijf) state.bedrijf = Object.assign(emptyBedrijf(), d.bedrijf);
-    if (d.sjablonen) state.sjablonen = d.sjablonen;
-    if (d.registraties) state.registraties = d.registraties;
-    slaOpInCloudSectie("org_klanten", state.klanten);
-    slaOpInCloudSectie("org_producten", state.producten);
-    slaOpInCloudSectie("org_projecten", state.projectenCRM);
-    slaOpInCloudSectie("org_facturen", state.facturen);
-    slaOpInCloudSectie("org_offertes", state.offertes);
-    slaOpInCloudSectie("org_uitgaven", state.uitgaven);
-    slaOpInCloudSectie("org_instellingen", state.bedrijf);
-    slaOpInCloudSectie("org_sjablonen", state.sjablonen);
-    slaOpInCloudSectie("org_registraties", state.registraties);
-    callback();
-  }).catch(function(){ callback(); });
+  // Zet de huidige lokale gegevens (uit deze browser) meteen als startpunt in de cloud-tabellen
+  slaOpInCloudSectie("org_klanten", state.klanten);
+  slaOpInCloudSectie("org_producten", state.producten);
+  slaOpInCloudSectie("org_projecten", state.projectenCRM);
+  slaOpInCloudSectie("org_facturen", state.facturen);
+  slaOpInCloudSectie("org_offertes", state.offertes);
+  slaOpInCloudSectie("org_uitgaven", state.uitgaven);
+  slaOpInCloudSectie("org_instellingen", state.bedrijf);
+  slaOpInCloudSectie("org_sjablonen", state.sjablonen);
+  slaOpInCloudSectie("org_registraties", state.registraties);
+  callback();
 }
 function laadAlleOrgTabellen(callback) {
   var org = state.organisatieId;
@@ -3602,7 +3589,7 @@ function bevestigGoedkeuring(verzoekId, email) {
     beoordeelToegangsverzoek(verzoekId, "goedgekeurd");
     state.rechtenKeuzeVoor = null;
     laadTeamleden();
-    supabaseClient.functions.invoke("hyper-function", { body: { email: email } }).then(function(fres){
+    supabaseClient.functions.invoke("maak-teamlid-account", { body: { email: email } }).then(function(fres){
       if (fres.error || (fres.data && fres.data.error)) {
         toonToast("Teamlid toegevoegd, maar de uitnodigingsmail kon niet automatisch worden verstuurd. Nodig " + email + " zelf uit via Supabase -> Authentication -> Users.");
       } else {
