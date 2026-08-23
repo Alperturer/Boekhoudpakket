@@ -906,23 +906,30 @@ var state = {
   cloudSaving: false,
   bevestigModal: null, // { tekst, actieFn } -- eigen bevestigingsscherm i.p.v. native confirm()
   toast: null, // { tekst } -- eigen meldingsbannertje i.p.v. native alert()
+  authScreen: "login", // login -> aanvraag -> aanvraag-verstuurd
+  toegangsverzoeken: [],
+  toegangsverzoekBusy: false,
+  inlogHistorie: [],
+  organisatieId: null,
+  magBeheren: false,
+  mijnRechten: {},
 };
 
-function persistKlanten() { saveJSON(STORAGE_KLANTEN, state.klanten); scheduleCloudSync(); }
-function persistProducten() { saveJSON(STORAGE_PRODUCTEN, state.producten); scheduleCloudSync(); }
-function persistProjectenCRM() { saveJSON(STORAGE_PROJECTEN, state.projectenCRM); scheduleCloudSync(); }
-function persistFacturen() { saveJSON(STORAGE_FACTUREN, state.facturen); scheduleCloudSync(); }
-function persistOffertes() { saveJSON(STORAGE_OFFERTES, state.offertes); scheduleCloudSync(); }
-function persistUitgaven() { saveJSON(STORAGE_UITGAVEN, state.uitgaven); scheduleCloudSync(); }
-function persistBedrijf() { saveJSON(STORAGE_BEDRIJF, state.bedrijf); scheduleCloudSync(); }
-function persistSjablonen() { saveJSON(STORAGE_SJABLONEN, state.sjablonen); scheduleCloudSync(); }
-function persistRegistraties() { saveJSON(STORAGE_REGISTRATIES, state.registraties); scheduleCloudSync(); }
+function persistKlanten() { saveJSON(STORAGE_KLANTEN, state.klanten); scheduleCloudSyncSectie("org_klanten", state.klanten); }
+function persistProducten() { saveJSON(STORAGE_PRODUCTEN, state.producten); scheduleCloudSyncSectie("org_producten", state.producten); }
+function persistProjectenCRM() { saveJSON(STORAGE_PROJECTEN, state.projectenCRM); scheduleCloudSyncSectie("org_projecten", state.projectenCRM); }
+function persistFacturen() { saveJSON(STORAGE_FACTUREN, state.facturen); scheduleCloudSyncSectie("org_facturen", state.facturen); }
+function persistOffertes() { saveJSON(STORAGE_OFFERTES, state.offertes); scheduleCloudSyncSectie("org_offertes", state.offertes); }
+function persistUitgaven() { saveJSON(STORAGE_UITGAVEN, state.uitgaven); scheduleCloudSyncSectie("org_uitgaven", state.uitgaven); }
+function persistBedrijf() { saveJSON(STORAGE_BEDRIJF, state.bedrijf); scheduleCloudSyncSectie("org_instellingen", state.bedrijf); }
+function persistSjablonen() { saveJSON(STORAGE_SJABLONEN, state.sjablonen); scheduleCloudSyncSectie("org_sjablonen", state.sjablonen); }
+function persistRegistraties() { saveJSON(STORAGE_REGISTRATIES, state.registraties); scheduleCloudSyncSectie("org_registraties", state.registraties); }
 
 // ---------------------------------------------------------------------
 // AUTH
 // ---------------------------------------------------------------------
 function checkSession() {
-  if (!supabaseClient) { state.view = "app"; state.geenCloud = true; render(); return; }
+  if (!supabaseClient) { state.view = "connectie-fout"; render(); return; }
   supabaseClient.auth.getSession().then(function(res){
     var session = res.data && res.data.session;
     if (session && session.user) { state.user = session.user; naLogin(); }
@@ -930,7 +937,17 @@ function checkSession() {
   }).catch(function(){ state.view = "auth"; render(); });
 }
 function naLogin() {
-  laadUitCloud(function(){ state.view = "app"; render(); });
+  laadUitCloud(function(){ state.view = "app"; render(); laadToegangsverzoeken(); logInlogMoment(); laadInlogHistorie(); });
+}
+function logInlogMoment() {
+  if (!supabaseClient || !state.user) return;
+  supabaseClient.from("boekhoud_login_log").insert({ user_id: state.user.id, email: state.user.email, gebruikersagent: navigator.userAgent }).then(function(){});
+}
+function laadInlogHistorie() {
+  if (!supabaseClient || !state.user) return;
+  supabaseClient.from("boekhoud_login_log").select("*").order("created_at", { ascending: false }).limit(10).then(function(res){
+    if (!res.error) { state.inlogHistorie = res.data || []; render(); }
+  });
 }
 function doLogin(email, wachtwoord) {
   if (!supabaseClient) return;
@@ -972,13 +989,19 @@ function vertaalAuthFout(msg) {
 }
 
 // ---------------------------------------------------------------------
-// CLOUD-SYNC (alle data als één record per gebruiker)
+// CLOUD-SYNC (per bedrijf/organisatie, apart per onderdeel)
 // ---------------------------------------------------------------------
-var cloudSyncTimer = null;
-function scheduleCloudSync() {
-  if (!supabaseClient || !state.user) return;
-  if (cloudSyncTimer) clearTimeout(cloudSyncTimer);
-  cloudSyncTimer = setTimeout(slaOpInCloud, 800);
+var cloudSyncTimers = {};
+function scheduleCloudSyncSectie(tabel, waarde) {
+  if (!supabaseClient || !state.user || !state.organisatieId) return;
+  if (cloudSyncTimers[tabel]) clearTimeout(cloudSyncTimers[tabel]);
+  cloudSyncTimers[tabel] = setTimeout(function(){ slaOpInCloudSectie(tabel, waarde); }, 800);
+}
+function slaOpInCloudSectie(tabel, waarde) {
+  state.cloudSaving = true;
+  supabaseClient.from(tabel).upsert({ organisatie_id: state.organisatieId, data: waarde, updated_at: new Date().toISOString() }, { onConflict: "organisatie_id" }).then(function(){
+    state.cloudSaving = false; render();
+  }).catch(function(){ state.cloudSaving = false; });
 }
 function huidigeDataBundel() {
   return {
@@ -987,33 +1010,80 @@ function huidigeDataBundel() {
     bedrijf: state.bedrijf, sjablonen: state.sjablonen, registraties: state.registraties,
   };
 }
-function slaOpInCloud() {
-  if (!supabaseClient || !state.user) return;
-  state.cloudSaving = true;
-  supabaseClient.from("boekhoud_userdata").upsert({ user_id: state.user.id, data: huidigeDataBundel(), updated_at: new Date().toISOString() }).then(function(){
-    state.cloudSaving = false; render();
-  }).catch(function(){ state.cloudSaving = false; });
+function ensureOrganisatie(callback) {
+  supabaseClient.from("organisaties").select("id").eq("eigenaar_user_id", state.user.id).maybeSingle().then(function(res){
+    if (res.data) { state.organisatieId = res.data.id; state.magBeheren = true; callback(); return; }
+    supabaseClient.from("organisatie_leden").select("organisatie_id, rechten, rol").eq("user_id", state.user.id).maybeSingle().then(function(res2){
+      if (res2.data) {
+        state.organisatieId = res2.data.organisatie_id;
+        state.mijnRechten = res2.data.rechten || {};
+        state.magBeheren = res2.data.rol === "eigenaar";
+        callback();
+      } else {
+        maakNieuweOrganisatie(callback);
+      }
+    });
+  });
+}
+function maakNieuweOrganisatie(callback) {
+  var naam = (state.bedrijf && state.bedrijf.naam) || "Mijn bedrijf";
+  supabaseClient.from("organisaties").insert({ naam: naam, eigenaar_user_id: state.user.id }).select().single().then(function(res){
+    if (res.error || !res.data) { callback(); return; }
+    state.organisatieId = res.data.id;
+    state.magBeheren = true;
+    supabaseClient.from("organisatie_leden").insert({ organisatie_id: res.data.id, user_id: state.user.id, email: state.user.email, rol: "eigenaar", rechten: {} }).then(function(){
+      migreerOudeData(callback);
+    });
+  });
+}
+function migreerOudeData(callback) {
+  // Eenmalige overzet van de oude opslagvorm (1 datapakket per gebruiker) naar de nieuwe tabellen
+  supabaseClient.from("boekhoud_userdata").select("data").eq("user_id", state.user.id).maybeSingle().then(function(res){
+    var d = (res.data && res.data.data) || null;
+    if (!d) { callback(); return; }
+    if (d.klanten) state.klanten = d.klanten;
+    if (d.producten) state.producten = d.producten;
+    if (d.projectenCRM) state.projectenCRM = d.projectenCRM;
+    if (d.facturen) state.facturen = d.facturen;
+    if (d.offertes) state.offertes = d.offertes;
+    if (d.uitgaven) state.uitgaven = d.uitgaven;
+    if (d.bedrijf) state.bedrijf = Object.assign(emptyBedrijf(), d.bedrijf);
+    if (d.sjablonen) state.sjablonen = d.sjablonen;
+    if (d.registraties) state.registraties = d.registraties;
+    slaOpInCloudSectie("org_klanten", state.klanten);
+    slaOpInCloudSectie("org_producten", state.producten);
+    slaOpInCloudSectie("org_projecten", state.projectenCRM);
+    slaOpInCloudSectie("org_facturen", state.facturen);
+    slaOpInCloudSectie("org_offertes", state.offertes);
+    slaOpInCloudSectie("org_uitgaven", state.uitgaven);
+    slaOpInCloudSectie("org_instellingen", state.bedrijf);
+    slaOpInCloudSectie("org_sjablonen", state.sjablonen);
+    slaOpInCloudSectie("org_registraties", state.registraties);
+    callback();
+  }).catch(function(){ callback(); });
+}
+function laadAlleOrgTabellen(callback) {
+  var org = state.organisatieId;
+  if (!org) { callback(); return; }
+  var taken = [
+    ["org_klanten","klanten"], ["org_producten","producten"], ["org_projecten","projectenCRM"],
+    ["org_facturen","facturen"], ["org_offertes","offertes"], ["org_uitgaven","uitgaven"],
+    ["org_sjablonen","sjablonen"], ["org_registraties","registraties"], ["org_instellingen","bedrijf"]
+  ];
+  var over = taken.length;
+  taken.forEach(function(t){
+    supabaseClient.from(t[0]).select("data").eq("organisatie_id", org).maybeSingle().then(function(res){
+      if (res.data && res.data.data) {
+        if (t[1] === "bedrijf") state.bedrijf = Object.assign(emptyBedrijf(), res.data.data);
+        else state[t[1]] = res.data.data;
+      }
+      over--; if (over === 0) callback();
+    }).catch(function(){ over--; if (over === 0) callback(); });
+  });
 }
 function laadUitCloud(callback) {
   if (!supabaseClient || !state.user) { callback(); return; }
-  supabaseClient.from("boekhoud_userdata").select("data").eq("user_id", state.user.id).maybeSingle().then(function(res){
-    if (res.data && res.data.data) {
-      var d = res.data.data;
-      if (d.klanten) state.klanten = d.klanten;
-      if (d.producten) state.producten = d.producten;
-      if (d.projectenCRM) state.projectenCRM = d.projectenCRM;
-      if (d.facturen) state.facturen = d.facturen;
-      if (d.offertes) state.offertes = d.offertes;
-      if (d.uitgaven) state.uitgaven = d.uitgaven;
-      if (d.bedrijf) state.bedrijf = Object.assign(emptyBedrijf(), d.bedrijf);
-      if (d.sjablonen) state.sjablonen = d.sjablonen;
-      if (d.registraties) state.registraties = d.registraties;
-    } else {
-      // Nog geen cloud-data: upload wat er lokaal al stond (bijv. van vóór het inloggen)
-      slaOpInCloud();
-    }
-    callback();
-  }).catch(function(){ callback(); });
+  ensureOrganisatie(function(){ laadAlleOrgTabellen(callback); });
 }
 
 function setTab(t) { state.tab = t; render(); }
@@ -1900,6 +1970,10 @@ function render() {
       root.innerHTML = renderAuth();
       return;
     }
+    if (state.view === "connectie-fout") {
+      root.innerHTML = renderConnectieFout();
+      return;
+    }
 
     var active = function(t){ return (state.tab === t)
         || (t==="facturen" && (state.tab==="factuur-form"||state.tab==="factuur-view"||state.tab==="sjabloon-form"))
@@ -1922,7 +1996,6 @@ function render() {
     html += '</div></nav>';
 
     html += '<div class="main-area"><div class="page">';
-    if (state.geenCloud) html += '<div class="alert-box" style="margin-bottom:14px;">Kon geen verbinding maken met de cloud-inlog &mdash; je werkt nu tijdelijk lokaal op dit toestel (niets is verloren). <span style="text-decoration:underline;cursor:pointer;font-weight:700;" onclick="location.reload()">Pagina verversen</span> om opnieuw in te loggen.</div>';
 
     // Mobiele header + tabs (alleen zichtbaar op smal scherm, CSS regelt dit)
     html += '<div class="mobile-header no-print"><div class="header-title" onclick="setTab(\'dashboard\')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><line x1="6" y1="20" x2="6" y2="12"/><line x1="12" y1="20" x2="12" y2="6"/><line x1="18" y1="20" x2="18" y2="15"/></svg> Boekhouding</div></div>';
@@ -3350,6 +3423,13 @@ function huisstijlSectie(titel, veldnaam, huidigeWaarde, uitleg, magLeeg, voorbe
   }
   return h;
 }
+function renderLaatsteBackupNotitie() {
+  var laatste = localStorage.getItem("boekhoud_laatste_backup");
+  if (!laatste) return '<p style="font-size:12.5px;color:var(--red);font-weight:700;margin-top:-4px;">Je hebt nog nooit een back-up gedownload. Doe dat hieronder even.</p>';
+  var dagen = Math.floor((Date.now() - new Date(laatste).getTime()) / 86400000);
+  var kleur = dagen > 30 ? "var(--red)" : "var(--muted)";
+  return '<p style="font-size:12.5px;color:' + kleur + ';font-weight:' + (dagen>30?"700":"400") + ';margin-top:-4px;">Laatste back-up: ' + (dagen===0?"vandaag":dagen+" dagen geleden") + (dagen>30?" &mdash; tijd voor een nieuwe!":"") + '</p>';
+}
 function exporteerBackup() {
   var bundel = huidigeDataBundel();
   bundel._backupVan = "BMS Energy boekhoud-app";
@@ -3365,6 +3445,7 @@ function exporteerBackup() {
   a.click();
   document.body.removeChild(a);
   setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+  localStorage.setItem("boekhoud_laatste_backup", new Date().toISOString());
   toonToast("Back-up gedownload");
 }
 function herstelBackupBestand(files) {
@@ -3390,20 +3471,67 @@ function herstelBackupBestand(files) {
   };
   reader.readAsText(files[0]);
 }
+function renderInlogHistorie() {
+  var lijst = state.inlogHistorie || [];
+  var h = '<div class="section-card"><h2>Recente inlogactiviteit</h2>';
+  h += '<p class="subtitle" style="margin-top:-6px;">Zie je hier een moment of toestel dat je niet herkent? Wijzig dan meteen je wachtwoord via Supabase &rarr; Authentication &rarr; Users.</p>';
+  if (lijst.length === 0) {
+    h += '<p class="subtitle">Nog geen inloggegevens beschikbaar.</p>';
+  }
+  lijst.forEach(function(v){
+    var datum = v.created_at ? new Date(v.created_at).toLocaleString("nl-NL") : "";
+    h += '<div class="list-row" style="cursor:default;">';
+    h += '<div class="list-left"><div class="list-title">' + esc(datum) + '</div><div class="list-meta">' + esc((v.gebruikersagent||"").slice(0,70)) + '</div></div>';
+    h += '</div>';
+  });
+  h += '</div>';
+  return h;
+}
+function renderToegangsverzoekenBeheer() {
+  var lijst = state.toegangsverzoeken || [];
+  var openstaand = lijst.filter(function(v){ return v.status === "in afwachting"; });
+  var afgehandeld = lijst.filter(function(v){ return v.status !== "in afwachting"; });
+  var h = '<div class="section-card"><h2>Toegangsaanvragen' + (openstaand.length ? ' <span class="badge badge-verzonden" style="margin-left:6px;">' + openstaand.length + ' nieuw</span>' : '') + '</h2>';
+  h += '<p class="subtitle" style="margin-top:-6px;">Hier zie je wie toegang tot de app heeft aangevraagd. Keur je iemand goed, maak dan zelf nog het account aan via Supabase &rarr; Authentication &rarr; Users (dat kan de app zelf niet veilig automatisch doen).</p>';
+  if (lijst.length === 0) {
+    h += '<p class="subtitle">Nog geen aanvragen ontvangen.</p>';
+  }
+  openstaand.forEach(function(v){
+    h += '<div class="list-row" style="cursor:default;">';
+    h += '<div class="list-left"><div class="list-title">' + esc(v.naam) + '</div><div class="list-meta">' + esc(v.email) + (v.bericht ? ' &middot; ' + esc(v.bericht) : '') + '</div></div>';
+    h += '<div style="display:flex;gap:6px;flex-shrink:0;">';
+    h += '<button class="btn-secondary" style="width:auto;padding:7px 12px;font-size:12.5px;" onclick="beoordeelToegangsverzoek(\'' + v.id + '\',\'goedgekeurd\')">Goedkeuren</button>';
+    h += '<button class="btn-secondary" style="width:auto;padding:7px 12px;font-size:12.5px;color:var(--red);" onclick="beoordeelToegangsverzoek(\'' + v.id + '\',\'afgekeurd\')">Afkeuren</button>';
+    h += '</div></div>';
+  });
+  if (afgehandeld.length) {
+    h += '<p class="subtitle" style="margin-top:14px;">Eerder behandeld:</p>';
+    afgehandeld.forEach(function(v){
+      h += '<div class="list-row" style="cursor:default;opacity:0.7;">';
+      h += '<div class="list-left"><div class="list-title">' + esc(v.naam) + '</div><div class="list-meta">' + esc(v.email) + '</div></div>';
+      h += '<div class="badge badge-' + (v.status==="goedgekeurd"?"betaald":"vervallen") + '">' + esc(v.status) + '</div>';
+      h += '</div>';
+    });
+  }
+  h += '</div>';
+  return h;
+}
 function renderInstellingen() {
   var b = state.bedrijf;
   var h = '<h1>Instellingen</h1><p class="subtitle">Deze gegevens verschijnen op al je offertes en facturen.</p>';
   if (state.user) {
     h += '<div class="section-card"><h2>Account</h2>';
-    h += '<p class="subtitle" style="margin-top:-6px;">Ingelogd als <strong>' + esc(state.user.email) + '</strong>.</p>';
+    h += '<p class="subtitle" style="margin-top:-6px;">Ingelogd als <strong>' + esc(state.user.email) + '</strong>' + (state.magBeheren ? ' &mdash; jij bent eigenaar van dit bedrijfsaccount.' : ' &mdash; je werkt mee in het bedrijfsaccount van de eigenaar.') + '</p>';
     h += '<button class="btn-secondary" style="width:auto;padding:10px 18px;" onclick="doLogout()">Uitloggen</button>';
     h += '</div>';
+    h += renderInlogHistorie();
+    h += renderToegangsverzoekenBeheer();
   }
   h += '<div class="section-card"><h2>Back-up &amp; herstel</h2>';
-  h += '<p class="subtitle" style="margin-top:-6px;">' + (state.user ? 'Je bent ingelogd, dus je gegevens worden automatisch in de cloud bewaard (account: ' + esc(state.user.email) + '). ' : 'Je bent niet ingelogd &mdash; je gegevens staan alleen lokaal opgeslagen in deze browser op dit toestel. ') + 'Maak voor de zekerheid regelmatig een back-upbestand, zodat je nooit iets kwijtraakt.</p>';
+  h += '<p class="subtitle" style="margin-top:-6px;">Je gegevens worden automatisch in de cloud bewaard (account: ' + esc(state.user ? state.user.email : "") + '). Maak daarnaast voor de zekerheid regelmatig een back-upbestand, zodat je nooit iets kwijtraakt, ook niet bij problemen met je account of de cloud-verbinding.</p>';
+  h += renderLaatsteBackupNotitie();
   h += '<button class="btn-primary" style="width:auto;padding:11px 18px;" onclick="exporteerBackup()">Back-up downloaden</button>';
   h += '<label class="btn-secondary" style="width:auto;display:inline-block;padding:10px 18px;margin-left:10px;cursor:pointer;">Back-up terugzetten<input type="file" accept="application/json" style="display:none;" onchange="herstelBackupBestand(this.files)" /></label>';
-  if (!state.user) h += '<p class="subtitle" style="margin-top:10px;">Wil je je gegevens automatisch bewaren, ook als je een ander toestel of browser gebruikt? Nieuwe accounts worden alleen door de beheerder aangemaakt (via Supabase &rarr; Authentication &rarr; Invite user). Heb je al inloggegevens gekregen? <span style="text-decoration:underline;cursor:pointer;" onclick="state.view=\'auth\'; render();">Log hier in</span>.</p>';
   h += '</div>';
   h += '<div class="section-card"><h2>Huisstijl</h2>';
   h += '<label class="fl">Logo</label>';
@@ -3465,6 +3593,8 @@ function bevestigOpslaanInstellingen() {
   toastEnGa("Instellingen opgeslagen", "instellingen");
 }
 function renderAuth() {
+  if (state.authScreen === "aanvraag") return renderToegangAanvraagForm();
+  if (state.authScreen === "aanvraag-verstuurd") return renderToegangAanvraagVerstuurd();
   var h = '<div style="max-width:380px;margin:60px auto;padding:0 16px;">';
   h += '<div style="font-size:32px;text-align:center;margin-bottom:8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><line x1="6" y1="20" x2="6" y2="12"/><line x1="12" y1="20" x2="12" y2="6"/><line x1="18" y1="20" x2="18" y2="15"/></svg></div>';
   h += '<div style="font-size:20px;font-weight:800;text-align:center;margin-bottom:4px;color:var(--navy);">Boekhouding</div>';
@@ -3475,9 +3605,66 @@ function renderAuth() {
   h += '<label class="fl">Wachtwoord</label><input class="f" type="password" id="auth-pass" />';
   h += '<button class="btn-primary" ' + (state.authBusy?"disabled":"") + ' onclick="submitAuth()">' + (state.authBusy ? "Bezig..." : "Inloggen") + '</button>';
   h += '</div>';
-  h += '<div style="text-align:center;font-size:12px;color:#94A3B8;margin-top:18px;"><span style="text-decoration:underline;cursor:pointer;" onclick="state.view=\'app\'; render();">Verder zonder inloggen (lokaal, dit toestel)</span></div>';
+  h += '<div style="text-align:center;font-size:12.5px;color:var(--muted);margin-top:14px;">Nog geen account? <span style="color:var(--navy);font-weight:700;cursor:pointer;" onclick="state.authScreen=\'aanvraag\';state.authError=\'\';render();">Toegang aanvragen</span></div>';
   h += '</div>';
   return h;
+}
+function renderConnectieFout() {
+  var h = '<div style="max-width:380px;margin:80px auto;padding:0 16px;text-align:center;">';
+  h += '<div style="font-size:20px;font-weight:800;margin-bottom:10px;color:var(--red);">Kan niet verbinden</div>';
+  h += '<div style="font-size:13.5px;color:var(--muted);margin-bottom:20px;">De beveiligde inlogverbinding kon niet worden geladen. Zonder deze verbinding kan niemand inloggen, dus de app blijft uit voorzorg op slot.</div>';
+  h += '<button class="btn-primary" style="width:auto;padding:11px 20px;" onclick="location.reload()">Opnieuw proberen</button>';
+  h += '</div>';
+  return h;
+}
+function renderToegangAanvraagForm() {
+  var h = '<div style="max-width:380px;margin:60px auto;padding:0 16px;">';
+  h += '<div style="font-size:20px;font-weight:800;text-align:center;margin-bottom:4px;color:var(--navy);">Toegang aanvragen</div>';
+  h += '<div style="font-size:12.5px;color:var(--muted);text-align:center;margin-bottom:20px;">Vul je gegevens in. De beheerder beoordeelt je aanvraag en geeft daarna toegang.</div>';
+  if (state.authError) h += '<div class="alert-box">' + esc(state.authError) + '</div>';
+  h += '<div class="section-card">';
+  h += '<label class="fl">Naam</label><input class="f" id="aanvraag-naam" />';
+  h += '<label class="fl">E-mailadres</label><input class="f" type="email" id="aanvraag-email" autocapitalize="off" autocorrect="off" />';
+  h += '<label class="fl">Toelichting (optioneel)</label><textarea class="f" id="aanvraag-bericht" placeholder="Bijv. wie je bent of waarom je toegang nodig hebt"></textarea>';
+  h += '<button class="btn-primary" ' + (state.toegangsverzoekBusy?"disabled":"") + ' onclick="verstuurToegangsaanvraag()">' + (state.toegangsverzoekBusy ? "Versturen..." : "Aanvraag versturen") + '</button>';
+  h += '</div>';
+  h += '<div style="text-align:center;font-size:12.5px;color:var(--muted);margin-top:14px;">Terug naar <span style="color:var(--navy);font-weight:700;cursor:pointer;" onclick="state.authScreen=\'login\';state.authError=\'\';render();">inloggen</span></div>';
+  h += '</div>';
+  return h;
+}
+function renderToegangAanvraagVerstuurd() {
+  var h = '<div style="max-width:380px;margin:80px auto;padding:0 16px;text-align:center;">';
+  h += '<div style="font-size:20px;font-weight:800;margin-bottom:10px;color:var(--navy);">Aanvraag verstuurd</div>';
+  h += '<div style="font-size:13.5px;color:var(--muted);margin-bottom:20px;">De beheerder heeft je aanvraag ontvangen en beoordeelt hem zo snel mogelijk. Je hoort via e-mail of je toegang krijgt.</div>';
+  h += '<span style="color:var(--navy);font-weight:700;cursor:pointer;text-decoration:underline;" onclick="state.authScreen=\'login\';render();">Terug naar inloggen</span>';
+  h += '</div>';
+  return h;
+}
+function verstuurToegangsaanvraag() {
+  var naam = document.getElementById("aanvraag-naam").value.trim();
+  var email = document.getElementById("aanvraag-email").value.trim();
+  var bericht = document.getElementById("aanvraag-bericht").value.trim();
+  if (!naam || !email) { state.authError = "Vul in elk geval je naam en e-mailadres in."; render(); return; }
+  if (!supabaseClient) { state.authError = "Kon geen verbinding maken. Probeer het later opnieuw."; render(); return; }
+  state.toegangsverzoekBusy = true; state.authError = ""; render();
+  supabaseClient.from("boekhoud_toegangsverzoeken").insert({ naam: naam, email: email, bericht: bericht, status: "in afwachting" }).then(function(res){
+    state.toegangsverzoekBusy = false;
+    if (res.error) { state.authError = "Versturen mislukt: " + res.error.message; render(); return; }
+    state.authScreen = "aanvraag-verstuurd";
+    render();
+  });
+}
+function laadToegangsverzoeken() {
+  if (!supabaseClient || !state.user) return;
+  supabaseClient.from("boekhoud_toegangsverzoeken").select("*").order("created_at", { ascending: false }).then(function(res){
+    if (!res.error) { state.toegangsverzoeken = res.data || []; render(); }
+  });
+}
+function beoordeelToegangsverzoek(id, nieuweStatus) {
+  if (!supabaseClient) return;
+  supabaseClient.from("boekhoud_toegangsverzoeken").update({ status: nieuweStatus }).eq("id", id).then(function(res){
+    if (!res.error) laadToegangsverzoeken();
+  });
 }
 function submitAuth() {
   var email = document.getElementById("auth-email").value.trim();
