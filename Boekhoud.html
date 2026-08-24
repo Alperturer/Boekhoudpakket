@@ -917,6 +917,8 @@ var state = {
   teamleden: [],
   rechtenKeuzeVoor: null,
   rechtenKeuzeWaarden: {},
+  nieuwTeamlidFormOpen: false,
+  nieuwTeamlidBusy: false,
 };
 
 function persistKlanten() { saveJSON(STORAGE_KLANTEN, state.klanten); scheduleCloudSyncSectie("org_klanten", state.klanten); }
@@ -3625,8 +3627,18 @@ function wijzigTeamlidRecht(id, sectie, waarde) {
 function renderTeamBeheer() {
   var h = '<div class="section-card"><h2>Team &amp; rechten</h2>';
   h += '<p class="subtitle" style="margin-top:-6px;">Wie toegang heeft tot jouw bedrijfsadministratie, en wat ze per onderdeel mogen: niet zien, alleen bekijken, of ook bewerken.</p>';
+  if (state.nieuwTeamlidFormOpen) {
+    h += '<div style="border:1.5px solid var(--navy);border-radius:10px;padding:12px 14px;margin-bottom:14px;">';
+    h += '<label class="fl">E-mailadres van het nieuwe teamlid</label><input class="f" type="email" id="nieuw-teamlid-email" autocapitalize="off" autocorrect="off" />';
+    h += rechtenKiezerHtml("nieuwteamlid", {});
+    h += '<button class="btn-primary" style="margin-top:10px;" ' + (state.nieuwTeamlidBusy?"disabled":"") + ' onclick="nodigTeamlidUit()">' + (state.nieuwTeamlidBusy ? "Bezig..." : "Uitnodigen") + '</button>';
+    h += '<button class="btn-secondary" style="margin-top:6px;" onclick="state.nieuwTeamlidFormOpen=false;render();">Annuleren</button>';
+    h += '</div>';
+  } else {
+    h += '<button class="btn-primary" style="width:auto;padding:10px 18px;margin-bottom:14px;" onclick="state.nieuwTeamlidFormOpen=true;render();">+ Teamlid direct uitnodigen</button>';
+  }
   var leden = state.teamleden || [];
-  if (leden.length === 0) h += '<p class="subtitle">Nog geen teamleden. Keur een toegangsaanvraag hierboven goed om iemand toe te voegen.</p>';
+  if (leden.length === 0) h += '<p class="subtitle">Nog geen teamleden.</p>';
   leden.forEach(function(lid){
     h += '<div style="border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:10px;">';
     h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">';
@@ -3647,6 +3659,29 @@ function renderTeamBeheer() {
   });
   h += '</div>';
   return h;
+}
+function nodigTeamlidUit() {
+  var email = document.getElementById("nieuw-teamlid-email").value.trim();
+  if (!email) { toonToast("Vul een e-mailadres in."); return; }
+  var rechten = leesRechtenKiezer("nieuwteamlid");
+  state.nieuwTeamlidBusy = true; render();
+  supabaseClient.from("organisatie_leden").insert({ organisatie_id: state.organisatieId, email: email, rol: "medewerker", rechten: rechten }).then(function(res){
+    if (res.error) { state.nieuwTeamlidBusy = false; toonToast("Kon niet toevoegen: " + res.error.message); render(); return; }
+    supabaseClient.functions.invoke("maak-teamlid-account", { body: { email: email } }).then(function(fres){
+      state.nieuwTeamlidBusy = false;
+      state.nieuwTeamlidFormOpen = false;
+      if (fres.error || (fres.data && fres.data.error)) {
+        toonToast("Teamlid toegevoegd, maar de uitnodigingsmail kon niet automatisch worden verstuurd. Nodig " + email + " zelf uit via Supabase -> Authentication -> Users.");
+      } else {
+        toonToast("Uitnodiging verstuurd naar " + email + "!");
+      }
+      laadTeamleden();
+    }).catch(function(){
+      state.nieuwTeamlidBusy = false; state.nieuwTeamlidFormOpen = false;
+      toonToast("Teamlid toegevoegd, maar de uitnodigingsmail kon niet automatisch worden verstuurd.");
+      laadTeamleden();
+    });
+  });
 }
 function renderInstellingen() {
   var b = state.bedrijf;
