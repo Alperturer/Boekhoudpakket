@@ -814,7 +814,7 @@ function newOfferte() {
   return {
     id: uid(), status: "concept",
     offertenummer: volgendVrijOffertenummer(),
-    klantId:"", klantNaam:"", klantAdres:"", klantPostcode:"", klantPlaats:"", klantEmail:"", klantTelefoon:"", klantNummer:"",
+    klantId:"", klantNaam:"", klantAdres:"", klantPostcode:"", klantPlaats:"", klantEmail:"", klantTelefoon:"", klantNummer:"", klantContactpersoon:"",
     datum: new Date().toISOString().slice(0,10),
     geldigTot: "",
     geldigheidsduurDagen: "30",
@@ -850,7 +850,7 @@ function newFactuur(type) {
   return {
     id: uid(), status: "concept", type: type || "factuur",
     factuurnummer: nr, klantId: "",
-    klantNaam:"", klantAdres:"", klantPostcode:"", klantPlaats:"", klantEmail:"",
+    klantNaam:"", klantAdres:"", klantPostcode:"", klantPlaats:"", klantEmail:"", klantContactpersoon:"",
     datum: vandaag,
     vervaldatum: isCredit ? "" : berekenVervaldatum(vandaag, termijn),
     betalingstermijn: isCredit ? null : termijn,
@@ -1221,7 +1221,7 @@ function bewerkKlant(id) { state.huidigeKlantId = id; setTab("klant-form"); }
 function kiesKlantVoorFactuur(factuurId, klantId) {
   var f = getFactuur(factuurId); var k = getKlant(klantId);
   if (!f) return;
-  if (k) { f.klantId = k.id; f.klantNaam = k.naam; f.klantAdres = k.adres; f.klantPostcode = k.postcode; f.klantPlaats = k.plaats; f.klantEmail = k.email; }
+  if (k) { f.klantId = k.id; f.klantNaam = k.naam; f.klantAdres = k.adres; f.klantPostcode = k.postcode; f.klantPlaats = k.plaats; f.klantEmail = k.email; f.klantContactpersoon = k.vertegenwoordigerNaam || ""; }
   else { f.klantId = ""; }
   persistFacturen(); render();
 }
@@ -1482,7 +1482,7 @@ function updateOfferteRegel(id, regelId, patch) { var o = getOfferte(id); var r 
 function kiesKlantVoorOfferte(offerteId, klantId) {
   var o = getOfferte(offerteId); var k = getKlant(klantId);
   if (!o) return;
-  if (k) { o.klantId = k.id; o.klantNaam = k.naam; o.klantAdres = k.adres; o.klantPostcode = k.postcode; o.klantPlaats = k.plaats; o.klantEmail = k.email; o.klantTelefoon = k.telefoon; o.klantNummer = k.klantNummer; }
+  if (k) { o.klantId = k.id; o.klantNaam = k.naam; o.klantAdres = k.adres; o.klantPostcode = k.postcode; o.klantPlaats = k.plaats; o.klantEmail = k.email; o.klantTelefoon = k.telefoon; o.klantNummer = k.klantNummer; o.klantContactpersoon = k.vertegenwoordigerNaam || ""; }
   else { o.klantId = ""; }
   persistOffertes(); render();
 }
@@ -1750,7 +1750,7 @@ function converteerOfferteNaarFactuur(offerteId) {
   var o = getOfferte(offerteId);
   if (!o) return;
   var f = newFactuur("factuur");
-  f.klantId = o.klantId; f.klantNaam = o.klantNaam; f.klantAdres = o.klantAdres; f.klantPostcode = o.klantPostcode; f.klantPlaats = o.klantPlaats; f.klantEmail = o.klantEmail;
+  f.klantId = o.klantId; f.klantNaam = o.klantNaam; f.klantAdres = o.klantAdres; f.klantPostcode = o.klantPostcode; f.klantPlaats = o.klantPlaats; f.klantEmail = o.klantEmail; f.klantContactpersoon = o.klantContactpersoon || "";
   f.regels = o.regels.map(function(r){ return { id: uid(), omschrijving: r.omschrijving, aantal: r.aantal, prijs: r.prijs, btw: r.btw }; });
   if (o.inleiding) f.inleiding = offerteTekstNaarFactuurTekst(o.inleiding);
   if (o.werkzaamheden) f.werkzaamheden = offerteTekstNaarFactuurTekst(o.werkzaamheden);
@@ -1780,7 +1780,7 @@ function maakCreditNota(origineelId) {
   var orig = getFactuur(origineelId);
   if (!orig) return;
   var c = newFactuur("creditnota");
-  c.klantId = orig.klantId; c.klantNaam = orig.klantNaam; c.klantAdres = orig.klantAdres; c.klantPostcode = orig.klantPostcode; c.klantPlaats = orig.klantPlaats; c.klantEmail = orig.klantEmail;
+  c.klantId = orig.klantId; c.klantNaam = orig.klantNaam; c.klantAdres = orig.klantAdres; c.klantPostcode = orig.klantPostcode; c.klantPlaats = orig.klantPlaats; c.klantEmail = orig.klantEmail; c.klantContactpersoon = orig.klantContactpersoon || "";
   c.gekoppeldAan = orig.id;
   c.regels = orig.regels.map(function(r){ return { id: uid(), omschrijving: r.omschrijving, aantal: String(-Math.abs(parseFloat(r.aantal)||0)), prijs: r.prijs, btw: r.btw }; });
   c.opmerking = "Creditnota voor factuur " + orig.factuurnummer;
@@ -1874,7 +1874,7 @@ function genereerFactuurUitSjabloon(sjabloonId) {
   if (!s) return;
   var f = newFactuur("factuur");
   var k = getKlant(s.klantId);
-  if (k) { f.klantId = k.id; f.klantNaam = k.naam; f.klantAdres = k.adres; f.klantPostcode = k.postcode; f.klantPlaats = k.plaats; f.klantEmail = k.email; }
+  if (k) { f.klantId = k.id; f.klantNaam = k.naam; f.klantAdres = k.adres; f.klantPostcode = k.postcode; f.klantPlaats = k.plaats; f.klantEmail = k.email; f.klantContactpersoon = k.vertegenwoordigerNaam || ""; }
   f.regels = s.regels.map(function(r){ return { id: uid(), omschrijving: r.omschrijving, aantal: r.aantal, prijs: r.prijs, btw: r.btw }; });
   f.opmerking = s.opmerking;
   f.datum = s.volgendeDatum;
@@ -2463,6 +2463,12 @@ function renderOfferteWerkblad() {
   // ---------------- LINKERKOLOM: FORMULIER ----------------
   h += '<div class="ow-form no-print">';
 
+  h += '<div class="ow-step"><label class="fl">Soort offerte</label>';
+  h += '<div class="type-toggle">';
+  h += '<button type="button" class="' + (!o.energieActief?"active":"") + '" onclick="toggleEnergieActief(\'' + o.id + '\', false)">Vrije offerte (renovatie, kabelwerk, alles)</button>';
+  h += '<button type="button" class="' + (o.energieActief?"active":"") + '" onclick="toggleEnergieActief(\'' + o.id + '\', true)">Verduurzaming (met zon/batterij-rekentool)</button>';
+  h += '</div></div>';
+
   h += '<div class="ow-step"><div class="ow-step-head"><span class="ow-step-num">0</span><span class="ow-step-title">Jouw bedrijfsgegevens</span></div>';
   h += '<p class="subtitle" style="margin-top:-4px;">' + (b.naam ? esc(b.naam) : "Nog niet ingevuld") + ' &middot; <span style="text-decoration:underline;cursor:pointer;" onclick="setTab(\'instellingen\')">aanpassen bij Instellingen</span></p></div>';
 
@@ -2471,6 +2477,7 @@ function renderOfferteWerkblad() {
   state.klanten.forEach(function(k){ h += '<option value="' + k.id + '"' + (o.klantId===k.id?" selected":"") + '>' + esc(k.naam) + '</option>'; });
   h += '</select></div>';
   h += ofield(o.id,"klantNaam","Naam",o.klantNaam);
+  h += ofield(o.id,"klantContactpersoon","Naam eigenaar/contactpersoon",o.klantContactpersoon);
   h += ofield(o.id,"klantAdres","Adres",o.klantAdres);
   h += ofield(o.id,"klantEmail","E-mail",o.klantEmail);
   h += ofield(o.id,"klantTelefoon","Telefoon",o.klantTelefoon);
@@ -2528,7 +2535,7 @@ function renderOfferteWerkblad() {
   h += '</div>';
 
   h += '<div class="ow-step"><div class="ow-step-head"><span class="ow-step-num">6</span><span class="ow-step-title">Energieberekening</span></div>';
-  h += '<div class="toggle-row" style="display:flex;align-items:center;gap:10px;margin-bottom:14px;padding:12px 14px;background:#F7FEFC;border:1px solid var(--border);border-radius:10px;"><input type="checkbox" ' + (o.energieActief?"checked":"") + ' onchange="toggleEnergieActief(\'' + o.id + '\', this.checked)" style="width:20px;height:20px;" /><label style="font-weight:700;font-size:13.5px;margin:0;flex:1;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.2" y1="4.2" x2="5.6" y2="5.6"/><line x1="18.4" y1="18.4" x2="19.8" y2="19.8"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.2" y1="19.8" x2="5.6" y2="18.4"/><line x1="18.4" y1="5.6" x2="19.8" y2="4.2"/></svg> Zonnepanelen/batterij/warmtepomp/airco toevoegen</label></div>';
+  if (o.energieActief) h += '<p class="subtitle" style="margin-top:-6px;">De zon/batterij-rekentool staat aan. Wil je die uitzetten? Kies hierboven &quot;Vrije offerte&quot;.</p>';
   if (o.energieActief && o.energie) h += EO_renderConfig(o);
   h += '</div>';
 
@@ -2584,7 +2591,7 @@ function renderOfferteWerkblad() {
   h += '</div>';
   h += '<div class="ow-lh-right"><div class="doc-type-label">Offerte</div><div class="num">' + esc(o.offertenummer) + (o.status!=="concept" ? ' <span class="badge badge-' + o.status + '" style="margin-left:4px;">' + statusLabel(o.status) + '</span>' : '') + '</div><div>' + esc(o.datum) + (o.geldigTot ? '<br/>Geldig tot ' + esc(o.geldigTot) : '') + '</div></div>';
   h += '</div>';
-  h += '<div class="ow-klant-block"><div class="naam">' + esc(o.klantNaam || "Klantnaam") + '</div>';
+  h += '<div class="ow-klant-block"><div class="naam">' + esc(o.klantNaam || "Klantnaam") + '</div>' + (o.klantContactpersoon ? '<div class="sub-line">T.a.v. ' + esc(o.klantContactpersoon) + '</div>' : '');
   if (o.klantAdres) h += '<div class="sub-line">' + esc(o.klantAdres) + '</div>';
   if (o.klantEmail) h += '<div class="sub-line">' + esc(o.klantEmail) + '</div>';
   if (o.klantNummer) h += '<div class="sub-line">Klantnummer: ' + esc(o.klantNummer) + '</div>';
@@ -3101,6 +3108,7 @@ function renderFactuurForm() {
   h += '<h3>Klantgegevens</h3><div class="grid2">';
   h += klantKiezer(f.id, f.klantId);
   h += ffield(f.id,"klantNaam","Klant / bedrijfsnaam",f.klantNaam,"text","full");
+  h += ffield(f.id,"klantContactpersoon","Naam eigenaar/contactpersoon",f.klantContactpersoon,"text","full");
   h += ffield(f.id,"klantAdres","Adres",f.klantAdres,"text","full");
   h += ffield(f.id,"klantPostcode","Postcode",f.klantPostcode);
   h += ffield(f.id,"klantPlaats","Plaats",f.klantPlaats);
@@ -3196,7 +3204,7 @@ function renderFactuurView() {
   h += '</div>';
   h += '<div class="ow-lh-right"><div class="doc-type-label">' + (isCredit ? "Creditnota" : "Factuur") + '</div><div class="num">' + esc(f.factuurnummer) + (st!=="concept" ? ' <span class="badge badge-' + st + '" style="margin-left:4px;">' + statusLabel(st) + '</span>' : '') + '</div><div>' + esc(f.datum) + (f.vervaldatum ? '<br/>Vervaldatum ' + esc(f.vervaldatum) + (f.betalingstermijn ? ' (' + esc(f.betalingstermijn) + ' dgn)' : '') : '') + '</div></div>';
   h += '</div>';
-  h += '<div class="ow-klant-block"><div class="naam">' + esc(f.klantNaam || "Klantnaam") + '</div>';
+  h += '<div class="ow-klant-block"><div class="naam">' + esc(f.klantNaam || "Klantnaam") + '</div>' + (f.klantContactpersoon ? '<div class="sub-line">T.a.v. ' + esc(f.klantContactpersoon) + '</div>' : '');
   if (f.klantAdres) h += '<div class="sub-line">' + esc(f.klantAdres) + '</div>';
   if (f.klantPostcode || f.klantPlaats) h += '<div class="sub-line">' + esc([f.klantPostcode,f.klantPlaats].filter(Boolean).join(" ")) + '</div>';
   if (f.klantEmail) h += '<div class="sub-line">' + esc(f.klantEmail) + '</div>';
