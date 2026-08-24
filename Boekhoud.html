@@ -184,7 +184,7 @@
   .ow-stripe { height:6px; }
   .ow-letterhead { padding:26px 34px 18px; border-bottom:1px solid #EFF6F5; display:flex; justify-content:space-between; align-items:flex-start; }
   .ow-wordmark { font-family:ui-monospace,monospace; font-size:19px; font-weight:800; letter-spacing:-0.02em; }
-  .verkoper-gegevens { margin-top:8px; font-size:11px; line-height:1.6; color:var(--muted); }
+  .verkoper-gegevens { margin-top:0; font-size:11px; line-height:1.6; color:var(--muted); }
   .ow-tagline { font-size:11px; color:var(--muted); margin-top:2px; }
   .ow-lh-right { text-align:right; font-size:12px; color:var(--muted); }
   .doc-type-label { font-size:10.5px; font-weight:800; letter-spacing:0.06em; text-transform:uppercase; color:var(--muted); margin-bottom:2px; }
@@ -1800,9 +1800,13 @@ function openFactuur(id) { state.huidigeFactuurId = id; setTab("factuur-view"); 
 function bewerkFactuur(id) { state.huidigeFactuurId = id; setTab("factuur-form"); }
 function getFactuur(id) { return state.facturen.find(function(f){return f.id===id;}); }
 function facturenGesorteerd() {
+  var manier = state.facturenSorteren || "datum";
   return state.facturen.slice().sort(function(a,b){
-    if (a.datum !== b.datum) return b.datum.localeCompare(a.datum); // nieuwste datum eerst
-    return b.factuurnummer.localeCompare(a.factuurnummer, "nl", { numeric: true }); // daarna op nummer
+    if (manier === "nummer") return b.factuurnummer.localeCompare(a.factuurnummer, "nl", { numeric: true });
+    if (manier === "klant") return (a.klantNaam||"").localeCompare(b.klantNaam||"", "nl");
+    // standaard: op datum, nieuwste eerst, dan op nummer
+    if (a.datum !== b.datum) return b.datum.localeCompare(a.datum);
+    return b.factuurnummer.localeCompare(a.factuurnummer, "nl", { numeric: true });
   });
 }
 function updateFactuurField(id, key, val) {
@@ -2593,15 +2597,16 @@ function renderOfferteWerkblad() {
   h += '<div style="display:flex;align-items:center;gap:12px;">';
   if (b.logoData) h += '<img src="' + b.logoData + '" style="height:66px;max-width:210px;object-fit:contain;" />';
   h += '</div>';
-  h += '<div class="ow-wordmark" style="margin-top:14px;margin-bottom:2px;font-size:16px;">' + esc(b.naam || "Jouw bedrijf") + '</div>';
+  h += '<div class="ow-wordmark" style="margin-top:14px;margin-bottom:0;font-size:16px;line-height:1.6;">' + esc(b.naam || "Jouw bedrijf") + '</div>';
   h += verkoperGegevensHtml(b);
   h += '</div>';
-  h += '<div class="ow-lh-right"><div class="doc-type-label">Offerte</div><div class="num">' + esc(o.offertenummer) + (o.status!=="concept" ? ' <span class="badge badge-' + o.status + '" style="margin-left:4px;">' + statusLabel(o.status) + '</span>' : '') + '</div><div>' + esc(o.datum) + (o.geldigTot ? '<br/>Geldig tot ' + esc(o.geldigTot) : '') + '</div></div>';
-  h += '</div>';
-  h += '<div class="ow-klant-block"><div class="naam">' + esc(o.klantNaam || "Klantnaam") + '</div>' + (o.klantContactpersoon ? '<div class="sub-line">T.a.v. ' + esc(o.klantContactpersoon) + '</div>' : '');
+  h += '<div class="ow-lh-right"><div class="doc-type-label">Offerte</div><div class="num">' + esc(o.offertenummer) + (o.status!=="concept" ? ' <span class="badge badge-' + o.status + '" style="margin-left:4px;">' + statusLabel(o.status) + '</span>' : '') + '</div><div>' + esc(o.datum) + (o.geldigTot ? '<br/>Geldig tot ' + esc(o.geldigTot) : '') + '</div>';
+  h += '<div class="ow-klant-block" style="padding:0;margin-top:14px;text-align:right;"><div class="naam">' + esc(o.klantNaam || "Klantnaam") + '</div>' + (o.klantContactpersoon ? '<div class="sub-line">T.a.v. ' + esc(o.klantContactpersoon) + '</div>' : '');
   if (o.klantAdres) h += '<div class="sub-line">' + esc(o.klantAdres) + '</div>';
   if (o.klantEmail) h += '<div class="sub-line">' + esc(o.klantEmail) + '</div>';
   if (o.klantNummer) h += '<div class="sub-line">Klantnummer: ' + esc(o.klantNummer) + '</div>';
+  h += '</div>';
+  h += '</div>';
   h += '</div>';
   if (o.aanbetalingsmethode) h += '<div style="padding:10px 34px 0;font-size:12px;color:var(--muted);">Aanbetalingsmethode: ' + esc(o.aanbetalingsmethode) + '</div>';
   h += '<div class="ow-body">';
@@ -3080,6 +3085,15 @@ function renderFacturenLijst() {
 
   h += '<p class="subtitle">' + state.facturen.length + ' factu' + (state.facturen.length===1?"ur":"ren") + '</p>';
   if (magBewerken("facturen")) h += '<button class="btn-primary no-print" onclick="nieuweFactuur()" style="margin-bottom:10px;">+ Nieuwe factuur</button>';
+  if (state.facturen.length > 1) {
+    h += '<div class="no-print" style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">';
+    h += '<label class="fl" style="margin:0;">Sorteren op</label>';
+    h += '<select class="f" style="margin-bottom:0;width:auto;" onchange="state.facturenSorteren=this.value; render();">';
+    h += '<option value="datum"' + ((state.facturenSorteren||"datum")==="datum"?" selected":"") + '>Datum (nieuwste eerst)</option>';
+    h += '<option value="nummer"' + (state.facturenSorteren==="nummer"?" selected":"") + '>Factuurnummer</option>';
+    h += '<option value="klant"' + (state.facturenSorteren==="klant"?" selected":"") + '>Klantnaam</option>';
+    h += '</select></div>';
+  }
   var facturenOmTeCrediteren = state.facturen.filter(function(f){ return f.type === "factuur"; });
   if (facturenOmTeCrediteren.length > 0) {
     h += '<div class="section-card no-print" style="padding:14px;margin-bottom:14px;">';
@@ -3208,15 +3222,16 @@ function renderFactuurView() {
   h += '<div style="display:flex;align-items:center;gap:12px;">';
   if (b.logoData) h += '<img src="' + b.logoData + '" style="height:66px;max-width:210px;object-fit:contain;" />';
   h += '</div>';
-  h += '<div class="ow-wordmark" style="margin-top:14px;margin-bottom:2px;font-size:16px;">' + esc(b.naam || "Jouw bedrijf") + '</div>';
+  h += '<div class="ow-wordmark" style="margin-top:14px;margin-bottom:0;font-size:16px;line-height:1.6;">' + esc(b.naam || "Jouw bedrijf") + '</div>';
   h += verkoperGegevensHtml(b);
   h += '</div>';
-  h += '<div class="ow-lh-right"><div class="doc-type-label">' + (isCredit ? "Creditnota" : "Factuur") + '</div><div class="num">' + esc(f.factuurnummer) + (st!=="concept" ? ' <span class="badge badge-' + st + '" style="margin-left:4px;">' + statusLabel(st) + '</span>' : '') + '</div><div>' + esc(f.datum) + (f.vervaldatum ? '<br/>Vervaldatum ' + esc(f.vervaldatum) + (f.betalingstermijn ? ' (' + esc(f.betalingstermijn) + ' dgn)' : '') : '') + '</div></div>';
-  h += '</div>';
-  h += '<div class="ow-klant-block"><div class="naam">' + esc(f.klantNaam || "Klantnaam") + '</div>' + (f.klantContactpersoon ? '<div class="sub-line">T.a.v. ' + esc(f.klantContactpersoon) + '</div>' : '');
+  h += '<div class="ow-lh-right"><div class="doc-type-label">' + (isCredit ? "Creditnota" : "Factuur") + '</div><div class="num">' + esc(f.factuurnummer) + (st!=="concept" ? ' <span class="badge badge-' + st + '" style="margin-left:4px;">' + statusLabel(st) + '</span>' : '') + '</div><div>' + esc(f.datum) + (f.vervaldatum ? '<br/>Vervaldatum ' + esc(f.vervaldatum) + (f.betalingstermijn ? ' (' + esc(f.betalingstermijn) + ' dgn)' : '') : '') + '</div>';
+  h += '<div class="ow-klant-block" style="padding:0;margin-top:14px;text-align:right;"><div class="naam">' + esc(f.klantNaam || "Klantnaam") + '</div>' + (f.klantContactpersoon ? '<div class="sub-line">T.a.v. ' + esc(f.klantContactpersoon) + '</div>' : '');
   if (f.klantAdres) h += '<div class="sub-line">' + esc(f.klantAdres) + '</div>';
   if (f.klantPostcode || f.klantPlaats) h += '<div class="sub-line">' + esc([f.klantPostcode,f.klantPlaats].filter(Boolean).join(" ")) + '</div>';
   if (f.klantEmail) h += '<div class="sub-line">' + esc(f.klantEmail) + '</div>';
+  h += '</div>';
+  h += '</div>';
   h += '</div>';
   if (f.gekoppeldAan) { var orig = getFactuur(f.gekoppeldAan); if (orig) h += '<div style="padding:10px 34px 0;font-size:12px;color:var(--muted);">Betreft factuur ' + esc(orig.factuurnummer) + '</div>'; }
   h += '<div class="ow-body">';
