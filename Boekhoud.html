@@ -764,7 +764,7 @@ function berekenVervaldatum(datumStr, termijnDagen) {
   return d.toISOString().slice(0,10);
 }
 function newFactuurRegel() { return { id: uid(), omschrijving:"", aantal:"1", prijs:"", btw:21 }; }
-function newKlant() { return { id: uid(), klantType:"particulier", klantNummer: genereerKlantNummer(), naam:"", vertegenwoordigerNaam:"", adres:"", postcode:"", plaats:"", email:"", telefoon:"", kvk:"", btwnummer:"", isLicentiehouder:false, licentienummer:"", licentieType:"eenmalig", licentieDatum:"", licentieGeldigTot:"", licentieNotities:"" }; }
+function newKlant() { return { id: uid(), klantType:"particulier", klantNummer: genereerKlantNummer(), naam:"", vertegenwoordigerNaam:"", contactpersonen:[], adres:"", postcode:"", plaats:"", email:"", telefoon:"", kvk:"", btwnummer:"", isLicentiehouder:false, licentienummer:"", licentieType:"eenmalig", licentieDatum:"", licentieGeldigTot:"", licentieNotities:"" }; }
 function genereerKlantNummer() {
   var nr = state.bedrijf.nextKlantNr || 100;
   state.bedrijf.nextKlantNr = nr + 1;
@@ -1220,8 +1220,43 @@ function swipeWrap(id, innerHtml, verwijderFn) {
 // ---------------------------------------------------------------------
 function nieuweKlant() { var k = newKlant(); state.klanten.unshift(k); persistKlanten(); persistBedrijf(); state.huidigeKlantId = k.id; setTab("klant-form"); toonToast("Nieuwe klant aangemaakt \u2014 " + k.klantNummer); }
 function getKlant(id) { return state.klanten.find(function(k){return k.id===id;}); }
-function klantenGesorteerd() { return state.klanten.slice().sort(function(a,b){ return (a.naam||"").localeCompare(b.naam||"", "nl", {sensitivity:"base"}); }); }
+function klantenGesorteerd() {
+  var manier = state.klantenSorteren || "naam";
+  return state.klanten.slice().sort(function(a,b){
+    if (manier === "klantnummer") return (a.klantNummer||"").localeCompare(b.klantNummer||"", "nl", { numeric: true });
+    if (manier === "plaats") return (a.plaats||"").localeCompare(b.plaats||"", "nl", {sensitivity:"base"});
+    return (a.naam||"").localeCompare(b.naam||"", "nl", {sensitivity:"base"});
+  });
+}
 function updateKlantField(id, key, val) { var k = getKlant(id); if (k) k[key] = val; persistKlanten(); }
+function contactpersoonKiezerHtml(klantId, docId, updateFnNaam) {
+  var k = getKlant(klantId);
+  if (!k || !k.contactpersonen || k.contactpersonen.length === 0) return "";
+  var h = '<div class="full" style="margin-top:-8px;margin-bottom:12px;"><label class="fl">Of kies een bekende contactpersoon van deze klant</label><select class="f" style="margin-bottom:0;" onchange="if(this.value) { ' + updateFnNaam + '(\'' + docId + '\',\'klantContactpersoon\', this.value); render(); } this.value=\'\';"><option value="">&mdash; kies &mdash;</option>';
+  k.contactpersonen.forEach(function(c){
+    if (!c.naam) return;
+    h += '<option value="' + esc(c.naam) + '">' + esc(c.naam) + (c.functie ? ' (' + esc(c.functie) + ')' : '') + '</option>';
+  });
+  h += '</select></div>';
+  return h;
+}
+function voegContactpersoonToe(klantId) {
+  var k = getKlant(klantId); if (!k) return;
+  if (!k.contactpersonen) k.contactpersonen = [];
+  k.contactpersonen.push({ id: uid(), naam: "", functie: "" });
+  persistKlanten(); render();
+}
+function updateContactpersoonVeld(klantId, contactId, veld, val) {
+  var k = getKlant(klantId); if (!k || !k.contactpersonen) return;
+  var c = k.contactpersonen.find(function(x){ return x.id === contactId; });
+  if (c) c[veld] = val;
+  persistKlanten();
+}
+function verwijderContactpersoon(klantId, contactId) {
+  var k = getKlant(klantId); if (!k || !k.contactpersonen) return;
+  k.contactpersonen = k.contactpersonen.filter(function(x){ return x.id !== contactId; });
+  persistKlanten(); render();
+}
 function removeKlant(id) { vraagBevestiging("Deze klant verwijderen? Facturen blijven bestaan.", function(){ state.klanten = state.klanten.filter(function(k){return k.id!==id;}); persistKlanten(); render(); }); }
 function bewerkKlant(id) { state.huidigeKlantId = id; setTab("klant-form"); }
 function kiesKlantVoorFactuur(factuurId, klantId) {
@@ -2184,6 +2219,15 @@ function renderDashboard() {
 function renderKlantenLijst() {
   var h = '<h1>Klanten</h1><p class="subtitle">' + state.klanten.length + ' klant' + (state.klanten.length===1?"":"en") + '</p>';
   if (magBewerken("klanten")) h += '<button class="btn-primary no-print" onclick="nieuweKlant()" style="margin-bottom:14px;">+ Nieuwe klant</button>';
+  if (state.klanten.length > 1) {
+    h += '<div class="no-print" style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">';
+    h += '<label class="fl" style="margin:0;">Sorteren op</label>';
+    h += '<select class="f" style="margin-bottom:0;width:auto;" onchange="state.klantenSorteren=this.value; render();">';
+    h += '<option value="naam"' + ((state.klantenSorteren||"naam")==="naam"?" selected":"") + '>Naam</option>';
+    h += '<option value="klantnummer"' + (state.klantenSorteren==="klantnummer"?" selected":"") + '>Klantnummer</option>';
+    h += '<option value="plaats"' + (state.klantenSorteren==="plaats"?" selected":"") + '>Plaats</option>';
+    h += '</select></div>';
+  }
   if (state.klanten.length === 0) {
     h += '<div class="empty-state">Nog geen klanten toegevoegd.</div>';
   } else {
@@ -2401,6 +2445,18 @@ function renderKlantForm() {
   }
   h += '</div>';
 
+  if (isZakelijk) {
+    h += '<h3>Extra contactpersonen <span style="font-weight:400;font-size:12px;color:var(--muted);">(bijv. projectleiders, inkopers, per project verschillend)</span></h3>';
+    (k.contactpersonen||[]).forEach(function(c){
+      h += '<div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:8px;">';
+      h += '<div style="flex:1;"><label class="fl">Naam</label><input class="f" style="margin-bottom:0;" value="' + esc(c.naam) + '" oninput="updateContactpersoonVeld(\'' + k.id + '\',\'' + c.id + '\',\'naam\',this.value)" /></div>';
+      h += '<div style="flex:1;"><label class="fl">Functie</label><input class="f" style="margin-bottom:0;" value="' + esc(c.functie) + '" placeholder="bijv. Projectleider" oninput="updateContactpersoonVeld(\'' + k.id + '\',\'' + c.id + '\',\'functie\',this.value)" /></div>';
+      h += '<button class="del-x" style="margin-bottom:0;" onclick="verwijderContactpersoon(\'' + k.id + '\',\'' + c.id + '\')" title="Verwijderen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>';
+      h += '</div>';
+    });
+    h += '<button class="btn-secondary" style="width:auto;margin-bottom:14px;" onclick="voegContactpersoonToe(\'' + k.id + '\')">+ Contactpersoon toevoegen</button>';
+  }
+
   h += '<h3 style="display:flex;align-items:center;gap:8px;">Licentiehouder <input type="checkbox" ' + (k.isLicentiehouder?"checked":"") + ' onchange="toggleLicentiehouder(\'' + k.id + '\', this.checked)" style="width:auto;margin:0;" /></h3>';
   if (k.isLicentiehouder) {
     h += '<p class="subtitle" style="margin-top:-4px;">Administratieve registratie &mdash; dit is geen technische beveiliging, alleen een overzicht wie een licentie heeft afgenomen.</p>';
@@ -2442,13 +2498,31 @@ function klantKiezer(factuurId, huidigeKlantId) {
   return h;
 }
 
+function offertesGesorteerd() {
+  var manier = state.offertesSorteren || "datum";
+  return state.offertes.slice().sort(function(a,b){
+    if (manier === "nummer") return b.offertenummer.localeCompare(a.offertenummer, "nl", { numeric: true });
+    if (manier === "klant") return (a.klantNaam||"").localeCompare(b.klantNaam||"", "nl");
+    if (a.datum !== b.datum) return b.datum.localeCompare(a.datum);
+    return b.offertenummer.localeCompare(a.offertenummer, "nl", { numeric: true });
+  });
+}
 function renderOffertesLijst() {
   var h = '<h1>Offertes</h1><p class="subtitle">' + state.offertes.length + ' offerte' + (state.offertes.length===1?"":"s") + '</p>';
   if (magBewerken("offertes")) h += '<button class="btn-primary no-print" onclick="nieuweOfferte()" style="margin-bottom:14px;">+ Nieuwe offerte</button>';
+  if (state.offertes.length > 1) {
+    h += '<div class="no-print" style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">';
+    h += '<label class="fl" style="margin:0;">Sorteren op</label>';
+    h += '<select class="f" style="margin-bottom:0;width:auto;" onchange="state.offertesSorteren=this.value; render();">';
+    h += '<option value="datum"' + ((state.offertesSorteren||"datum")==="datum"?" selected":"") + '>Datum (nieuwste eerst)</option>';
+    h += '<option value="nummer"' + (state.offertesSorteren==="nummer"?" selected":"") + '>Offertenummer</option>';
+    h += '<option value="klant"' + (state.offertesSorteren==="klant"?" selected":"") + '>Klantnaam</option>';
+    h += '</select></div>';
+  }
   if (state.offertes.length === 0) {
     h += '<div class="empty-state">Nog geen offertes gemaakt.</div>';
   } else {
-    state.offertes.forEach(function(o){
+    offertesGesorteerd().forEach(function(o){
       var t = offerteTotalen(o);
       var rowHtml = '<div class="list-row" style="margin-bottom:0;border-radius:10px;" onclick="swipeRowClick(\'' + o.id + '\', function(){ openOfferte(\'' + o.id + '\'); })">';
       rowHtml += '<div class="list-left"><div class="list-title">' + esc(o.klantNaam || "Naamloos") + '</div><div class="list-meta">' + esc(o.offertenummer) + ' &middot; ' + esc(o.datum) + ' <span class="badge badge-' + o.status + '" style="margin-left:6px;">' + statusLabel(o.status) + '</span>' + (o.gefactureerd?' <span class="badge" style="background:#2F6B4F;margin-left:4px;">Gefactureerd</span>':'') + '</div></div>';
@@ -2488,6 +2562,7 @@ function renderOfferteWerkblad() {
   h += '</select></div>';
   h += ofield(o.id,"klantNaam","Naam",o.klantNaam);
   h += ofield(o.id,"klantContactpersoon","Naam eigenaar/contactpersoon",o.klantContactpersoon);
+  h += contactpersoonKiezerHtml(o.klantId, o.id, "updateOfferteField");
   h += ofield(o.id,"klantAdres","Adres",o.klantAdres);
   h += ofield(o.id,"klantEmail","E-mail",o.klantEmail);
   h += ofield(o.id,"klantTelefoon","Telefoon",o.klantTelefoon);
@@ -2498,7 +2573,7 @@ function renderOfferteWerkblad() {
   });
   h += '</select></div>';
   h += '<div class="full"><label class="fl">Aanbetalingsmethode</label><input class="f" value="' + esc(o.aanbetalingsmethode) + '" oninput="updateOfferteField(\'' + o.id + '\', \'aanbetalingsmethode\', this.value)" /></div>';
-  h += '<div class="full" style="display:flex;align-items:center;gap:8px;margin-top:4px;"><input type="checkbox" id="akkoord-terplekke-' + o.id + '" ' + (o.akkoordTerPlekkeAan?"checked":"") + ' onchange="updateOfferteField(\'' + o.id + '\',\'akkoordTerPlekkeAan\',this.checked); render();" style="width:auto;" /><label for="akkoord-terplekke-' + o.id + '" style="font-size:12.5px;margin:0;">Klant kan ter plekke op dit toestel ondertekenen</label></div>';
+  h += '<div class="full" style="display:flex;align-items:center;gap:8px;margin-top:4px;"><input type="checkbox" id="akkoord-terplekke-' + o.id + '" ' + (o.akkoordTerPlekkeAan?"checked":"") + ' onchange="updateOfferteField(\'' + o.id + '\',\'akkoordTerPlekkeAan\',this.checked); render();" style="width:auto;" /><label for="akkoord-terplekke-' + o.id + '" style="font-size:12.5px;margin:0;color:#fff;">Klant kan ter plekke op dit toestel ondertekenen</label></div>';
   h += '</div>';
 
   h += '<div class="ow-step"><div class="ow-step-head"><span class="ow-step-num">2</span><span class="ow-step-title">Type werkzaamheden</span></div>';
@@ -2756,7 +2831,7 @@ function EO_renderConfig(o) {
 
   // Zonnepanelen
   h += '<div style="border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;background:#FAFCFA;">';
-  h += '<div class="toggle-row" style="margin-bottom:10px;"><input type="checkbox" ' + (s.zonActief?"checked":"") + ' onchange="eoVeldRender(\'' + oid + '\',\'zonActief\', this.checked)" style="width:18px;height:18px;" /><label style="font-weight:700;font-size:13px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.2" y1="4.2" x2="5.6" y2="5.6"/><line x1="18.4" y1="18.4" x2="19.8" y2="19.8"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.2" y1="19.8" x2="5.6" y2="18.4"/><line x1="18.4" y1="5.6" x2="19.8" y2="4.2"/></svg> Zonnepanelen</label></div>';
+  h += '<div class="toggle-row" style="margin-bottom:10px;"><input type="checkbox" ' + (s.zonActief?"checked":"") + ' onchange="eoVeldRender(\'' + oid + '\',\'zonActief\', this.checked)" style="width:18px;height:18px;" /><label style="font-weight:700;font-size:13px;color:#fff;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.2" y1="4.2" x2="5.6" y2="5.6"/><line x1="18.4" y1="18.4" x2="19.8" y2="19.8"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.2" y1="19.8" x2="5.6" y2="18.4"/><line x1="18.4" y1="5.6" x2="19.8" y2="4.2"/></svg> Zonnepanelen</label></div>';
   if (s.zonActief) {
     var zonProducten = state.producten.filter(function(pr){ return pr.categorie === "Zonnepanelen" && pr.specWaarde; });
     if (zonProducten.length > 0) {
@@ -2780,7 +2855,7 @@ function EO_renderConfig(o) {
 
   // Batterij
   h += '<div style="border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;background:#FAFCFA;">';
-  h += '<div class="toggle-row" style="margin-bottom:10px;"><input type="checkbox" ' + (s.batterijActief?"checked":"") + ' onchange="eoVeldRender(\'' + oid + '\',\'batterijActief\', this.checked)" style="width:18px;height:18px;" /><label style="font-weight:700;font-size:13px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><rect x="1" y="7" width="18" height="10" rx="2"/><line x1="23" y1="11" x2="23" y2="13"/><line x1="5" y1="10" x2="5" y2="14"/><line x1="9" y1="10" x2="9" y2="14"/></svg> Thuisbatterij</label></div>';
+  h += '<div class="toggle-row" style="margin-bottom:10px;"><input type="checkbox" ' + (s.batterijActief?"checked":"") + ' onchange="eoVeldRender(\'' + oid + '\',\'batterijActief\', this.checked)" style="width:18px;height:18px;" /><label style="font-weight:700;font-size:13px;color:#fff;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><rect x="1" y="7" width="18" height="10" rx="2"/><line x1="23" y1="11" x2="23" y2="13"/><line x1="5" y1="10" x2="5" y2="14"/><line x1="9" y1="10" x2="9" y2="14"/></svg> Thuisbatterij</label></div>';
   if (s.batterijActief) {
     var batterijProducten = state.producten.filter(function(pr){ return pr.categorie === "Thuisbatterijen" && pr.specWaarde; });
     if (batterijProducten.length > 0) {
@@ -2795,7 +2870,7 @@ function EO_renderConfig(o) {
     h += '</div>';
     var extraOpbrengstBatterij = r.extraDoorBatterij * ((parseFloat(s.stroomprijs)||0) - (parseFloat(s.terugleverprijs)||0));
     h += eoImpactRegel('<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><rect x="1" y="7" width="18" height="10" rx="2"/><line x1="23" y1="11" x2="23" y2="13"/><line x1="5" y1="10" x2="5" y2="14"/><line x1="9" y1="10" x2="9" y2="14"/></svg> Verschuift ' + nf(r.extraDoorBatterij) + " kWh/jaar &middot; extra opbrengst " + euro(extraOpbrengstBatterij) + "/jaar");
-    h += '<div class="toggle-row" style="margin-top:10px;"><input type="checkbox" ' + (s.batterijBackupActief?"checked":"") + ' onchange="eoVeldRender(\'' + oid + '\',\'batterijBackupActief\', this.checked)" style="width:18px;height:18px;" /><label style="font-weight:700;font-size:12.5px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><polygon points="13 2 3 14 11 14 10 22 21 10 13 10 13 2"/></svg> Noodstroom bij stroomuitval</label></div>';
+    h += '<div class="toggle-row" style="margin-top:10px;"><input type="checkbox" ' + (s.batterijBackupActief?"checked":"") + ' onchange="eoVeldRender(\'' + oid + '\',\'batterijBackupActief\', this.checked)" style="width:18px;height:18px;" /><label style="font-weight:700;font-size:12.5px;color:#fff;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><polygon points="13 2 3 14 11 14 10 22 21 10 13 10 13 2"/></svg> Noodstroom bij stroomuitval</label></div>';
     if (s.batterijBackupActief) {
       h += '<div class="grid2">';
       h += eoField(oid,"batterijBruikbaarPct","Bruikbare capaciteit (%)",s.batterijBruikbaarPct);
@@ -2808,7 +2883,7 @@ function EO_renderConfig(o) {
 
   // Warmtepomp
   h += '<div style="border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;background:#FAFCFA;">';
-  h += '<div class="toggle-row" style="margin-bottom:10px;"><input type="checkbox" ' + (s.wpActief?"checked":"") + ' onchange="eoVeldRender(\'' + oid + '\',\'wpActief\', this.checked)" style="width:18px;height:18px;" /><label style="font-weight:700;font-size:13px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><polygon points="13 2 3 14 11 14 10 22 21 10 13 10 13 2"/></svg> Warmtepomp</label></div>';
+  h += '<div class="toggle-row" style="margin-bottom:10px;"><input type="checkbox" ' + (s.wpActief?"checked":"") + ' onchange="eoVeldRender(\'' + oid + '\',\'wpActief\', this.checked)" style="width:18px;height:18px;" /><label style="font-weight:700;font-size:13px;color:#fff;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><polygon points="13 2 3 14 11 14 10 22 21 10 13 10 13 2"/></svg> Warmtepomp</label></div>';
   if (s.wpActief) {
     var wpProducten = state.producten.filter(function(pr){ return pr.categorie === "Warmtepompen" && pr.specWaarde; });
     if (wpProducten.length > 0) {
@@ -2829,7 +2904,7 @@ function EO_renderConfig(o) {
 
   // Airco
   h += '<div style="border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;background:#FAFCFA;">';
-  h += '<div class="toggle-row" style="margin-bottom:10px;"><input type="checkbox" ' + (s.aircoActief?"checked":"") + ' onchange="toggleEOAircoActief(\'' + oid + '\', this.checked)" style="width:18px;height:18px;" /><label style="font-weight:700;font-size:13px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><line x1="12" y1="2" x2="12" y2="22"/><line x1="4.9" y1="6" x2="19.1" y2="18"/><line x1="4.9" y1="18" x2="19.1" y2="6"/><path d="M12 2l-2 2M12 2l2 2M12 22l-2-2M12 22l2-2"/></svg> Airco</label></div>';
+  h += '<div class="toggle-row" style="margin-bottom:10px;"><input type="checkbox" ' + (s.aircoActief?"checked":"") + ' onchange="toggleEOAircoActief(\'' + oid + '\', this.checked)" style="width:18px;height:18px;" /><label style="font-weight:700;font-size:13px;color:#fff;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><line x1="12" y1="2" x2="12" y2="22"/><line x1="4.9" y1="6" x2="19.1" y2="18"/><line x1="4.9" y1="18" x2="19.1" y2="6"/><path d="M12 2l-2 2M12 2l2 2M12 22l-2-2M12 22l2-2"/></svg> Airco</label></div>';
   if (s.aircoActief) {
     (s.aircoInstallaties||[]).forEach(function(inst, idx){
       h += '<div style="border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px;background:#fff;">';
@@ -3132,6 +3207,7 @@ function renderFactuurForm() {
   h += klantKiezer(f.id, f.klantId);
   h += ffield(f.id,"klantNaam","Klant / bedrijfsnaam",f.klantNaam,"text","full");
   h += ffield(f.id,"klantContactpersoon","Naam eigenaar/contactpersoon",f.klantContactpersoon,"text","full");
+  h += contactpersoonKiezerHtml(f.klantId, f.id, "updateFactuurField");
   h += ffield(f.id,"klantAdres","Adres",f.klantAdres,"text","full");
   h += ffield(f.id,"klantPostcode","Postcode",f.klantPostcode);
   h += ffield(f.id,"klantPlaats","Plaats",f.klantPlaats);
