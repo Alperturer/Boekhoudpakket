@@ -194,6 +194,11 @@
   .ow-klant-block .sub-line { color:var(--muted); }
   .ow-body { padding:22px 34px; font-size:13.5px; line-height:1.6; color:#0A0A0A; }
   #ow-print-area, #ow-print-area .ow-klant-block, #ow-print-area .ow-wordmark, #r-page-factuur, #r-page-factuur .ow-klant-block, #r-page-factuur .ow-wordmark { color:#0A0A0A; }
+  /* Alle lopende tekst op de offerte/factuur zwart, behalve waar het echt wit moet blijven om leesbaar te zijn (gekleurde balken/vakken) */
+  #ow-print-area, #ow-print-area *, #r-page-factuur, #r-page-factuur * { color:#0A0A0A; }
+  #ow-print-area table.ow-regels-table th, #r-page-factuur table.ow-regels-table th,
+  #ow-print-area .ow-totals-final, #ow-print-area .ow-totals-final *, #r-page-factuur .ow-totals-final, #r-page-factuur .ow-totals-final *,
+  #ow-print-area .badge, #r-page-factuur .badge { color:#fff; }
   .ow-section-title { font-size:11px; text-transform:uppercase; letter-spacing:0.06em; color:#9FB8B6; margin-top:18px; margin-bottom:6px; font-weight:700; }
   table.ow-regels-table { width:100%; border-collapse:collapse; margin-top:14px; font-size:13px; }
   table.ow-regels-table th { text-align:left; padding:9px 10px; font-size:11px; color:#fff; font-weight:700; text-transform:uppercase; letter-spacing:0.03em; background:linear-gradient(to right, #0F6E6E, #2FA398); }
@@ -826,6 +831,7 @@ function newOfferte() {
     tekstmodus: "standaard", standaardStijl: "zakelijk",
     inleiding: "", werkzaamheden: "", garantie: "", afsluiting: "",
     akkoordLokaal: null, // { beslissing, naam, datum } -- ter plekke accorderen, op dit toestel
+    akkoordTerPlekkeAan: false, // optie: klant kan ter plekke op dit toestel ondertekenen (standaard uit)
     gefactureerd: false,
     energieActief: false, energie: null, // gevuld via EO_nieuwSysteem() zodra ingeschakeld
   };
@@ -2488,6 +2494,7 @@ function renderOfferteWerkblad() {
   });
   h += '</select></div>';
   h += '<div class="full"><label class="fl">Aanbetalingsmethode</label><input class="f" value="' + esc(o.aanbetalingsmethode) + '" oninput="updateOfferteField(\'' + o.id + '\', \'aanbetalingsmethode\', this.value)" /></div>';
+  h += '<div class="full" style="display:flex;align-items:center;gap:8px;margin-top:4px;"><input type="checkbox" id="akkoord-terplekke-' + o.id + '" ' + (o.akkoordTerPlekkeAan?"checked":"") + ' onchange="updateOfferteField(\'' + o.id + '\',\'akkoordTerPlekkeAan\',this.checked); render();" style="width:auto;" /><label for="akkoord-terplekke-' + o.id + '" style="font-size:12.5px;margin:0;">Klant kan ter plekke op dit toestel ondertekenen</label></div>';
   h += '</div>';
 
   h += '<div class="ow-step"><div class="ow-step-head"><span class="ow-step-num">2</span><span class="ow-step-title">Type werkzaamheden</span></div>';
@@ -2631,20 +2638,22 @@ function renderOfferteWerkblad() {
   }
   h += '<div class="ow-footer-note">' + esc(b.naam||"") + " &middot; " + (o.geldigTot ? "Deze offerte is geldig tot " + esc(o.geldigTot) + "." : "Deze offerte is 30 dagen geldig vanaf bovenstaande datum.") + '</div>';
 
-  if (o.klantAkkoordHandtekening) {
-    h += '<div class="ow-akkoord-block no-print"><div class="ow-akkoord-done" style="color:#0F766E;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg> Digitaal geaccordeerd door ' + esc(o.klantAkkoordNaam||"") + (o.klantAkkoordDatum?" op "+new Date(o.klantAkkoordDatum).toLocaleDateString("nl-NL"):"") + '</div></div>';
-  } else if (o.akkoordLokaal && o.akkoordLokaal.beslissing === "akkoord") {
-    h += '<div class="ow-akkoord-block no-print"><div class="ow-akkoord-done" style="color:#0F766E;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg> Ter plekke geaccordeerd door ' + esc(o.akkoordLokaal.naam) + ' op ' + esc(o.akkoordLokaal.datum) + '</div></div>';
-  } else if (o.akkoordLokaal && o.akkoordLokaal.beslissing === "afgewezen") {
-    h += '<div class="ow-akkoord-block no-print"><div class="ow-akkoord-done" style="color:#B23A2F;">Niet akkoord gegeven door ' + esc(o.akkoordLokaal.naam) + ' op ' + esc(o.akkoordLokaal.datum) + '</div></div>';
-  } else {
-    h += '<div class="ow-akkoord-block no-print">';
-    h += '<div style="font-size:12px;color:var(--muted);margin-bottom:8px;">Voor akkoord &mdash; ter plekke te ondertekenen door de klant, op dit toestel</div>';
-    h += '<input class="f" id="ow-akkoord-naam-' + o.id + '" placeholder="Naam voor akkoord" value="' + esc(o.klantNaam) + '" />';
-    h += '<div class="ow-akkoord-actions">';
-    h += '<button style="background:' + accent + ';color:#fff;" onclick="beslisAkkoordLokaal(\'' + o.id + '\',\'akkoord\')">Ik ga akkoord</button>';
-    h += '<button style="background:#fff;color:var(--muted);border:1px solid var(--border);" onclick="beslisAkkoordLokaal(\'' + o.id + '\',\'afgewezen\')">Niet akkoord</button>';
-    h += '</div></div>';
+  if (o.akkoordTerPlekkeAan) {
+    if (o.klantAkkoordHandtekening) {
+      h += '<div class="ow-akkoord-block no-print"><div class="ow-akkoord-done" style="color:#0F766E;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg> Digitaal geaccordeerd door ' + esc(o.klantAkkoordNaam||"") + (o.klantAkkoordDatum?" op "+new Date(o.klantAkkoordDatum).toLocaleDateString("nl-NL"):"") + '</div></div>';
+    } else if (o.akkoordLokaal && o.akkoordLokaal.beslissing === "akkoord") {
+      h += '<div class="ow-akkoord-block no-print"><div class="ow-akkoord-done" style="color:#0F766E;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg> Ter plekke geaccordeerd door ' + esc(o.akkoordLokaal.naam) + ' op ' + esc(o.akkoordLokaal.datum) + '</div></div>';
+    } else if (o.akkoordLokaal && o.akkoordLokaal.beslissing === "afgewezen") {
+      h += '<div class="ow-akkoord-block no-print"><div class="ow-akkoord-done" style="color:#B23A2F;">Niet akkoord gegeven door ' + esc(o.akkoordLokaal.naam) + ' op ' + esc(o.akkoordLokaal.datum) + '</div></div>';
+    } else {
+      h += '<div class="ow-akkoord-block no-print">';
+      h += '<div style="font-size:12px;color:var(--muted);margin-bottom:8px;">Voor akkoord &mdash; ter plekke te ondertekenen door de klant, op dit toestel</div>';
+      h += '<input class="f" id="ow-akkoord-naam-' + o.id + '" placeholder="Naam voor akkoord" value="' + esc(o.klantNaam) + '" />';
+      h += '<div class="ow-akkoord-actions">';
+      h += '<button style="background:' + accent + ';color:#fff;" onclick="beslisAkkoordLokaal(\'' + o.id + '\',\'akkoord\')">Ik ga akkoord</button>';
+      h += '<button style="background:#fff;color:var(--muted);border:1px solid var(--border);" onclick="beslisAkkoordLokaal(\'' + o.id + '\',\'afgewezen\')">Niet akkoord</button>';
+      h += '</div></div>';
+    }
   }
   var energiePaginaCount = (o.energieActief && o.energie && o.energie.zonActief) ? 4 : 0;
   var datasheetsPaginaCount = datasheetsPaginaAantal(o.datasheets);
