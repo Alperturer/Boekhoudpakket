@@ -161,9 +161,7 @@
   .ow-step-title { font-size:13px; font-weight:700; color:#fff; }
   .ow-form label.fl { color:#8FD9CC; }
   .ow-form .subtitle { color:#B9DDD6; }
-  .ow-form input.f, .ow-form select.f, .ow-form textarea.f { background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.18); color:#fff; }
-  .ow-form input.f::placeholder, .ow-form textarea.f::placeholder { color:#7FA9A2; }
-  .ow-form select.f { background-image:url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath fill='%238FD9CC' d='M1 1l5 5 5-5'/%3E%3C/svg%3E"); }
+  .ow-form input.f, .ow-form select.f, .ow-form textarea.f { background:#fff; border:1px solid var(--border); color:var(--text); }
   .ow-form h3 { color:#fff; }
   .ow-form .ow-chip { background:rgba(255,255,255,0.06); border-color:rgba(255,255,255,0.18); color:#fff; }
   .ow-form .btn-add { border-color:rgba(255,255,255,0.3); color:#B9DDD6; }
@@ -1005,9 +1003,12 @@ function scheduleCloudSyncSectie(tabel, waarde) {
 }
 function slaOpInCloudSectie(tabel, waarde) {
   state.cloudSaving = true;
-  supabaseClient.from(tabel).upsert({ organisatie_id: state.organisatieId, data: waarde, updated_at: new Date().toISOString() }, { onConflict: "organisatie_id" }).then(function(){
-    state.cloudSaving = false; render();
-  }).catch(function(){ state.cloudSaving = false; });
+  supabaseClient.from(tabel).upsert({ organisatie_id: state.organisatieId, data: waarde, updated_at: new Date().toISOString() }, { onConflict: "organisatie_id" }).then(function(res){
+    state.cloudSaving = false;
+    if (res.error) console.error("Cloud-opslag mislukt voor " + tabel + ":", res.error.message);
+    // Bewust GEEN render() hier: dit loopt op de achtergrond terwijl iemand kan zitten typen,
+    // en een volledige herteken zou de focus uit het invoerveld gooien.
+  }).catch(function(err){ state.cloudSaving = false; console.error("Cloud-opslag mislukt voor " + tabel + ":", err); });
 }
 function huidigeDataBundel() {
   return {
