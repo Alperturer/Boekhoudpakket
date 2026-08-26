@@ -111,7 +111,11 @@
   .photo-wrap button { position:absolute; top:-6px; right:-6px; width:17px; height:17px; border-radius:999px; background:var(--navy); color:#fff; border:2px solid #fff; font-size:10px; line-height:13px; padding:0; cursor:pointer; }
   .photo-add { font-size:10.5px; border:1.5px dashed #CBD5E1; border-radius:7px; padding:7px 11px; cursor:pointer; color:#475569; font-weight:600; }
   .photo-add input { display:none; }
-  .file-chip { display:inline-flex; align-items:center; gap:6px; background:var(--blue-light); border:1px solid var(--border); border-radius:8px; padding:6px 10px; font-size:11.5px; margin-bottom:6px; }
+  .file-chip { display:inline-flex; align-items:center; gap:6px; background:var(--blue-light); border:1px solid var(--border); border-radius:8px; padding:6px 10px; font-size:11.5px; margin-bottom:6px; color:#0F172A; }
+  .ow-form .photo-add { color:#fff; border-color:rgba(255,255,255,0.35); }
+  .ow-form .file-chip { background:rgba(255,255,255,0.1); border-color:rgba(255,255,255,0.25); color:#fff; }
+  .ow-form .ow-mini-totals { color:#fff; }
+  .ow-form .ow-mini-totals .row.final { color:#fff; border-top-color:rgba(255,255,255,0.25); }
 
   .r-page { background:#fff; border:1px solid var(--border); padding:28px; margin:0 auto 14px; max-width:700px; box-sizing:border-box; }
   .r-brand { font-size:11px; color:var(--muted); letter-spacing:0.08em; text-transform:uppercase; font-weight:700; }
@@ -152,7 +156,7 @@
   /* ---- Offerte-werkblad: twee kolommen, briefpapier-stijl preview ---- */
   .ow-layout { display:flex; gap:0; margin: -28px -32px; min-height: calc(100vh - 60px); }
   @media (max-width:900px) { .ow-layout { flex-direction:column; margin:-12px -14px; } }
-  .ow-form { width:420px; flex-shrink:0; padding:24px; border-right:none; background:linear-gradient(160deg, #0B2530, #0F6E6E); }
+  .ow-form { width:560px; flex-shrink:0; padding:24px; border-right:none; background:linear-gradient(160deg, #0B2530, #0F6E6E); }
   @media (max-width:900px) { .ow-form { width:100%; border-right:none; border-bottom:1px solid var(--border); } }
   .ow-preview { flex:1; padding:24px 28px; display:flex; justify-content:center; background:var(--bg); }
   .ow-step { margin-bottom:20px; }
@@ -832,6 +836,7 @@ function newOfferte() {
     inleiding: "", werkzaamheden: "", garantie: "", afsluiting: "",
     akkoordLokaal: null, // { beslissing, naam, datum } -- ter plekke accorderen, op dit toestel
     akkoordTerPlekkeAan: false, // optie: klant kan ter plekke op dit toestel ondertekenen (standaard uit)
+    legplanFoto: "", legplanFotoNaam: "", legplanBijschrift: "Zo ziet uw dak er van boven uit",
     gefactureerd: false,
     energieActief: false, energie: null, // gevuld via EO_nieuwSysteem() zodra ingeschakeld
   };
@@ -1970,6 +1975,21 @@ function handleLogoUpload(files) {
   filesToDataUrls([files[0]], function(urls){ state.bedrijf.logoData = urls[0] || ""; persistBedrijf(); render(); });
 }
 function removeLogo() { state.bedrijf.logoData = ""; persistBedrijf(); render(); }
+function uploadLegplanFoto(offerteId, files) {
+  if (!files || !files[0]) return;
+  filesToDataUrls([files[0]], function(urls){
+    var o = getOfferte(offerteId); if (!o) return;
+    o.legplanFoto = urls[0] || "";
+    o.legplanFotoNaam = files[0].name;
+    if (!o.legplanBijschrift) o.legplanBijschrift = "Zo ziet uw dak er van boven uit";
+    persistOffertes(); render();
+  });
+}
+function verwijderLegplanFoto(offerteId) {
+  var o = getOfferte(offerteId); if (!o) return;
+  o.legplanFoto = ""; o.legplanFotoNaam = "";
+  persistOffertes(); render();
+}
 
 // ---------------------------------------------------------------------
 // KWARTAAL / RAPPORTAGE HELPERS
@@ -2606,18 +2626,32 @@ function renderOfferteWerkblad() {
   h += '<div style="margin-top:10px;"><label class="fl">BTW-tarief (voor nieuwe regels)</label><select class="f" onchange="state.owBtwKeuze=parseInt(this.value);">';
   BTW_TARIEVEN.forEach(function(tp){ h += '<option value="' + tp + '">' + tp + '%</option>'; });
   h += '</select></div>';
-  h += '<div class="ow-mini-totals"><div class="row"><span>Subtotaal</span><span>' + euro(t.totaalExcl) + '</span></div><div class="row"><span>BTW</span><span>' + euro(t.totaalBtw) + '</span></div><div class="row final"><span>Totaal</span><span>' + euro(t.totaalIncl) + '</span></div></div>';
+  h += '<div class="ow-mini-totals" style="background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:8px 10px;"><div class="row" style="color:#fff;"><span>Subtotaal</span><span>' + euro(t.totaalExcl) + '</span></div><div class="row" style="color:#fff;"><span>BTW</span><span>' + euro(t.totaalBtw) + '</span></div><div class="row final" style="color:#fff;"><span>Totaal</span><span>' + euro(t.totaalIncl) + '</span></div></div>';
   h += '</div>';
 
   h += '<div class="ow-step"><div class="ow-step-head"><span class="ow-step-num">4</span><span class="ow-step-title">Toelichting (optioneel)</span></div>';
   h += '<textarea class="f" placeholder="Bijzonderheden, planning, subsidie, garantietermijn..." oninput="updateOfferteField(\'' + o.id + '\',\'opmerking\',this.value)">' + esc(o.opmerking) + '</textarea></div>';
 
-  h += '<div class="ow-step"><div class="ow-step-head"><span class="ow-step-num">5</span><span class="ow-step-title">Datasheets &amp; bijlagen</span></div>';
+  if (o.energieActief) {
+    h += '<div class="ow-step"><div class="ow-step-head"><span class="ow-step-num">5</span><span class="ow-step-title">Legplan zonnepanelen (optioneel)</span></div>';
+    h += '<p class="subtitle" style="margin-top:-4px;">Upload een luchtfoto/schets van het dak met de ligging van de panelen. Komt als aparte pagina op de offerte.</p>';
+    if (o.legplanFoto) {
+      h += '<img src="' + o.legplanFoto + '" style="width:100%;border-radius:8px;margin-bottom:8px;" />';
+      h += '<button class="btn-secondary" style="margin-bottom:10px;" onclick="verwijderLegplanFoto(\'' + o.id + '\')">Foto verwijderen</button>';
+    } else {
+      h += '<label class="photo-add" style="color:#fff;border-color:rgba(255,255,255,0.35);display:block;text-align:center;padding:16px;margin-bottom:10px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><path d="M20 12.5L11.5 21a4.5 4.5 0 0 1-6.4-6.4l9-9a3 3 0 0 1 4.3 4.3l-8.6 8.6a1.5 1.5 0 0 1-2.1-2.1l7.9-7.9"/></svg> Legplan-foto uploaden<input type="file" accept="image/*" style="display:none;" onchange="uploadLegplanFoto(\'' + o.id + '\', this.files)" /></label>';
+    }
+    h += '<label class="fl">Onderschrift bij de foto</label>';
+    h += '<input class="f" value="' + esc(o.legplanBijschrift) + '" oninput="updateOfferteField(\'' + o.id + '\',\'legplanBijschrift\',this.value)" />';
+    h += '</div>';
+  }
+
+  h += '<div class="ow-step"><div class="ow-step-head"><span class="ow-step-num">6</span><span class="ow-step-title">Datasheets &amp; bijlagen</span></div>';
   h += '<p class="subtitle" style="margin-top:-4px;">Producten met een datasheet komen hier automatisch bij te staan. Voeg extra bestanden handmatig toe.</p>';
   (o.datasheets||[]).forEach(function(d, idx){
-    h += '<div class="file-chip"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg> ' + esc(d.naam||"Bestand") + ' <button class="del-x" style="padding:0;font-size:12px;" onclick="removeOfferteDatasheet(\'' + o.id + '\',' + idx + ')">&times;</button></div><br/>';
+    h += '<div class="file-chip" style="background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.25);color:#fff;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg> ' + esc(d.naam||"Bestand") + ' <button class="del-x" style="padding:0;font-size:12px;" onclick="removeOfferteDatasheet(\'' + o.id + '\',' + idx + ')">&times;</button></div><br/>';
   });
-  h += '<label class="photo-add"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><path d="M20 12.5L11.5 21a4.5 4.5 0 0 1-6.4-6.4l9-9a3 3 0 0 1 4.3 4.3l-8.6 8.6a1.5 1.5 0 0 1-2.1-2.1l7.9-7.9"/></svg> Bijlage toevoegen<input type="file" accept="image/*,application/pdf" multiple style="display:none;" onchange="addOfferteDatasheets(\'' + o.id + '\', this.files)" /></label>';
+  h += '<label class="photo-add" style="color:#fff;border-color:rgba(255,255,255,0.35);"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><path d="M20 12.5L11.5 21a4.5 4.5 0 0 1-6.4-6.4l9-9a3 3 0 0 1 4.3 4.3l-8.6 8.6a1.5 1.5 0 0 1-2.1-2.1l7.9-7.9"/></svg> Bijlage toevoegen<input type="file" accept="image/*,application/pdf" multiple style="display:none;" onchange="addOfferteDatasheets(\'' + o.id + '\', this.files)" /></label>';
   h += '</div>';
 
   h += '<div class="ow-step"><div class="ow-step-head"><span class="ow-step-num">6</span><span class="ow-step-title">Energieberekening</span></div>';
@@ -2736,15 +2770,17 @@ function renderOfferteWerkblad() {
     }
   }
   var energiePaginaCount = (o.energieActief && o.energie && o.energie.zonActief) ? 4 : 0;
+  var legplanPaginaCount = o.legplanFoto ? 1 : 0;
   var datasheetsPaginaCount = datasheetsPaginaAantal(o.datasheets);
   var voorwaardenPaginaCount = state.bedrijf.algemeneVoorwaarden ? 1 : 0;
-  var totaalPaginasOfferte = 1 + energiePaginaCount + datasheetsPaginaCount + voorwaardenPaginaCount;
+  var totaalPaginasOfferte = 1 + energiePaginaCount + legplanPaginaCount + datasheetsPaginaCount + voorwaardenPaginaCount;
   h += paginaVoetnoot(1, totaalPaginasOfferte);
   h += '</div>'; // ow-body
   h += '</div>'; // ow-print-area
   h += EO_renderRapportPaginas(o, 2, totaalPaginasOfferte, state.bedrijf);
-  h += renderDatasheetsSectie(o.datasheets, 1 + energiePaginaCount + 1, totaalPaginasOfferte, state.bedrijf);
-  h += algemeneVoorwaardenPagina(1 + energiePaginaCount + datasheetsPaginaCount + 1, totaalPaginasOfferte, state.bedrijf);
+  h += legplanPagina(o, 1 + energiePaginaCount + 1, totaalPaginasOfferte, state.bedrijf);
+  h += renderDatasheetsSectie(o.datasheets, 1 + energiePaginaCount + legplanPaginaCount + 1, totaalPaginasOfferte, state.bedrijf);
+  h += algemeneVoorwaardenPagina(1 + energiePaginaCount + legplanPaginaCount + datasheetsPaginaCount + 1, totaalPaginasOfferte, state.bedrijf);
   h += '</div>'; // offerte-volledig-document
 
   h += '<div class="ow-floating no-print">';
@@ -3048,6 +3084,19 @@ function algemeneVoorwaardenPagina(paginaNr, totaalPaginas, bedrijfOverride) {
   if (!state.bedrijf.algemeneVoorwaarden) return "";
   return '<div class="r-page">' + paginaLogoHeader(bedrijfOverride) + '<div class="r-h">Algemene voorwaarden</div><p style="font-size:12px;line-height:1.6;white-space:pre-wrap;">' + esc(state.bedrijf.algemeneVoorwaarden) + '</p>' + paginaVoetnoot(paginaNr, totaalPaginas) + '</div>';
 }
+function legplanPagina(o, paginaNr, totaalPaginas, bedrijfOverride) {
+  if (!o.legplanFoto) return "";
+  var h = '<div class="r-page">' + paginaLogoHeader(bedrijfOverride);
+  h += '<div class="r-h">Uw legplan</div>';
+  h += '<img src="' + o.legplanFoto + '" style="width:100%;border-radius:10px;display:block;margin:10px 0;" />';
+  h += '<div style="text-align:center;margin-top:8px;">';
+  h += '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>';
+  if (o.legplanBijschrift) h += '<div style="font-size:14px;font-weight:700;margin-top:6px;">' + esc(o.legplanBijschrift) + '</div>';
+  h += '</div>';
+  h += paginaVoetnoot(paginaNr, totaalPaginas);
+  h += '</div>';
+  return h;
+}
 function EO_renderRapportPaginas(o, startPaginaNr, totaalPaginas, bedrijfOverride) {
   if (!o.energieActief || !o.energie || !o.energie.zonActief) return "";
   var s = o.energie, r = EO_berekenAlles(s), bp = EO_berekening25Jaar(s);
@@ -3197,13 +3246,21 @@ function renderFactuurForm() {
   var f = getFactuur(state.huidigeFactuurId);
   if (!f) return '<div class="empty-state">Factuur niet gevonden.</div>';
   var t = factuurTotalen(f);
-  var h = '<button class="backbtn" onclick="setTab(\'facturen\')">&larr; Terug naar facturen</button>';
-  h += '<div class="section-card"><h2>' + (f.type==="creditnota"?"Creditnota ":"Factuur ") + esc(f.factuurnummer) + '</h2>';
+  var h = '<button class="backbtn no-print" onclick="setTab(\'facturen\')">&larr; Terug naar facturen</button>';
+  h += '<div class="ow-layout">';
+
+  // ---------------- LINKERKOLOM: FORMULIER ----------------
+  h += '<div class="ow-form no-print">';
+
+  h += '<div class="ow-step"><div class="ow-step-head"><span class="ow-step-num">0</span><span class="ow-step-title">' + (f.type==="creditnota"?"Creditnota":"Factuur") + ' ' + esc(f.factuurnummer) + '</span></div>';
   h += '<div class="grid2">';
   h += ffield(f.id,"factuurnummer","Nummer",f.factuurnummer);
   h += ffield(f.id,"datum","Datum",f.datum,"date");
-  h += '</div>';
-  h += '<h3>Klantgegevens</h3><div class="grid2">';
+  h += ffield(f.id,"vervaldatum","Vervaldatum",f.vervaldatum,"date");
+  h += '</div></div>';
+
+  h += '<div class="ow-step"><div class="ow-step-head"><span class="ow-step-num">1</span><span class="ow-step-title">Klantgegevens</span></div>';
+  h += '<div class="grid2">';
   h += klantKiezer(f.id, f.klantId);
   h += ffield(f.id,"klantNaam","Klant / bedrijfsnaam",f.klantNaam,"text","full");
   h += ffield(f.id,"klantContactpersoon","Naam eigenaar/contactpersoon",f.klantContactpersoon,"text","full");
@@ -3212,11 +3269,10 @@ function renderFactuurForm() {
   h += ffield(f.id,"klantPostcode","Postcode",f.klantPostcode);
   h += ffield(f.id,"klantPlaats","Plaats",f.klantPlaats);
   h += ffield(f.id,"klantEmail","E-mailadres",f.klantEmail,"text","full");
-  h += ffield(f.id,"vervaldatum","Vervaldatum",f.vervaldatum,"date");
-  h += '</div>';
+  h += '</div></div>';
 
   if (f.type !== "creditnota") {
-    h += '<h3>Begeleidende tekst op de factuur</h3>';
+    h += '<div class="ow-step"><div class="ow-step-head"><span class="ow-step-num">2</span><span class="ow-step-title">Begeleidende tekst (optioneel)</span></div>';
     h += '<label class="fl">Inleiding (bovenaan, voor de regels)</label>';
     h += '<textarea class="f" oninput="updateFactuurField(\'' + f.id + '\',\'inleiding\',this.value)">' + esc(f.inleiding) + '</textarea>';
     h += '<label class="fl">Werkzaamheden (optioneel, eigen kopje)</label>';
@@ -3224,9 +3280,10 @@ function renderFactuurForm() {
     h += '<label class="fl">Afsluiting (onderaan, na de totalen)</label>';
     h += '<textarea class="f" oninput="updateFactuurField(\'' + f.id + '\',\'afsluiting\',this.value)">' + esc(f.afsluiting) + '</textarea>';
     h += '<p class="subtitle" style="margin-top:-6px;">Standaardtekst hiervoor kun je instellen bij Instellingen &rarr; Facturatie.</p>';
+    h += '</div>';
   }
 
-  h += '<h3>Regels</h3>';
+  h += '<div class="ow-step"><div class="ow-step-head"><span class="ow-step-num">' + (f.type==="creditnota"?"2":"3") + '</span><span class="ow-step-title">Regels</span></div>';
   h += '<div class="regel-row"><label class="fl">Omschrijving</label><label class="fl">Aantal</label><label class="fl">Prijs (&euro;)</label><label class="fl">BTW %</label><span></span></div>';
   f.regels.forEach(function(r){
     h += productKiezer("kiesProductVoorFactuurRegel('" + f.id + "','" + r.id + "', this.value)");
@@ -3242,23 +3299,28 @@ function renderFactuurForm() {
   });
   h += '<button class="btn-add" onclick="addFactuurRegel(\'' + f.id + '\')">+ Regel toevoegen</button>';
 
-  h += '<div class="totals-box">';
-  h += '<div class="totals-row"><span>Subtotaal excl. BTW</span><span>' + euro(t.totaalExcl) + '</span></div>';
-  Object.keys(t.subtotalen).forEach(function(tarief){
-    if (t.subtotalen[tarief] !== 0) h += '<div class="totals-row"><span>BTW ' + tarief + '%</span><span>' + euro(t.subtotalen[tarief]*(parseInt(tarief)/100)) + '</span></div>';
-  });
-  h += '<div class="totals-row grand"><span>Totaal incl. BTW</span><span>' + euro(t.totaalIncl) + '</span></div>';
+  h += '<div class="ow-mini-totals" style="background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:8px 10px;"><div class="row" style="color:#fff;"><span>Subtotaal</span><span>' + euro(t.totaalExcl) + '</span></div><div class="row" style="color:#fff;"><span>BTW</span><span>' + euro(t.totaalIncl - t.totaalExcl) + '</span></div><div class="row final" style="color:#fff;"><span>Totaal</span><span>' + euro(t.totaalIncl) + '</span></div></div>';
   h += '</div>';
 
-  h += '<label class="fl" style="margin-top:12px;">Betaallink (optioneel &mdash; bijv. een Tikkie- of betaalverzoek-link)</label>';
+  h += '<div class="ow-step"><div class="ow-step-head"><span class="ow-step-num">' + (f.type==="creditnota"?"3":"4") + '</span><span class="ow-step-title">Overig</span></div>';
+  h += '<label class="fl">Betaallink (optioneel &mdash; bijv. een Tikkie- of betaalverzoek-link)</label>';
   h += '<input class="f" placeholder="https://tikkie.me/pay/..." value="' + esc(f.betaallink) + '" oninput="updateFactuurField(\'' + f.id + '\',\'betaallink\',this.value)" />';
   h += '<label class="fl">Opmerking op factuur (optioneel)</label>';
   h += '<textarea class="f" oninput="updateFactuurField(\'' + f.id + '\',\'opmerking\',this.value)">' + esc(f.opmerking) + '</textarea>';
+  h += '</div>';
 
   h += '<button class="btn-primary" onclick="openFactuur(\'' + f.id + '\')" style="margin-top:8px;">Bekijken &amp; versturen &rarr;</button>';
   h += '<button class="btn-secondary" style="margin-top:8px;" onclick="bevestigOpslaanFactuur(\'' + f.id + '\')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg> Opslaan</button>';
   h += '<button class="btn-secondary" style="margin-top:8px;" onclick="setTab(\'facturen\')">&larr; Terug naar facturen</button>';
-  h += '</div>';
+  h += '<button class="del-x" style="margin-top:10px;" onclick="removeFactuur(\'' + f.id + '\')">Factuur verwijderen</button>';
+  h += '</div>'; // einde ow-form
+
+  // ---------------- RECHTERKOLOM: LIVE PREVIEW ----------------
+  h += '<div class="ow-preview"><div>';
+  h += renderFactuurDocument(f);
+  h += '</div></div>'; // ow-preview
+
+  h += '</div>'; // ow-layout
   return h;
 }
 function bevestigOpslaanFactuur(id) {
@@ -3269,28 +3331,13 @@ function ffield(id, key, label, val, type, cls) {
   return '<div class="' + (cls||"") + '"><label class="fl">' + label + '</label><input class="f" type="' + (type||"text") + '" value="' + esc(val) + '" oninput="updateFactuurField(\'' + id + '\', \'' + key + '\', this.value)" /></div>';
 }
 
-function renderFactuurView() {
-  var f = getFactuur(state.huidigeFactuurId);
-  if (!f) return '<div class="empty-state">Factuur niet gevonden.</div>';
+function renderFactuurDocument(f) {
   var t = factuurTotalen(f);
   var b = state.bedrijf;
   var st = effectieveStatus(f);
   var accent = b.factuurAccentKleur || b.accentKleur || "#2F6B4F";
   var isCredit = f.type === "creditnota";
-  var h = '<div class="toolbar no-print">';
-  h += '<button class="backbtn" onclick="setTab(\'facturen\')">&larr; Terug</button>';
-  h += '<div style="display:flex;gap:8px;flex-wrap:wrap;">';
-  h += '<button class="btn-secondary" style="width:auto;" onclick="bewerkFactuur(\'' + f.id + '\')">Bewerken</button>';
-  if (f.status === "concept") h += '<button class="btn-secondary" style="width:auto;color:#3A7DBF;" onclick="updateFactuurStatus(\'' + f.id + '\',\'verzonden\')">Markeer verzonden</button>';
-  if (f.status === "verzonden") h += '<button class="btn-secondary" style="width:auto;color:#2F6B4F;" onclick="updateFactuurStatus(\'' + f.id + '\',\'betaald\')">Markeer betaald</button>';
-  if (st === "vervallen") h += '<a class="btn-secondary" style="width:auto;color:#B23A2F;display:inline-block;text-decoration:none;" href="' + herinneringMailtoLink(f) + '" onclick="markeerHerinneringVerstuurd(\'' + f.id + '\')">Stuur herinnering</a>';
-  if (f.type === "factuur") h += '<button class="btn-secondary" style="width:auto;" onclick="maakCreditNota(\'' + f.id + '\')">Credit nota maken</button>';
-  h += '<button class="print-btn" onclick="window.print()">' + icon("printer") + ' Print</button>';
-  h += '<button class="print-btn" id="pdf-btn-factuur" style="background:#0D9488;" onclick="downloadAlsPDF(\'factuur-volledig-document\', \'' + f.factuurnummer + '\', \'pdf-btn-factuur\')">' + icon("file") + ' Download PDF</button>';
-  h += '<button class="del-x" onclick="removeFactuur(\'' + f.id + '\')">' + icon("trash") + '</button>';
-  h += '</div></div>';
-
-  h += '<div id="factuur-volledig-document">';
+  var h = '<div id="factuur-volledig-document">';
   h += '<div id="r-page-factuur">';
   h += '<div class="ow-stripe" style="background:' + accentGradient(accent) + ';"></div>';
   h += '<div class="ow-letterhead">';
@@ -3353,6 +3400,25 @@ function renderFactuurView() {
   h += '</div>'; // r-page-factuur
   h += algemeneVoorwaardenPagina();
   h += '</div>'; // factuur-volledig-document
+  return h;
+}
+function renderFactuurView() {
+  var f = getFactuur(state.huidigeFactuurId);
+  if (!f) return '<div class="empty-state">Factuur niet gevonden.</div>';
+  var st = effectieveStatus(f);
+  var h = '<div class="toolbar no-print">';
+  h += '<button class="backbtn" onclick="setTab(\'facturen\')">&larr; Terug</button>';
+  h += '<div style="display:flex;gap:8px;flex-wrap:wrap;">';
+  h += '<button class="btn-secondary" style="width:auto;" onclick="bewerkFactuur(\'' + f.id + '\')">Bewerken</button>';
+  if (f.status === "concept") h += '<button class="btn-secondary" style="width:auto;color:#3A7DBF;" onclick="updateFactuurStatus(\'' + f.id + '\',\'verzonden\')">Markeer verzonden</button>';
+  if (f.status === "verzonden") h += '<button class="btn-secondary" style="width:auto;color:#2F6B4F;" onclick="updateFactuurStatus(\'' + f.id + '\',\'betaald\')">Markeer betaald</button>';
+  if (st === "vervallen") h += '<a class="btn-secondary" style="width:auto;color:#B23A2F;display:inline-block;text-decoration:none;" href="' + herinneringMailtoLink(f) + '" onclick="markeerHerinneringVerstuurd(\'' + f.id + '\')">Stuur herinnering</a>';
+  if (f.type === "factuur") h += '<button class="btn-secondary" style="width:auto;" onclick="maakCreditNota(\'' + f.id + '\')">Credit nota maken</button>';
+  h += '<button class="print-btn" onclick="window.print()">' + icon("printer") + ' Print</button>';
+  h += '<button class="print-btn" id="pdf-btn-factuur" style="background:#0D9488;" onclick="downloadAlsPDF(\'factuur-volledig-document\', \'' + f.factuurnummer + '\', \'pdf-btn-factuur\')">' + icon("file") + ' Download PDF</button>';
+  h += '<button class="del-x" onclick="removeFactuur(\'' + f.id + '\')">' + icon("trash") + '</button>';
+  h += '</div></div>';
+  h += renderFactuurDocument(f);
   return h;
 }
 function kv2(label, val) { return label ? ('<div class="k">' + label + ':</div><div>' + esc(val||"—") + '</div>') : ('<div></div><div>' + esc(val||"") + '</div>'); }
@@ -4026,12 +4092,14 @@ function renderKlantOfferteView(o) {
   h += '<div class="totals-box"><div class="totals-row grand"><span>Totaal incl. BTW</span><span>' + euro(t.totaalIncl) + '</span></div></div>';
   if (o.data.opmerking) h += '<p style="font-size:12.5px;color:#6b6659;margin-top:16px;">' + esc(o.data.opmerking) + '</p>';
   var energiePaginaCountKlant = (o.data.energieActief && o.data.energie && o.data.energie.zonActief) ? 4 : 0;
+  var legplanPaginaCountKlant = o.data.legplanFoto ? 1 : 0;
   var datasheetsPaginaCountKlant = datasheetsPaginaAantal(o.data.datasheets);
-  var totaalPaginasKlant = 1 + energiePaginaCountKlant + datasheetsPaginaCountKlant;
+  var totaalPaginasKlant = 1 + energiePaginaCountKlant + legplanPaginaCountKlant + datasheetsPaginaCountKlant;
   h += paginaVoetnoot(1, totaalPaginasKlant);
   h += '</div>';
   h += EO_renderRapportPaginas(o.data, 2, totaalPaginasKlant, b);
-  h += renderDatasheetsSectie(o.data.datasheets, 1 + energiePaginaCountKlant + 1, totaalPaginasKlant, b);
+  h += legplanPagina(o.data, 1 + energiePaginaCountKlant + 1, totaalPaginasKlant, b);
+  h += renderDatasheetsSectie(o.data.datasheets, 1 + energiePaginaCountKlant + legplanPaginaCountKlant + 1, totaalPaginasKlant, b);
 
   h += '<div id="klant-actie-view">';
   if (o.status === "geaccordeerd") {
