@@ -95,6 +95,10 @@
   .badge { display:inline-block; font-size:10px; font-weight:800; padding:3px 10px; border-radius:999px; color:#fff; }
   .badge-concept { background:#94A3B8; } .badge-verzonden { background:#0D9488; } .badge-betaald { background:#16A34A; } .badge-vervallen { background:#DC2626; } .badge-geaccordeerd { background:#16A34A; } .badge-afgewezen { background:#DC2626; }
   .empty-state { text-align:center; padding:34px 16px; color:var(--muted); font-size:12.5px; border:1.5px dashed #CBD5E1; border-radius:12px; }
+  .adres-suggesties { position:absolute; top:100%; left:0; right:0; background:#fff; border:1px solid var(--border); border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.15); z-index:50; max-height:220px; overflow-y:auto; margin-top:-8px; }
+  .adres-suggestie-item { padding:9px 12px; font-size:13px; color:var(--text); cursor:pointer; border-bottom:1px solid #F1F5F9; }
+  .adres-suggestie-item:hover { background:var(--blue-light); }
+  .adres-suggestie-item:last-child { border-bottom:none; }
   .alert-box { background:#FEF2F2; border:1px solid #FCA5A5; border-radius:10px; padding:14px; margin-bottom:14px; font-size:13px; }
   .alert-box.info { background:var(--blue-light); border-color:#BFDBFE; }
 
@@ -314,7 +318,8 @@ function EO_nieuweAircoInstallatie() {
 }
 function EO_nieuwSysteem() {
   return {
-    zonActief: true, aantalPanelen: "16", wpPerPaneel: "440", opwekfactor: "900",
+    zonActief: true, aantalPanelen: "16", wpPerPaneel: "440", opwekfactor: "900", opwekfactorBron: "schatting",
+    dakhelling: "35", dakOrientatie: "180",
     efficiencyAfnamePct: "0.5", onderhoudJaarlijks: "0",
     batterijActief: false, batterijCapaciteit: "10", batterijCyclesPerJaar: "280",
     batterijBackupActief: false, batterijBruikbaarPct: "90", batterijBackupVermogen: "0.8",
@@ -327,6 +332,37 @@ function EO_nieuwSysteem() {
     paneelProductId: "", batterijProductId: "", warmtepompProductId: "",
   };
 }
+function berekenPvgisOpwek(offerteId) {
+  var o = getOfferte(offerteId); if (!o || !o.energie) return;
+  var adres = [o.klantAdres, [o.klantPostcode, o.klantPlaats].filter(Boolean).join(" ")].filter(Boolean).join(", ");
+  if (!adres) { toonToast("Vul eerst het adres van de klant in bij Klantgegevens."); return; }
+  state.pvgisBusy = offerteId; render();
+  var pdokUrl = "https://api.pdok.nl/bzk/locatieserver/search/v3_1/free?q=" + encodeURIComponent(adres) + "&fq=type:adres&rows=1";
+  fetch(pdokUrl).then(function(res){ return res.json(); }).then(function(data){
+    var doc = data && data.response && data.response.docs && data.response.docs[0];
+    if (!doc || !doc.centroide_ll) { state.pvgisBusy = null; toonToast("Kon dit adres niet vinden voor de PVGIS-berekening."); render(); return; }
+    var m = /POINT\(([\-0-9.]+) ([\-0-9.]+)\)/.exec(doc.centroide_ll);
+    if (!m) { state.pvgisBusy = null; toonToast("Kon coördinaten niet lezen."); render(); return; }
+    var lon = parseFloat(m[1]), lat = parseFloat(m[2]);
+    var hoek = parseFloat(o.energie.dakhelling) || 35;
+    var orientatieCompass = parseFloat(o.energie.dakOrientatie) || 180;
+    var aspect = orientatieCompass - 180; // PVGIS: 0=zuid, 90=west, -90=oost
+    var pvgisUrl = "https://re.jrc.ec.europa.eu/api/v5_2/PVcalc?lat=" + lat + "&lon=" + lon + "&peakpower=1&loss=14&angle=" + hoek + "&aspect=" + aspect + "&outputformat=json";
+    fetch(pvgisUrl).then(function(res){
+      if (!res.ok) throw new Error("PVGIS-server antwoordde met status " + res.status);
+      return res.json();
+    }).then(function(pvgisData){
+      var ey = pvgisData && pvgisData.outputs && pvgisData.outputs.totals && pvgisData.outputs.totals.fixed && pvgisData.outputs.totals.fixed.E_y;
+      if (!ey) { state.pvgisBusy = null; toonToast("PVGIS gaf geen bruikbaar resultaat terug."); render(); return; }
+      o.energie.opwekfactor = String(Math.round(ey));
+      o.energie.opwekfactorBron = "PVGIS (" + (doc.weergavenaam || adres) + ", " + hoek + "° helling, " + DAKORIENTATIE_LABELS[orientatieCompass] + ")";
+      state.pvgisBusy = null;
+      persistOffertes(); render();
+      toonToast("PVGIS-opbrengst opgehaald: " + Math.round(ey) + " kWh per kWp per jaar op deze locatie.");
+    }).catch(function(err){ state.pvgisBusy = null; toonToast("Kon PVGIS niet bevragen: " + err.message); render(); });
+  }).catch(function(err){ state.pvgisBusy = null; toonToast("Kon adres niet opzoeken: " + err.message); render(); });
+}
+var DAKORIENTATIE_LABELS = { "180":"Zuid", "225":"Zuidwest", "270":"West", "315":"Noordwest", "0":"Noord", "45":"Noordoost", "90":"Oost", "135":"Zuidoost" };
 function EO_svgBarChart(labels, values, kleur, toonWaarden) {
   var w=600, h = toonWaarden ? 236 : 210, padL=36, padB=24, padT = toonWaarden ? 34 : 10;
   var maxVal = Math.max(1, Math.max.apply(null, values));
@@ -774,7 +810,7 @@ function genereerKlantNummer() {
   state.bedrijf.nextKlantNr = nr + 1;
   return "KL" + nr;
 }
-function newProduct() { return { id: uid(), naam:"", categorie: PRODUCT_CATEGORIEEN[0], eenheid: "stuks", prijs:"", btw: 21, omschrijving:"", datasheetNaam:"", datasheetData:"", specWaarde:"" }; }
+function newProduct() { return { id: uid(), naam:"", categorie: PRODUCT_CATEGORIEEN[0], eenheid: "stuks", prijs:"", btw: 21, omschrijving:"", datasheetNaam:"", datasheetData:"", specWaarde:"", paneelBreedte:"", paneelHoogte:"" }; }
 // Kleine, lokale herkenningstabel voor veelgebruikte modellen (géén live AI-koppeling nodig hiervoor --
 // werkt volledig offline op basis van bekende specificaties). Voegt zelf modellen toe indien gewenst.
 var PANEEL_DATABASE = [
@@ -838,6 +874,7 @@ function newOfferte() {
     akkoordTerPlekkeAan: false, // optie: klant kan ter plekke op dit toestel ondertekenen (standaard uit)
     legplanFoto: "", legplanFotoNaam: "", legplanBijschrift: "Zo ziet uw dak er van boven uit",
     legplanPixelsPerMeter: null, legplanPaneelBreedte: 1.7, legplanPaneelHoogte: 1.0, legplanPanelen: [],
+    legplanNoordBoven: false, legplanPaneelWp: null, legplanDakhoek: 0,
     gefactureerd: false,
     energieActief: false, energie: null, // gevuld via EO_nieuwSysteem() zodra ingeschakeld
   };
@@ -934,10 +971,14 @@ var state = {
   legplanGeselecteerdPaneel: null,
   legplanSlepen: null, // { offerteId, paneelId, svgEl }
   legplanZoekBusy: null,
+  pvgisBusy: null,
+  legplanHistorie: {}, // per offerteId: { verleden: [...], toekomst: [...] }
+  legplanActiefId: null,
   legplanTestObject: {
     id: "__legplantest__", legplanFoto: "", legplanFotoNaam: "", legplanBijschrift: "Zo ziet uw dak er van boven uit",
     legplanFotoBreedtePx: 0, legplanFotoHoogtePx: 0, legplanPixelsPerMeter: null,
-    legplanPaneelBreedte: 1.7, legplanPaneelHoogte: 1.0, legplanPanelen: []
+    legplanPaneelBreedte: 1.7, legplanPaneelHoogte: 1.0, legplanPanelen: [],
+    legplanNoordBoven: false, legplanPaneelWp: null, legplanDakhoek: 0
   },
   nieuwTeamlidBusy: false,
 };
@@ -2003,6 +2044,7 @@ function uploadLegplanFoto(offerteId, files) {
       o.legplanFotoBreedtePx = img.naturalWidth;
       o.legplanFotoHoogtePx = img.naturalHeight;
       o.legplanPixelsPerMeter = null; // handmatig geüpload: moet gekalibreerd worden
+      o.legplanNoordBoven = false; // bij een eigen foto weten we de richting niet zeker
       o.legplanPanelen = o.legplanPanelen || [];
       if (!o.legplanBijschrift) o.legplanBijschrift = "Zo ziet uw dak er van boven uit";
       persistOffertes(); render();
@@ -2041,6 +2083,7 @@ function haalLuchtfotoOp(offerteId, rdX, rdY, weergavenaam) {
       o.legplanFotoHoogtePx = LEGPLAN_IMG_PIXELS;
       o.legplanPixelsPerMeter = LEGPLAN_IMG_PIXELS / LEGPLAN_BBOX_METERS;
       o.legplanPanelen = o.legplanPanelen || [];
+      o.legplanNoordBoven = true; // WMS-luchtfoto's staan gegarandeerd met het noorden boven
       if (!o.legplanBijschrift) o.legplanBijschrift = "Zo ziet uw dak er van boven uit";
       state.legplanZoekBusy = null;
       persistOffertes(); render();
@@ -2082,12 +2125,66 @@ function legplanSvgKlik(offerteId, evt) {
     if (!state.legplanKalibratiePunt1) { state.legplanKalibratiePunt1 = pt; render(); return; }
     state.legplanKalibratiePunt2 = pt; render(); return;
   }
-  if (state.legplanModus === "plaatsen") {
-    o.legplanPanelen = o.legplanPanelen || [];
-    o.legplanPanelen.push({ id: uid(), x: pt.x, y: pt.y, rotatie: 0 });
-    state.legplanGeselecteerdPaneel = o.legplanPanelen[o.legplanPanelen.length-1].id;
-    persistOffertes(); render();
+  // "plaatsen" verloopt via ingedrukt-houden-en-slepen (legplanSvgMouseDown), niet via een losse klik
+}
+function legplanSvgMouseDown(offerteId, evt) {
+  if (state.legplanModus !== "plaatsen") return;
+  var o = getLegplanDoel(offerteId); if (!o || !o.legplanPixelsPerMeter) return;
+  var svgEl = document.getElementById("legplan-svg-" + offerteId);
+  if (!svgEl) return;
+  var bron = evt.touches ? evt.touches[0] : evt;
+  var pt = svgKlikCoords(svgEl, bron);
+  state.legplanPlaatsSlepen = { offerteId: offerteId, start: pt, huidig: pt };
+  render();
+  evt.preventDefault();
+}
+function legplanBerekenRasterPosities(o, start, huidig) {
+  var hoekGraden = (o.legplanDakhoek != null) ? o.legplanDakhoek : 0;
+  var hoekRad = hoekGraden * Math.PI / 180;
+  var asX = Math.cos(hoekRad), asY = Math.sin(hoekRad);
+  var dx = huidig.x - start.x, dy = huidig.y - start.y;
+  var afstandLangsAs = dx*asX + dy*asY;
+  var breedtePx = (o.legplanPaneelBreedte||1.7) * o.legplanPixelsPerMeter;
+  var stap = breedtePx + 3;
+  var aantal = Math.max(1, Math.round(Math.abs(afstandLangsAs) / stap) + 1);
+  var teken = afstandLangsAs < 0 ? -1 : 1;
+  var posities = [];
+  for (var i = 0; i < aantal; i++) {
+    posities.push({ x: start.x + asX*stap*i*teken, y: start.y + asY*stap*i*teken, rotatie: hoekGraden });
   }
+  return posities;
+}
+function legplanPlaatsBeweeg(clientX, clientY) {
+  if (!state.legplanPlaatsSlepen) return;
+  var svgEl = document.getElementById("legplan-svg-" + state.legplanPlaatsSlepen.offerteId);
+  if (!svgEl) return;
+  state.legplanPlaatsSlepen.huidig = svgKlikCoords(svgEl, { clientX: clientX, clientY: clientY });
+  render();
+}
+function legplanPlaatsStop() {
+  if (!state.legplanPlaatsSlepen) return;
+  var s = state.legplanPlaatsSlepen;
+  var o = getLegplanDoel(s.offerteId);
+  if (o) {
+    var posities = legplanBerekenRasterPosities(o, s.start, s.huidig);
+    legplanHistorieOpslaan(s.offerteId);
+    o.legplanPanelen = o.legplanPanelen || [];
+    posities.forEach(function(p){ o.legplanPanelen.push({ id: uid(), x: p.x, y: p.y, rotatie: p.rotatie }); });
+    state.legplanGeselecteerdPaneel = o.legplanPanelen[o.legplanPanelen.length-1].id;
+    persistOffertes();
+  }
+  state.legplanPlaatsSlepen = null;
+  render();
+}
+document.addEventListener("mousemove", function(evt){ if (state.legplanPlaatsSlepen) legplanPlaatsBeweeg(evt.clientX, evt.clientY); });
+document.addEventListener("mouseup", function(){ if (state.legplanPlaatsSlepen) legplanPlaatsStop(); });
+document.addEventListener("touchmove", function(evt){ if (state.legplanPlaatsSlepen && evt.touches[0]) { legplanPlaatsBeweeg(evt.touches[0].clientX, evt.touches[0].clientY); evt.preventDefault(); } }, { passive:false });
+document.addEventListener("touchend", function(){ if (state.legplanPlaatsSlepen) legplanPlaatsStop(); });
+function zetDakhoek(offerteId, hoek) {
+  var o = getLegplanDoel(offerteId); if (!o) return;
+  o.legplanDakhoek = ((hoek%360)+360)%360;
+  persistOffertes(); render();
+  toonToast("Rasterhoek ingesteld op " + o.legplanDakhoek + "°. Nieuwe panelen sluiten hier voortaan op aan.");
 }
 function bevestigKalibratie(offerteId) {
   var o = getLegplanDoel(offerteId); if (!o) return;
@@ -2107,6 +2204,7 @@ function annuleerKalibratie() {
 }
 function startSlepenPaneel(offerteId, paneelId, evt) {
   evt.preventDefault();
+  legplanHistorieOpslaan(offerteId);
   state.legplanGeselecteerdPaneel = paneelId;
   state.legplanSlepen = { offerteId: offerteId, paneelId: paneelId };
   render();
@@ -2132,12 +2230,14 @@ document.addEventListener("touchend", legplanSleepStop);
 function roteerPaneel(offerteId, paneelId, delta) {
   var o = getLegplanDoel(offerteId); var p = o && (o.legplanPanelen||[]).find(function(x){ return x.id === paneelId; });
   if (!p) return;
+  legplanHistorieOpslaan(offerteId);
   p.rotatie = ((p.rotatie||0) + delta + 360) % 360;
   persistOffertes(); render();
 }
 function dupliceerPaneel(offerteId, paneelId) {
   var o = getLegplanDoel(offerteId); var p = o && (o.legplanPanelen||[]).find(function(x){ return x.id === paneelId; });
   if (!p || !o) return;
+  legplanHistorieOpslaan(offerteId);
   var breedtePx = (o.legplanPaneelBreedte||1.7) * (o.legplanPixelsPerMeter||1);
   var nieuw = { id: uid(), x: p.x + breedtePx + 4, y: p.y, rotatie: p.rotatie };
   o.legplanPanelen.push(nieuw);
@@ -2146,9 +2246,79 @@ function dupliceerPaneel(offerteId, paneelId) {
 }
 function verwijderPaneel(offerteId, paneelId) {
   var o = getLegplanDoel(offerteId); if (!o) return;
+  legplanHistorieOpslaan(offerteId);
   o.legplanPanelen = (o.legplanPanelen||[]).filter(function(x){ return x.id !== paneelId; });
   state.legplanGeselecteerdPaneel = null;
   persistOffertes(); render();
+}
+function legplanHistorieOpslaan(offerteId) {
+  var o = getLegplanDoel(offerteId); if (!o) return;
+  if (!state.legplanHistorie[offerteId]) state.legplanHistorie[offerteId] = { verleden: [], toekomst: [] };
+  var h = state.legplanHistorie[offerteId];
+  h.verleden.push(JSON.parse(JSON.stringify(o.legplanPanelen||[])));
+  if (h.verleden.length > 50) h.verleden.shift();
+  h.toekomst = [];
+}
+function legplanOngedaanMaken(offerteId) {
+  var o = getLegplanDoel(offerteId); if (!o) return;
+  var h = state.legplanHistorie[offerteId];
+  if (!h || h.verleden.length === 0) return;
+  h.toekomst.push(JSON.parse(JSON.stringify(o.legplanPanelen||[])));
+  o.legplanPanelen = h.verleden.pop();
+  state.legplanGeselecteerdPaneel = null;
+  persistOffertes(); render();
+}
+function legplanOpnieuwDoen(offerteId) {
+  var o = getLegplanDoel(offerteId); if (!o) return;
+  var h = state.legplanHistorie[offerteId];
+  if (!h || h.toekomst.length === 0) return;
+  h.verleden.push(JSON.parse(JSON.stringify(o.legplanPanelen||[])));
+  o.legplanPanelen = h.toekomst.pop();
+  state.legplanGeselecteerdPaneel = null;
+  persistOffertes(); render();
+}
+document.addEventListener("keydown", function(evt){
+  if (!state.legplanActiefId) return;
+  var ctrlOfCmd = evt.ctrlKey || evt.metaKey;
+  if (!ctrlOfCmd) return;
+  var toets = evt.key ? evt.key.toLowerCase() : "";
+  if (toets === "z") { evt.preventDefault(); if (evt.shiftKey) legplanOpnieuwDoen(state.legplanActiefId); else legplanOngedaanMaken(state.legplanActiefId); }
+  else if (toets === "y") { evt.preventDefault(); legplanOpnieuwDoen(state.legplanActiefId); }
+});
+function verwijderLaatstePaneel(offerteId) {
+  var o = getLegplanDoel(offerteId); if (!o || !o.legplanPanelen || o.legplanPanelen.length === 0) return;
+  legplanHistorieOpslaan(offerteId);
+  o.legplanPanelen.pop();
+  state.legplanGeselecteerdPaneel = null;
+  persistOffertes(); render();
+}
+function vulRijMetPanelen(offerteId, paneelId) {
+  var o = getLegplanDoel(offerteId); if (!o) return;
+  var basis = (o.legplanPanelen||[]).find(function(x){ return x.id === paneelId; });
+  if (!basis) return;
+  var input = document.getElementById("legplan-rij-aantal-" + offerteId);
+  var aantal = parseInt(input ? input.value : "1", 10);
+  if (!aantal || aantal < 1) { toonToast("Vul een geldig aantal in."); return; }
+  legplanHistorieOpslaan(offerteId);
+  var breedtePx = (o.legplanPaneelBreedte||1.7) * o.legplanPixelsPerMeter;
+  var hoekRad = (basis.rotatie||0) * Math.PI / 180;
+  var dx = Math.cos(hoekRad + Math.PI/2) * (breedtePx + 3) * -1;
+  var dy = Math.sin(hoekRad + Math.PI/2) * (breedtePx + 3) * -1;
+  for (var i = 1; i <= aantal; i++) {
+    o.legplanPanelen.push({ id: uid(), x: basis.x + dx*i, y: basis.y + dy*i, rotatie: basis.rotatie });
+  }
+  persistOffertes(); render();
+}
+function legplanGhostPanelenSvg(o, offerteId) {
+  if (!state.legplanPlaatsSlepen || state.legplanPlaatsSlepen.offerteId !== offerteId) return "";
+  var posities = legplanBerekenRasterPosities(o, state.legplanPlaatsSlepen.start, state.legplanPlaatsSlepen.huidig);
+  var breedtePx = (o.legplanPaneelBreedte||1.7) * o.legplanPixelsPerMeter;
+  var hoogtePx = (o.legplanPaneelHoogte||1.0) * o.legplanPixelsPerMeter;
+  var s = "";
+  posities.forEach(function(p){
+    s += '<g transform="translate(' + p.x + ',' + p.y + ') rotate(' + p.rotatie + ')"><rect x="' + (-breedtePx/2) + '" y="' + (-hoogtePx/2) + '" width="' + breedtePx + '" height="' + hoogtePx + '" fill="#FFD400" fill-opacity="0.35" stroke="#FFD400" stroke-width="1.5" stroke-dasharray="4,3"/></g>';
+  });
+  return s;
 }
 function legplanPanelenSvg(o, interactief) {
   var breedtePx = (o.legplanPaneelBreedte||1.7) * (o.legplanPixelsPerMeter||1);
@@ -2162,17 +2332,110 @@ function legplanPanelenSvg(o, interactief) {
   });
   return s;
 }
+var adresSuggestieTimer = null;
+function adresAutocompleteZoek(inputEl, callbackNaam, callbackArg) {
+  clearTimeout(adresSuggestieTimer);
+  var val = inputEl.value.trim();
+  var suggestieBox = document.getElementById(inputEl.id + "-suggesties");
+  if (!suggestieBox) return;
+  if (val.length < 4) { suggestieBox.innerHTML = ""; suggestieBox.style.display = "none"; return; }
+  adresSuggestieTimer = setTimeout(function(){
+    fetch("https://api.pdok.nl/bzk/locatieserver/search/v3_1/suggest?q=" + encodeURIComponent(val) + "&fq=type:adres&rows=6")
+      .then(function(res){ return res.json(); })
+      .then(function(data){
+        var docs = (data && data.response && data.response.docs) || [];
+        if (docs.length === 0) { suggestieBox.innerHTML = ""; suggestieBox.style.display = "none"; return; }
+        var html = "";
+        docs.forEach(function(d){
+          html += '<div class="adres-suggestie-item" onmousedown="kiesAdresSuggestie(\'' + d.id + '\',\'' + callbackNaam + '\',\'' + (callbackArg||"") + '\',\'' + inputEl.id + '\')">' + esc(d.weergavenaam) + '</div>';
+        });
+        suggestieBox.innerHTML = html;
+        suggestieBox.style.display = "block";
+      }).catch(function(){ suggestieBox.innerHTML = ""; suggestieBox.style.display = "none"; });
+  }, 300);
+}
+function kiesAdresSuggestie(id, callbackNaam, callbackArg, inputElId) {
+  var suggestieBox = document.getElementById(inputElId + "-suggesties");
+  if (suggestieBox) { suggestieBox.innerHTML = ""; suggestieBox.style.display = "none"; }
+  fetch("https://api.pdok.nl/bzk/locatieserver/search/v3_1/lookup?id=" + encodeURIComponent(id))
+    .then(function(res){ return res.json(); })
+    .then(function(data){
+      var doc = data && data.response && data.response.docs && data.response.docs[0];
+      if (!doc) return;
+      var straat = [doc.straatnaam, doc.huis_nlt].filter(Boolean).join(" ");
+      var resultaat = { straat: straat, postcode: doc.postcode || "", plaats: doc.woonplaatsnaam || "", weergavenaam: doc.weergavenaam || "" };
+      if (window[callbackNaam]) window[callbackNaam](callbackArg, resultaat);
+    }).catch(function(){ toonToast("Kon adresgegevens niet ophalen."); });
+}
+function adresVeldMetSuggesties(inputId, label, huidigeWaarde, oninputAttr, callbackNaam, callbackArg, breedteClass) {
+  var h = '<div class="' + (breedteClass||"") + '" style="position:relative;">';
+  h += '<label class="fl">' + label + '</label>';
+  h += '<input class="f" id="' + inputId + '" value="' + esc(huidigeWaarde) + '" autocomplete="off" oninput="' + oninputAttr + ' adresAutocompleteZoek(this,\'' + callbackNaam + '\',\'' + (callbackArg||"") + '\')" onblur="setTimeout(function(){ var b=document.getElementById(\'' + inputId + '-suggesties\'); if(b) b.style.display=\'none\'; }, 200)" />';
+  h += '<div id="' + inputId + '-suggesties" class="adres-suggesties" style="display:none;"></div>';
+  h += '</div>';
+  return h;
+}
+function klantAdresGekozen(klantId, r) { updateKlantField(klantId,"adres",r.straat); updateKlantField(klantId,"postcode",r.postcode); updateKlantField(klantId,"plaats",r.plaats); render(); }
+function offerteAdresGekozen(offerteId, r) { updateOfferteField(offerteId,"klantAdres",r.straat); updateOfferteField(offerteId,"klantPostcode",r.postcode); updateOfferteField(offerteId,"klantPlaats",r.plaats); render(); }
+function factuurAdresGekozen(factuurId, r) { updateFactuurField(factuurId,"klantAdres",r.straat); updateFactuurField(factuurId,"klantPostcode",r.postcode); updateFactuurField(factuurId,"klantPlaats",r.plaats); render(); }
+function bedrijfAdresGekozen(_, r) { updateBedrijfField("adres",r.straat); updateBedrijfField("postcode",r.postcode); updateBedrijfField("plaats",r.plaats); render(); }
+function legplanAdresGekozen(offerteId, r) {
+  var input = document.getElementById("legplan-adres-" + offerteId);
+  if (input) input.value = r.weergavenaam;
+}
+function legplanControlsHtml(o, offerteId) {
+  var his = state.legplanHistorie[offerteId] || { verleden: [], toekomst: [] };
+  var h = '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:10px 0;">';
+  h += '<button class="btn-primary" style="width:auto;padding:8px 14px;" onclick="zetLegplanModus(\'plaatsen\')">' + (state.legplanModus==="plaatsen" ? "Klik of sleep op de foto..." : "+ Panelen plaatsen") + '</button>';
+  h += '<button class="btn-secondary" style="width:auto;padding:8px 12px;" ' + (his.verleden.length===0?"disabled":"") + ' onclick="legplanOngedaanMaken(\'' + offerteId + '\')" title="Ongedaan maken (Ctrl+Z)">&#8592; Terug</button>';
+  h += '<button class="btn-secondary" style="width:auto;padding:8px 12px;" ' + (his.toekomst.length===0?"disabled":"") + ' onclick="legplanOpnieuwDoen(\'' + offerteId + '\')" title="Opnieuw doen (Ctrl+Y)">Vooruit &#8594;</button>';
+  h += '</div>';
+  h += '<div style="color:#8FD9CC;font-size:12px;margin-bottom:8px;">Rasterhoek: ' + (o.legplanDakhoek||0) + '&deg; &mdash; nieuwe panelen (ook bij slepen) sluiten hier altijd recht op aan.</div>';
+  if (state.legplanModus === "plaatsen") h += '<div style="color:#fff;font-size:12px;margin-bottom:8px;">Tip: klik voor 1 paneel, of houd ingedrukt en sleep voor een hele rij ineens.</div>';
+  var aantal = (o.legplanPanelen||[]).length;
+  var wpTekst = aantal + ' paneel' + (aantal===1?"":"en") + ' geplaatst';
+  if (o.legplanPaneelWp) wpTekst += ' &mdash; totaal ' + ((aantal * o.legplanPaneelWp)/1000).toLocaleString("nl-NL",{maximumFractionDigits:2}) + ' kWp';
+  h += '<div style="color:#fff;font-size:12.5px;margin-bottom:8px;">' + wpTekst + '</div>';
+  if (state.legplanGeselecteerdPaneel) {
+    h += '<div style="background:rgba(255,255,255,0.08);border-radius:8px;padding:10px;margin-bottom:10px;">';
+    h += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">';
+    h += '<button class="btn-secondary" style="width:auto;padding:6px 10px;" onclick="roteerPaneel(\'' + offerteId + '\',\'' + state.legplanGeselecteerdPaneel + '\',-15)">&#8634; Draai</button>';
+    h += '<button class="btn-secondary" style="width:auto;padding:6px 10px;" onclick="roteerPaneel(\'' + offerteId + '\',\'' + state.legplanGeselecteerdPaneel + '\',15)">&#8635; Draai</button>';
+    h += '<button class="btn-secondary" style="width:auto;padding:6px 10px;" onclick="dupliceerPaneel(\'' + offerteId + '\',\'' + state.legplanGeselecteerdPaneel + '\')">Dupliceren</button>';
+    h += '<button class="btn-secondary" style="width:auto;padding:6px 10px;color:#FCA5A5;" onclick="verwijderPaneel(\'' + offerteId + '\',\'' + state.legplanGeselecteerdPaneel + '\')">Verwijderen</button>';
+    h += '</div>';
+    h += '<button class="btn-secondary" style="width:auto;margin-bottom:8px;" onclick="zetDakhoek(\'' + offerteId + '\', (function(){ var p=(getLegplanDoel(\'' + offerteId + '\').legplanPanelen||[]).find(function(x){return x.id===\'' + state.legplanGeselecteerdPaneel + '\';}); return p?p.rotatie:0; })())">Deze hoek als vaste rasterhoek gebruiken</button><br/>';
+    h += '<label class="fl" style="color:#8FD9CC;">Rij vullen (naast dit paneel, zelfde stand)</label>';
+    h += '<div style="display:flex;gap:8px;"><input class="f" style="width:80px;" id="legplan-rij-aantal-' + offerteId + '" placeholder="aantal" /><button class="btn-secondary" style="width:auto;" onclick="vulRijMetPanelen(\'' + offerteId + '\',\'' + state.legplanGeselecteerdPaneel + '\')">Toevoegen</button></div>';
+    h += '</div>';
+  }
+  return h;
+}
+function legplanPaneelKiezerHtml(offerteId, updateFnNaam) {
+  var panelen = state.producten.filter(function(p){ return p.categorie === "Zonnepanelen" && p.paneelBreedte && p.paneelHoogte; });
+  if (panelen.length === 0) return "";
+  var h = '<label class="fl">Of kies een paneel uit je productcatalogus</label>';
+  h += '<select class="f" onchange="if(this.value){ var afm=this.value.split(\'|\'); ' + updateFnNaam + '(\'' + offerteId + '\',\'legplanPaneelBreedte\',parseFloat(afm[0])); ' + updateFnNaam + '(\'' + offerteId + '\',\'legplanPaneelHoogte\',parseFloat(afm[1])); ' + updateFnNaam + '(\'' + offerteId + '\',\'legplanPaneelWp\',afm[2]?parseFloat(afm[2]):null); render(); } this.selectedIndex=0;">';
+  h += '<option value="">&mdash; kies een paneel &mdash;</option>';
+  panelen.forEach(function(p){ h += '<option value="' + esc(p.paneelBreedte) + '|' + esc(p.paneelHoogte) + '|' + esc(p.specWaarde||"") + '">' + esc(p.naam) + ' (' + esc(p.paneelBreedte) + ' x ' + esc(p.paneelHoogte) + ' m' + (p.specWaarde ? ", " + esc(p.specWaarde) + " Wp" : "") + ')</option>'; });
+  h += '</select>';
+  return h;
+}
 function legplanOverlayHtml(o, offerteId, interactief) {
+  if (interactief) state.legplanActiefId = offerteId;
   var breedtePx = o.legplanFotoBreedtePx || 900, hoogtePx = o.legplanFotoHoogtePx || 900;
   var h = '<div style="position:relative;width:100%;">';
   h += '<img src="' + o.legplanFoto + '" style="width:100%;display:block;border-radius:8px;" />';
-  h += '<svg viewBox="0 0 ' + breedtePx + ' ' + hoogtePx + '" style="position:absolute;top:0;left:0;width:100%;height:100%;' + (interactief?"cursor:crosshair;":"") + '"' + (interactief ? ' id="legplan-svg-' + offerteId + '" onclick="legplanSvgKlik(\'' + offerteId + '\', event)"' : '') + '>';
+  if (o.legplanNoordBoven) {
+    h += '<div style="position:absolute;top:8px;right:8px;background:rgba(255,255,255,0.85);border-radius:999px;padding:4px;box-shadow:0 1px 4px rgba(0,0,0,0.3);">' + kompasRoosSvg(50) + '</div>';
+  }
+  h += '<svg viewBox="0 0 ' + breedtePx + ' ' + hoogtePx + '" style="position:absolute;top:0;left:0;width:100%;height:100%;' + (interactief?"cursor:crosshair;":"") + '"' + (interactief ? ' id="legplan-svg-' + offerteId + '" onclick="legplanSvgKlik(\'' + offerteId + '\', event)" onmousedown="legplanSvgMouseDown(\'' + offerteId + '\', event)" ontouchstart="legplanSvgMouseDown(\'' + offerteId + '\', event)"' : '') + '>';
   if (interactief && state.legplanKalibratiePunt1) {
     var p1 = state.legplanKalibratiePunt1, p2 = state.legplanKalibratiePunt2;
     h += '<circle cx="' + p1.x + '" cy="' + p1.y + '" r="7" fill="#FFD400"/>';
     if (p2) { h += '<line x1="' + p1.x + '" y1="' + p1.y + '" x2="' + p2.x + '" y2="' + p2.y + '" stroke="#FFD400" stroke-width="2"/><circle cx="' + p2.x + '" cy="' + p2.y + '" r="7" fill="#FFD400"/>'; }
   }
-  if (o.legplanPixelsPerMeter) h += legplanPanelenSvg(o, interactief);
+  if (o.legplanPixelsPerMeter) { h += legplanPanelenSvg(o, interactief); if (interactief) h += legplanGhostPanelenSvg(o, offerteId); }
   h += '</svg></div>';
   return h;
 }
@@ -2597,6 +2860,9 @@ function renderProductForm() {
   if (p.categorie === "Zonnepanelen") {
     h += pfield(p.id,"specWaarde","Wattpiek per paneel (Wp)",p.specWaarde);
     if (p.specWaarde) h += '<p class="subtitle" style="margin-top:-10px;grid-column:1/-1;">' + icon("zap") + ' Dit Wp wordt automatisch overgenomen zodra je dit paneel in een offerte kiest.</p>';
+    h += pfield(p.id,"paneelBreedte","Breedte (meter)",p.paneelBreedte);
+    h += pfield(p.id,"paneelHoogte","Hoogte (meter)",p.paneelHoogte);
+    h += '<p class="subtitle" style="margin-top:-10px;grid-column:1/-1;">Deze afmeting kun je straks kiezen in de legplan-tekentool, zodat panelen automatisch op de juiste schaal worden getekend.</p>';
   } else if (p.categorie === "Thuisbatterijen") {
     h += pfield(p.id,"specWaarde","Capaciteit (kWh)",p.specWaarde);
   } else if (p.categorie === "Warmtepompen") {
@@ -2646,7 +2912,7 @@ function renderKlantForm() {
   } else {
     h += kfield(k.id,"naam","Naam",k.naam,"full");
   }
-  h += kfield(k.id,"adres","Adres",k.adres,"full");
+  h += adresVeldMetSuggesties("klant-adres-"+k.id, "Adres", k.adres, "updateKlantField('"+k.id+"','adres',this.value);", "klantAdresGekozen", k.id, "full");
   h += kfield(k.id,"postcode","Postcode",k.postcode);
   h += kfield(k.id,"plaats","Plaats",k.plaats);
   h += kfield(k.id,"email","E-mailadres",k.email,"full");
@@ -2775,7 +3041,7 @@ function renderOfferteWerkblad() {
   h += ofield(o.id,"klantNaam","Naam",o.klantNaam);
   h += ofield(o.id,"klantContactpersoon","Naam eigenaar/contactpersoon",o.klantContactpersoon);
   h += contactpersoonKiezerHtml(o.klantId, o.id, "updateOfferteField");
-  h += ofield(o.id,"klantAdres","Adres",o.klantAdres);
+  h += adresVeldMetSuggesties("offerte-adres-"+o.id, "Adres", o.klantAdres, "updateOfferteField('"+o.id+"','klantAdres',this.value);", "offerteAdresGekozen", o.id, "");
   h += ofield(o.id,"klantEmail","E-mail",o.klantEmail);
   h += ofield(o.id,"klantTelefoon","Telefoon",o.klantTelefoon);
   h += ofield(o.id,"klantNummer","Klantnummer",o.klantNummer);
@@ -2828,8 +3094,7 @@ function renderOfferteWerkblad() {
     h += '<div class="ow-step"><div class="ow-step-head"><span class="ow-step-num">5</span><span class="ow-step-title">Legplan zonnepanelen (optioneel)</span></div>';
     if (!o.legplanFoto) {
       h += '<p class="subtitle" style="margin-top:-4px;">Haal automatisch een luchtfoto van het dak op, of upload zelf een foto.</p>';
-      h += '<label class="fl">Adres</label>';
-      h += '<input class="f" id="legplan-adres-' + o.id + '" value="' + esc([o.klantAdres, [o.klantPostcode,o.klantPlaats].filter(Boolean).join(" ")].filter(Boolean).join(", ")) + '" placeholder="Straat huisnummer, postcode plaats" />';
+      h += adresVeldMetSuggesties("legplan-adres-"+o.id, "Adres", [o.klantAdres, [o.klantPostcode,o.klantPlaats].filter(Boolean).join(" ")].filter(Boolean).join(", "), "", "legplanAdresGekozen", o.id, "");
       h += '<button class="btn-primary" ' + (state.legplanZoekBusy===o.id?"disabled":"") + ' onclick="zoekLuchtfotoVoorAdres(\'' + o.id + '\')">' + (state.legplanZoekBusy===o.id ? "Bezig met ophalen..." : "Luchtfoto automatisch ophalen") + '</button>';
       h += '<p class="subtitle" style="text-align:center;margin:10px 0;">&mdash; of &mdash;</p>';
       h += '<label class="photo-add" style="color:#fff;border-color:rgba(255,255,255,0.35);display:block;text-align:center;padding:16px;margin-bottom:10px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><path d="M20 12.5L11.5 21a4.5 4.5 0 0 1-6.4-6.4l9-9a3 3 0 0 1 4.3 4.3l-8.6 8.6a1.5 1.5 0 0 1-2.1-2.1l7.9-7.9"/></svg> Zelf een foto uploaden<input type="file" accept="image/*" style="display:none;" onchange="uploadLegplanFoto(\'' + o.id + '\', this.files)" /></label>';
@@ -2850,21 +3115,12 @@ function renderOfferteWerkblad() {
         }
         h += '</div>';
       } else {
-        h += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin:10px 0;">';
-        h += '<button class="btn-primary" style="width:auto;padding:8px 14px;" onclick="zetLegplanModus(\'plaatsen\')">' + (state.legplanModus==="plaatsen" ? "Klik op de foto om te plaatsen..." : "+ Paneel plaatsen") + '</button>';
-        h += '<span style="color:#fff;font-size:12.5px;align-self:center;">' + (o.legplanPanelen||[]).length + ' paneel/panelen geplaatst</span>';
-        h += '</div>';
-        if (state.legplanGeselecteerdPaneel) {
-          h += '<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;">';
-          h += '<button class="btn-secondary" style="width:auto;padding:6px 10px;" onclick="roteerPaneel(\'' + o.id + '\',\'' + state.legplanGeselecteerdPaneel + '\',-15)">&#8634; Draai</button>';
-          h += '<button class="btn-secondary" style="width:auto;padding:6px 10px;" onclick="roteerPaneel(\'' + o.id + '\',\'' + state.legplanGeselecteerdPaneel + '\',15)">&#8635; Draai</button>';
-          h += '<button class="btn-secondary" style="width:auto;padding:6px 10px;" onclick="dupliceerPaneel(\'' + o.id + '\',\'' + state.legplanGeselecteerdPaneel + '\')">Dupliceren</button>';
-          h += '<button class="btn-secondary" style="width:auto;padding:6px 10px;color:#DC2626;" onclick="verwijderPaneel(\'' + o.id + '\',\'' + state.legplanGeselecteerdPaneel + '\')">Verwijderen</button>';
-          h += '</div>';
-        }
+        h += legplanControlsHtml(o, o.id);
+        h += legplanPaneelKiezerHtml(o.id, "updateOfferteField");
         h += '<label class="fl">Paneelafmeting (meter)</label>';
         h += '<div style="display:flex;gap:8px;"><input class="f" placeholder="Breedte" value="' + esc(o.legplanPaneelBreedte) + '" oninput="updateOfferteField(\'' + o.id + '\',\'legplanPaneelBreedte\',parseFloat(this.value)||1.7); render();" /><input class="f" placeholder="Hoogte" value="' + esc(o.legplanPaneelHoogte) + '" oninput="updateOfferteField(\'' + o.id + '\',\'legplanPaneelHoogte\',parseFloat(this.value)||1.0); render();" /></div>';
       }
+      if (!o.legplanNoordBoven) h += '<div style="display:flex;align-items:center;gap:8px;margin:8px 0;"><input type="checkbox" id="legplan-noord-' + o.id + '" onchange="updateOfferteField(\'' + o.id + '\',\'legplanNoordBoven\',this.checked); render();" style="width:auto;" /><label for="legplan-noord-' + o.id + '" style="color:#fff;font-size:12.5px;margin:0;">Deze foto staat met het noorden boven aan (toont dan het kompasje)</label></div>';
       h += '<label class="fl">Onderschrift bij de foto</label>';
       h += '<input class="f" value="' + esc(o.legplanBijschrift) + '" oninput="updateOfferteField(\'' + o.id + '\',\'legplanBijschrift\',this.value)" />';
       h += '<button class="btn-secondary" onclick="wisLegplan(\'' + o.id + '\')">Legplan wissen &amp; opnieuw beginnen</button>';
@@ -3107,7 +3363,18 @@ function EO_renderConfig(o) {
     h += eoField(oid,"aantalPanelen","Aantal panelen",s.aantalPanelen);
     h += eoField(oid,"wpPerPaneel","Wp per paneel",s.wpPerPaneel);
     h += eoField(oid,"opwekfactor","Opwekfactor (kWh/kWp/jr)",s.opwekfactor);
-    h += '</div><div class="grid3">';
+    h += '</div>';
+    h += '<p class="subtitle" style="margin-top:-8px;color:#B9DDD6;">' + (s.opwekfactorBron === "schatting" ? "Dit is nu nog een algemene schatting." : "Bron: " + esc(s.opwekfactorBron)) + '</p>';
+    h += '<div class="grid3">';
+    h += eoField(oid,"dakhelling","Dakhelling (graden)",s.dakhelling);
+    h += '<div><label class="fl">Oriëntatie dak</label><select class="f" onchange="eoVeld(\'' + oid + '\',\'dakOrientatie\',this.value); render();">';
+    [["180","Zuid"],["225","Zuidwest"],["135","Zuidoost"],["270","West"],["90","Oost"],["315","Noordwest"],["45","Noordoost"],["0","Noord"]].forEach(function(opt){
+      h += '<option value="' + opt[0] + '"' + (s.dakOrientatie===opt[0]?" selected":"") + '>' + opt[1] + '</option>';
+    });
+    h += '</select></div>';
+    h += '<div style="display:flex;align-items:flex-end;"><button class="btn-primary" style="margin-bottom:12px;" ' + (state.pvgisBusy===oid?"disabled":"") + ' onclick="berekenPvgisOpwek(\'' + oid + '\')">' + (state.pvgisBusy===oid ? "Bezig..." : "Bereken met PVGIS") + '</button></div>';
+    h += '</div>';
+    h += '<div class="grid3">';
     h += eoField(oid,"efficiencyAfnamePct","Efficiëntie-afname (%/jr)",s.efficiencyAfnamePct);
     h += eoField(oid,"prijsstijgingPct","Energieprijsstijging (%/jr)",s.prijsstijgingPct);
     h += eoGeldField(oid,"onderhoudJaarlijks","Onderhoud/schoonmaak (&euro;/jr)",s.onderhoudJaarlijks);
@@ -3543,7 +3810,7 @@ function renderFactuurForm() {
   h += ffield(f.id,"klantNaam","Klant / bedrijfsnaam",f.klantNaam,"text","full");
   h += ffield(f.id,"klantContactpersoon","Naam eigenaar/contactpersoon",f.klantContactpersoon,"text","full");
   h += contactpersoonKiezerHtml(f.klantId, f.id, "updateFactuurField");
-  h += ffield(f.id,"klantAdres","Adres",f.klantAdres,"text","full");
+  h += adresVeldMetSuggesties("factuur-adres-"+f.id, "Adres", f.klantAdres, "updateFactuurField('"+f.id+"','klantAdres',this.value);", "factuurAdresGekozen", f.id, "full");
   h += ffield(f.id,"klantPostcode","Postcode",f.klantPostcode);
   h += ffield(f.id,"klantPlaats","Plaats",f.klantPlaats);
   h += ffield(f.id,"klantEmail","E-mailadres",f.klantEmail,"text","full");
@@ -4141,8 +4408,7 @@ function renderLegplanTestTab() {
   var h = '<h1>Legplan (test)</h1><p class="subtitle">Losse testomgeving voor de legplan-tool. Raakt geen echte offertes. Zodra dit goed werkt, bouwen we het in bij de offertes.</p>';
   h += '<div class="section-card" style="background:linear-gradient(160deg, #0B2530, #0F6E6E);">';
   if (!o.legplanFoto) {
-    h += '<label class="fl">Adres</label>';
-    h += '<input class="f" id="legplan-adres-' + o.id + '" placeholder="Straat huisnummer, postcode plaats" />';
+    h += adresVeldMetSuggesties("legplan-adres-"+o.id, "Adres", "", "", "legplanAdresGekozen", o.id, "");
     h += '<button class="btn-primary" ' + (state.legplanZoekBusy===o.id?"disabled":"") + ' onclick="zoekLuchtfotoVoorAdres(\'' + o.id + '\')">' + (state.legplanZoekBusy===o.id ? "Bezig met ophalen..." : "Luchtfoto automatisch ophalen") + '</button>';
     h += '<p class="subtitle" style="text-align:center;margin:10px 0;color:#B9DDD6;">&mdash; of &mdash;</p>';
     h += '<label class="photo-add" style="color:#fff;border-color:rgba(255,255,255,0.35);display:block;text-align:center;padding:16px;margin-bottom:10px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><path d="M20 12.5L11.5 21a4.5 4.5 0 0 1-6.4-6.4l9-9a3 3 0 0 1 4.3 4.3l-8.6 8.6a1.5 1.5 0 0 1-2.1-2.1l7.9-7.9"/></svg> Zelf een foto uploaden<input type="file" accept="image/*" style="display:none;" onchange="uploadLegplanFoto(\'' + o.id + '\', this.files)" /></label>';
@@ -4163,21 +4429,12 @@ function renderLegplanTestTab() {
       }
       h += '</div>';
     } else {
-      h += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin:10px 0;">';
-      h += '<button class="btn-primary" style="width:auto;padding:8px 14px;" onclick="zetLegplanModus(\'plaatsen\')">' + (state.legplanModus==="plaatsen" ? "Klik op de foto om te plaatsen..." : "+ Paneel plaatsen") + '</button>';
-      h += '<span style="color:#fff;font-size:12.5px;align-self:center;">' + (o.legplanPanelen||[]).length + ' paneel/panelen geplaatst</span>';
-      h += '</div>';
-      if (state.legplanGeselecteerdPaneel) {
-        h += '<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;">';
-        h += '<button class="btn-secondary" style="width:auto;padding:6px 10px;" onclick="roteerPaneel(\'' + o.id + '\',\'' + state.legplanGeselecteerdPaneel + '\',-15)">&#8634; Draai</button>';
-        h += '<button class="btn-secondary" style="width:auto;padding:6px 10px;" onclick="roteerPaneel(\'' + o.id + '\',\'' + state.legplanGeselecteerdPaneel + '\',15)">&#8635; Draai</button>';
-        h += '<button class="btn-secondary" style="width:auto;padding:6px 10px;" onclick="dupliceerPaneel(\'' + o.id + '\',\'' + state.legplanGeselecteerdPaneel + '\')">Dupliceren</button>';
-        h += '<button class="btn-secondary" style="width:auto;padding:6px 10px;color:#FCA5A5;" onclick="verwijderPaneel(\'' + o.id + '\',\'' + state.legplanGeselecteerdPaneel + '\')">Verwijderen</button>';
-        h += '</div>';
-      }
+      h += legplanControlsHtml(o, o.id);
+      h += legplanPaneelKiezerHtml(o.id, "updateOfferteField");
       h += '<label class="fl">Paneelafmeting (meter)</label>';
       h += '<div style="display:flex;gap:8px;"><input class="f" placeholder="Breedte" value="' + esc(o.legplanPaneelBreedte) + '" oninput="updateOfferteField(\'' + o.id + '\',\'legplanPaneelBreedte\',parseFloat(this.value)||1.7); render();" /><input class="f" placeholder="Hoogte" value="' + esc(o.legplanPaneelHoogte) + '" oninput="updateOfferteField(\'' + o.id + '\',\'legplanPaneelHoogte\',parseFloat(this.value)||1.0); render();" /></div>';
     }
+    if (!o.legplanNoordBoven) h += '<div style="display:flex;align-items:center;gap:8px;margin:8px 0;"><input type="checkbox" id="legplan-noord-' + o.id + '" onchange="updateOfferteField(\'' + o.id + '\',\'legplanNoordBoven\',this.checked); render();" style="width:auto;" /><label for="legplan-noord-' + o.id + '" style="color:#fff;font-size:12.5px;margin:0;">Deze foto staat met het noorden boven aan (toont dan het kompasje)</label></div>';
     h += '<label class="fl">Onderschrift bij de foto</label>';
     h += '<input class="f" value="' + esc(o.legplanBijschrift) + '" oninput="updateOfferteField(\'' + o.id + '\',\'legplanBijschrift\',this.value)" />';
     h += '<button class="btn-secondary" onclick="wisLegplan(\'' + o.id + '\')">Legplan wissen &amp; opnieuw beginnen</button>';
@@ -4244,7 +4501,7 @@ function renderInstellingen() {
 
   h += '<div class="section-card"><h2>Bedrijfsgegevens</h2><div class="grid2">';
   h += bfield("naam","Bedrijfsnaam",b.naam,"full");
-  h += bfield("adres","Adres",b.adres,"full");
+  h += adresVeldMetSuggesties("bedrijf-adres", "Adres", b.adres, "updateBedrijfField('adres',this.value);", "bedrijfAdresGekozen", "", "full");
   h += bfield("postcode","Postcode",b.postcode);
   h += bfield("plaats","Plaats",b.plaats);
   h += bfield("telefoon","Telefoonnummer",b.telefoon);
