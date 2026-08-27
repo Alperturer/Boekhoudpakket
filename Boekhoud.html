@@ -2711,7 +2711,7 @@ function renderKlantenLijst() {
       if (k.klantType==="zakelijk" && k.vertegenwoordigerNaam) metaDelen.push("t.a.v. "+k.vertegenwoordigerNaam);
       if (k.telefoon) metaDelen.push(k.telefoon);
       if (k.email) metaDelen.push(k.email);
-      h += '<div class="list-row" onclick="bewerkKlant(\'' + k.id + '\')"><div class="list-left"><div class="list-title">' + (k.klantType==="zakelijk"?icon("briefcase"):icon("user")) + ' ' + esc(k.naam||"Naamloos") + '</div><div class="list-meta">' + esc(metaDelen.filter(Boolean).join(" &middot; ")) + '</div></div>' + (k.isLicentiehouder ? '<span class="badge" style="background:#4d493f;">' + esc(k.licentienummer||"Licentie") + '</span>' : '') + '<button class="del-x" onclick="event.stopPropagation(); bewerkKlant(\'' + k.id + '\');" title="Wijzigen">' + icon("edit") + '</button><button class="del-x" onclick="event.stopPropagation(); removeKlant(\'' + k.id + '\');" title="Verwijderen">' + icon("trash") + '</button></div>';
+      h += '<div class="list-row" onclick="bewerkKlant(\'' + k.id + '\')"><div class="list-left"><div class="list-title">' + (k.klantType==="zakelijk"?icon("briefcase"):icon("user")) + ' ' + esc(k.naam||"Naamloos") + '</div><div class="list-meta">' + metaDelen.filter(Boolean).map(esc).join(" &middot; ") + '</div></div>' + (k.isLicentiehouder ? '<span class="badge" style="background:#4d493f;">' + esc(k.licentienummer||"Licentie") + '</span>' : '') + '<button class="del-x" onclick="event.stopPropagation(); bewerkKlant(\'' + k.id + '\');" title="Wijzigen">' + icon("edit") + '</button><button class="del-x" onclick="event.stopPropagation(); removeKlant(\'' + k.id + '\');" title="Verwijderen">' + icon("trash") + '</button></div>';
     });
   }
   return h;
