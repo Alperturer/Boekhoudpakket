@@ -837,6 +837,7 @@ function updateProductNaamMetHerkenning(id, naam) {
 function newSchouw() {
   return {
     id: uid(), klantId: "", projectId: "", datum: new Date().toISOString().slice(0,10),
+    klantNaam: "", klantAdres: "", klantPostcode: "", klantPlaats: "", klantTelefoon: "", klantEmail: "",
     fotos: [], // [{id, naam, data, omschrijving}]
     aansluitType: "1-fase", aansluitAmpere: "", hoofdzekeringAmpere: "",
     beveiligingType: "installatieautomaat", karakteristiek: "B",
@@ -847,7 +848,7 @@ function newSchouw() {
 }
 function newProjectCRM() {
   return {
-    id: uid(), naam: "", klantId: "", status: "nieuw", adres: "", notities: "",
+    id: uid(), naam: "", klantId: "", status: "nieuw", adres: "", notities: "", projectFotos: [],
     schouwDatum: "", schouwTijd: "", schouwNotities: "", schouwFotos: [],
     installatieDatum: "", installatieTijd: "", installatieNotities: "",
     opleverDatum: "",
@@ -1003,7 +1004,11 @@ function persistSchouwen() { saveJSON(STORAGE_SCHOUWEN, state.schouwen); schedul
 function getSchouw(id) { return state.schouwen.find(function(s){ return s.id === id; }); }
 function nieuweSchouw(klantId) {
   var s = newSchouw();
-  if (klantId) s.klantId = klantId;
+  if (klantId) {
+    var k = getKlant(klantId);
+    s.klantId = klantId;
+    if (k) { s.klantNaam = k.naam; s.klantAdres = k.adres; s.klantPostcode = k.postcode; s.klantPlaats = k.plaats; s.klantTelefoon = k.telefoon; s.klantEmail = k.email; }
+  }
   state.schouwen.unshift(s);
   state.huidigeSchouwId = s.id;
   persistSchouwen();
@@ -1012,7 +1017,11 @@ function nieuweSchouw(klantId) {
 function nieuweSchouwVoorProject(projectId) {
   var p = getProjectCRM(projectId);
   var s = newSchouw();
-  if (p) { s.klantId = p.klantId; s.projectId = p.id; }
+  if (p) {
+    s.klantId = p.klantId; s.projectId = p.id;
+    var k = getKlant(p.klantId);
+    if (k) { s.klantNaam = k.naam; s.klantAdres = k.adres; s.klantPostcode = k.postcode; s.klantPlaats = k.plaats; s.klantTelefoon = k.telefoon; s.klantEmail = k.email; }
+  }
   state.schouwen.unshift(s);
   state.huidigeSchouwId = s.id;
   persistSchouwen();
@@ -1020,6 +1029,15 @@ function nieuweSchouwVoorProject(projectId) {
 }
 function updateSchouwField(id, key, val) { var s = getSchouw(id); if (s) s[key] = val; persistSchouwen(); }
 function bewerkSchouw(id) { state.huidigeSchouwId = id; setTab("schouw-form"); }
+function kiesKlantVoorSchouw(schouwId, klantId) {
+  var s = getSchouw(schouwId); var k = getKlant(klantId);
+  if (!s) return;
+  s.klantId = klantId;
+  if (k) { s.klantNaam = k.naam; s.klantAdres = k.adres; s.klantPostcode = k.postcode; s.klantPlaats = k.plaats; s.klantTelefoon = k.telefoon; s.klantEmail = k.email; }
+  persistSchouwen(); render();
+}
+function schouwAdresGekozen(schouwId, r) { updateSchouwField(schouwId,"klantAdres",r.straat); updateSchouwField(schouwId,"klantPostcode",r.postcode); updateSchouwField(schouwId,"klantPlaats",r.plaats); render(); }
+function bevestigOpslaanSchouw(id) { persistSchouwen(); toonToast("Schouw opgeslagen."); }
 function removeSchouw(id) {
   vraagBevestiging("Weet je zeker dat je deze schouw wilt verwijderen?", function(){
     state.schouwen = state.schouwen.filter(function(s){ return s.id !== id; });
@@ -2804,7 +2822,7 @@ function renderSchouwenLijst() {
     state.schouwen.slice().sort(function(a,b){ return (b.datum||"").localeCompare(a.datum||""); }).forEach(function(s){
       var klant = getKlant(s.klantId);
       var project = s.projectId ? getProjectCRM(s.projectId) : null;
-      h += '<div class="list-row" onclick="bewerkSchouw(\'' + s.id + '\')"><div class="list-left"><div class="list-title">' + (klant?esc(klant.naam):"Geen klant gekoppeld") + '</div><div class="list-meta">' + esc(s.datum) + (s.fotos.length ? ' &middot; ' + s.fotos.length + ' foto' + (s.fotos.length===1?"":"'s") : '') + (project ? ' &middot; project: ' + esc(project.naam||"") : '') + '</div></div><button class="del-x" onclick="event.stopPropagation(); bewerkSchouw(\'' + s.id + '\');" title="Wijzigen">' + icon('edit') + '</button><button class="del-x" onclick="event.stopPropagation(); removeSchouw(\'' + s.id + '\');" title="Verwijderen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></button></div>';
+      h += '<div class="list-row" onclick="bewerkSchouw(\'' + s.id + '\')"><div class="list-left"><div class="list-title">' + (s.klantNaam ? esc(s.klantNaam) : (klant?esc(klant.naam):"Naamloos")) + '</div><div class="list-meta">' + esc(s.datum) + (s.fotos.length ? ' &middot; ' + s.fotos.length + ' foto' + (s.fotos.length===1?"":"'s") : '') + (project ? ' &middot; project: ' + esc(project.naam||"") : '') + '</div></div><button class="del-x" onclick="event.stopPropagation(); bewerkSchouw(\'' + s.id + '\');" title="Wijzigen">' + icon('edit') + '</button><button class="del-x" onclick="event.stopPropagation(); removeSchouw(\'' + s.id + '\');" title="Verwijderen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></button></div>';
     });
   }
   return h;
@@ -2814,12 +2832,20 @@ function renderSchouwForm() {
   if (!s) return '<div class="empty-state">Schouw niet gevonden.</div>';
   var h = '<button class="backbtn no-print" onclick="setTab(\'schouwen\')">&larr; Terug naar schouwen</button>';
   h += '<h1>Schouw</h1>';
+  h += '<button class="btn-primary" onclick="bevestigOpslaanSchouw(\'' + s.id + '\')" style="margin-bottom:14px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg> Opslaan</button>';
   h += '<div class="section-card">';
 
-  h += '<h3 style="margin-top:0;">Klant &amp; project</h3><div class="grid2">';
-  h += '<div><label class="fl">Klant</label><select class="f" onchange="updateSchouwField(\'' + s.id + '\',\'klantId\',this.value)"><option value="">&mdash; kies klant &mdash;</option>';
+  h += '<h3 style="margin-top:0;">Klant &amp; project</h3>';
+  h += '<div class="full" style="margin-bottom:10px;"><label class="fl">Snel invullen vanuit bestaande klant (optioneel)</label><select class="f" onchange="kiesKlantVoorSchouw(\'' + s.id + '\', this.value)"><option value="">&mdash; handmatig invullen &mdash;</option>';
   klantenGesorteerd().forEach(function(k){ h += '<option value="' + k.id + '"' + (s.klantId===k.id?" selected":"") + '>' + esc(k.naam) + '</option>'; });
   h += '</select></div>';
+  h += '<div class="grid2">';
+  h += '<div><label class="fl">Naam</label><input class="f" value="' + esc(s.klantNaam) + '" oninput="updateSchouwField(\'' + s.id + '\',\'klantNaam\',this.value)" /></div>';
+  h += adresVeldMetSuggesties("schouw-adres-"+s.id, "Adres", s.klantAdres, "updateSchouwField('"+s.id+"','klantAdres',this.value);", "schouwAdresGekozen", s.id, "");
+  h += '<div><label class="fl">Postcode</label><input class="f" value="' + esc(s.klantPostcode) + '" oninput="updateSchouwField(\'' + s.id + '\',\'klantPostcode\',this.value)" /></div>';
+  h += '<div><label class="fl">Plaats</label><input class="f" value="' + esc(s.klantPlaats) + '" oninput="updateSchouwField(\'' + s.id + '\',\'klantPlaats\',this.value)" /></div>';
+  h += '<div><label class="fl">Telefoon</label><input class="f" value="' + esc(s.klantTelefoon) + '" oninput="updateSchouwField(\'' + s.id + '\',\'klantTelefoon\',this.value)" /></div>';
+  h += '<div><label class="fl">E-mail</label><input class="f" value="' + esc(s.klantEmail) + '" oninput="updateSchouwField(\'' + s.id + '\',\'klantEmail\',this.value)" /></div>';
   h += '<div><label class="fl">Datum schouw</label><input class="f" type="date" value="' + esc(s.datum) + '" oninput="updateSchouwField(\'' + s.id + '\',\'datum\',this.value)" /></div>';
   h += '<div class="full"><label class="fl">Koppel aan project (optioneel &mdash; kan ook later)</label><select class="f" onchange="updateSchouwField(\'' + s.id + '\',\'projectId\',this.value)"><option value="">&mdash; nog geen project &mdash;</option>';
   state.projectenCRM.filter(function(p){ return !s.klantId || p.klantId === s.klantId; }).forEach(function(p){ h += '<option value="' + p.id + '"' + (s.projectId===p.id?" selected":"") + '>' + esc(p.naam||"Naamloos project") + '</option>'; });
@@ -2835,9 +2861,8 @@ function renderSchouwForm() {
   });
   h += '<label class="photo-add" style="display:block;text-align:center;padding:16px;margin-bottom:14px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><path d="M20 12.5L11.5 21a4.5 4.5 0 0 1-6.4-6.4l9-9a3 3 0 0 1 4.3 4.3l-8.6 8.6a1.5 1.5 0 0 1-2.1-2.1l7.9-7.9"/></svg> Foto(\'s) toevoegen<input type="file" accept="image/*" multiple style="display:none;" onchange="voegSchouwFotoToe(\'' + s.id + '\', this.files)" /></label>';
 
-  h += '<h3>Aansluiting</h3><div class="grid3">';
+  h += '<h3>Aansluiting</h3><div class="grid2">';
   h += '<div><label class="fl">Type aansluiting</label><select class="f" onchange="updateSchouwField(\'' + s.id + '\',\'aansluitType\',this.value)"><option value="1-fase"' + (s.aansluitType==="1-fase"?" selected":"") + '>1-fase</option><option value="3-fase"' + (s.aansluitType==="3-fase"?" selected":"") + '>3-fase</option></select></div>';
-  h += '<div><label class="fl">Aansluitwaarde (A)</label><input class="f" placeholder="bijv. 40" value="' + esc(s.aansluitAmpere) + '" oninput="updateSchouwField(\'' + s.id + '\',\'aansluitAmpere\',this.value)" /></div>';
   h += '<div><label class="fl">Hoofdzekering (A)</label><input class="f" placeholder="bijv. 35" value="' + esc(s.hoofdzekeringAmpere) + '" oninput="updateSchouwField(\'' + s.id + '\',\'hoofdzekeringAmpere\',this.value)" /></div>';
   h += '</div>';
 
@@ -2868,6 +2893,7 @@ function renderSchouwForm() {
   h += '<textarea class="f" oninput="updateSchouwField(\'' + s.id + '\',\'notities\',this.value)">' + esc(s.notities) + '</textarea>';
 
   h += '</div>';
+  h += '<button class="btn-primary" onclick="bevestigOpslaanSchouw(\'' + s.id + '\')">Opslaan</button>';
   h += '<button class="btn-secondary" onclick="setTab(\'schouwen\')">&larr; Terug naar schouwen</button>';
   h += '<button class="del-x" style="margin-top:10px;" onclick="removeSchouw(\'' + s.id + '\')">Schouw verwijderen</button>';
   return h;
@@ -2905,6 +2931,9 @@ function renderProjectForm() {
   h += '</select></div>';
   h += '</div>';
   h += '<label class="fl">Algemene notities</label><textarea class="f" oninput="updateProjectCRMField(\'' + p.id + '\',\'notities\',this.value)">' + esc(p.notities) + '</textarea>';
+  h += '<label class="fl">Foto\'s van het project</label><div class="photo-row" style="margin-top:0;">';
+  (p.projectFotos||[]).forEach(function(src,i){ h += '<span class="photo-wrap"><img class="photo-thumb" src="' + src + '" /><button onclick="removeProjectFoto(\'projectFotos\',\'' + p.id + '\',' + i + ')">&times;</button></span>'; });
+  h += '<label class="photo-add"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z"/><circle cx="12" cy="13" r="4"/></svg> Toevoegen<input type="file" accept="image/*" multiple onchange="addProjectFoto(\'projectFotos\',\'' + p.id + '\', this.files)" /></label></div>';
   h += '</div>';
 
   // Schouw
