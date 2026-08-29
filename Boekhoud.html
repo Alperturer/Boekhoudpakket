@@ -2827,12 +2827,57 @@ function renderSchouwenLijst() {
   }
   return h;
 }
+function schouwRapportHtml(s) {
+  var klant = getKlant(s.klantId);
+  var h = '<div id="schouw-rapport" style="background:#fff;color:#0A0A0A;padding:28px;max-width:760px;margin:0 auto;font-family:inherit;">';
+  h += paginaLogoHeader(state.bedrijf);
+  h += '<h1 style="font-size:22px;margin:0 0 4px;">Schouwrapport</h1>';
+  h += '<p style="color:#666;margin-top:0;">Datum schouw: ' + esc(s.datum) + '</p>';
+
+  h += '<h3 style="border-bottom:1px solid #E2E8F0;padding-bottom:4px;">Klantgegevens</h3>';
+  h += '<p style="margin:2px 0;"><strong>' + esc(s.klantNaam || (klant?klant.naam:"") || "&mdash;") + '</strong></p>';
+  if (s.klantAdres) h += '<p style="margin:2px 0;">' + esc(s.klantAdres) + '</p>';
+  if (s.klantPostcode || s.klantPlaats) h += '<p style="margin:2px 0;">' + esc([s.klantPostcode,s.klantPlaats].filter(Boolean).join(" ")) + '</p>';
+  if (s.klantTelefoon) h += '<p style="margin:2px 0;">' + esc(s.klantTelefoon) + '</p>';
+  if (s.klantEmail) h += '<p style="margin:2px 0;">' + esc(s.klantEmail) + '</p>';
+
+  h += '<h3 style="border-bottom:1px solid #E2E8F0;padding-bottom:4px;margin-top:20px;">Aansluiting &amp; beveiliging</h3>';
+  h += '<table style="width:100%;border-collapse:collapse;font-size:13px;">';
+  h += '<tr><td style="padding:4px 0;color:#666;width:45%;">Type aansluiting</td><td style="padding:4px 0;">' + esc(s.aansluitType) + '</td></tr>';
+  h += '<tr><td style="padding:4px 0;color:#666;">Hoofdzekering</td><td style="padding:4px 0;">' + esc(s.hoofdzekeringAmpere||"&mdash;") + (s.hoofdzekeringAmpere?" A":"") + '</td></tr>';
+  h += '<tr><td style="padding:4px 0;color:#666;">Beveiliging</td><td style="padding:4px 0;">' + esc(s.beveiligingType) + (s.beveiligingType==="installatieautomaat" ? " (karakteristiek " + esc(s.karakteristiek) + ")" : "") + '</td></tr>';
+  h += '<tr><td style="padding:4px 0;color:#666;">Installatieschema aanwezig</td><td style="padding:4px 0;">' + (s.installatieschemaAanwezig?"Ja":"Nee") + '</td></tr>';
+  h += '</table>';
+
+  h += '<h3 style="border-bottom:1px solid #E2E8F0;padding-bottom:4px;margin-top:20px;">Kabeltracé</h3>';
+  h += '<p style="font-size:13px;white-space:pre-wrap;margin:2px 0;">' + esc(s.kabelTraceOmschrijving || "&mdash;") + '</p>';
+  h += '<table style="width:100%;border-collapse:collapse;font-size:13px;margin-top:6px;">';
+  h += '<tr><td style="padding:4px 0;color:#666;width:45%;">Type kabel</td><td style="padding:4px 0;">' + esc(s.kabelType||"&mdash;") + '</td></tr>';
+  h += '<tr><td style="padding:4px 0;color:#666;">Geschatte lengte</td><td style="padding:4px 0;">' + esc(s.kabelLengte||"&mdash;") + (s.kabelLengte?" m":"") + '</td></tr>';
+  h += '</table>';
+
+  if (s.bijzonderheden) h += '<h3 style="border-bottom:1px solid #E2E8F0;padding-bottom:4px;margin-top:20px;">Bijzonderheden</h3><p style="font-size:13px;white-space:pre-wrap;">' + esc(s.bijzonderheden) + '</p>';
+  if (s.notities) h += '<h3 style="border-bottom:1px solid #E2E8F0;padding-bottom:4px;margin-top:20px;">Overige notities</h3><p style="font-size:13px;white-space:pre-wrap;">' + esc(s.notities) + '</p>';
+
+  if (s.fotos && s.fotos.length) {
+    h += '<h3 style="border-bottom:1px solid #E2E8F0;padding-bottom:4px;margin-top:20px;">Foto\'s</h3>';
+    h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">';
+    s.fotos.forEach(function(f){
+      h += '<div><img src="' + f.data + '" style="width:100%;border-radius:6px;border:1px solid #E2E8F0;" />' + (f.omschrijving ? '<p style="font-size:11.5px;color:#666;margin:4px 0 0;">' + esc(f.omschrijving) + '</p>' : '') + '</div>';
+    });
+    h += '</div>';
+  }
+  h += '</div>';
+  return h;
+}
 function renderSchouwForm() {
   var s = getSchouw(state.huidigeSchouwId);
   if (!s) return '<div class="empty-state">Schouw niet gevonden.</div>';
   var h = '<button class="backbtn no-print" onclick="setTab(\'schouwen\')">&larr; Terug naar schouwen</button>';
   h += '<h1>Schouw</h1>';
-  h += '<button class="btn-primary" onclick="bevestigOpslaanSchouw(\'' + s.id + '\')" style="margin-bottom:14px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg> Opslaan</button>';
+  h += '<button class="btn-primary" onclick="bevestigOpslaanSchouw(\'' + s.id + '\')" style="margin-bottom:14px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg> Opslaan</button> ';
+  h += '<button class="btn-secondary" id="pdf-btn-schouw" style="margin-bottom:14px;" onclick="downloadAlsPDF(\'schouw-rapport-wrap\', \'Schouwrapport-' + esc(s.klantNaam||"klant") + '\', \'pdf-btn-schouw\')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg> Exporteer als PDF</button>';
+  h += '<div id="schouw-rapport-wrap" style="position:absolute;left:-9999px;top:0;">' + schouwRapportHtml(s) + '</div>';
   h += '<div class="section-card">';
 
   h += '<h3 style="margin-top:0;">Klant &amp; project</h3>';
