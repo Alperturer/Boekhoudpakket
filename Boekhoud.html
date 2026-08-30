@@ -811,7 +811,7 @@ function genereerKlantNummer() {
   state.bedrijf.nextKlantNr = nr + 1;
   return "KL" + nr;
 }
-function newProduct() { return { id: uid(), naam:"", categorie: PRODUCT_CATEGORIEEN[0], eenheid: "stuks", prijs:"", btw: 21, omschrijving:"", datasheetNaam:"", datasheetData:"", specWaarde:"", paneelBreedte:"", paneelHoogte:"" }; }
+function newProduct() { return { id: uid(), naam:"", categorie: PRODUCT_CATEGORIEEN[0], eenheid: "stuks", prijs:"", btw: 21, omschrijving:"", datasheetNaam:"", datasheetData:"", specWaarde:"", paneelBreedte:"", paneelHoogte:"", foto:"" }; }
 // Kleine, lokale herkenningstabel voor veelgebruikte modellen (géén live AI-koppeling nodig hiervoor --
 // werkt volledig offline op basis van bekende specificaties). Voegt zelf modellen toe indien gewenst.
 var PANEEL_DATABASE = [
@@ -1672,6 +1672,18 @@ function updateProductField(id, key, val) { var p = getProduct(id); if (p) p[key
 function updateProduct(id, patch) { var p = getProduct(id); if (p) Object.assign(p, patch); persistProducten(); render(); }
 function bewerkProduct(id) { state.huidigProductId = id; setTab("product-form"); }
 function removeProduct(id) { vraagBevestiging("Dit product uit de catalogus verwijderen?", function(){ state.producten = state.producten.filter(function(p){return p.id!==id;}); persistProducten(); render(); setTab("producten"); }); }
+function uploadProductFoto(id, files) {
+  if (!files || !files[0]) return;
+  filesToDataUrls([files[0]], function(urls){
+    var p = getProduct(id); if (!p) return;
+    p.foto = urls[0] || "";
+    persistProducten(); render();
+  });
+}
+function verwijderProductFoto(id) {
+  var p = getProduct(id); if (!p) return;
+  p.foto = ""; persistProducten(); render();
+}
 function uploadProductDatasheet(id, files) {
   if (!files || files.length===0) return;
   var f = files[0];
@@ -1692,14 +1704,14 @@ function kiesProductVoorFactuurRegel(factuurId, regelId, productId) {
   var f = getFactuur(factuurId); var p = getProduct(productId);
   if (!f || !p) return;
   var r = f.regels.find(function(x){return x.id===regelId;});
-  if (r) { r.omschrijving = p.naam + (p.omschrijving ? " — " + p.omschrijving : ""); r.prijs = p.prijs; r.btw = p.btw; }
+  if (r) { r.omschrijving = p.naam + (p.omschrijving ? " — " + p.omschrijving : ""); r.prijs = p.prijs; r.btw = p.btw; r.productId = p.id; r.productFoto = p.foto || ""; }
   persistFacturen(); render();
 }
 function kiesProductVoorOfferteRegel(offerteId, regelId, productId) {
   var o = getOfferte(offerteId); var p = getProduct(productId);
   if (!o || !p) return;
   var r = o.regels.find(function(x){return x.id===regelId;});
-  if (r) { r.omschrijving = p.naam + (p.omschrijving ? " — " + p.omschrijving : ""); r.prijs = p.prijs; r.btw = p.btw; r.productId = p.id; }
+  if (r) { r.omschrijving = p.naam + (p.omschrijving ? " — " + p.omschrijving : ""); r.prijs = p.prijs; r.btw = p.btw; r.productId = p.id; r.productFoto = p.foto || ""; }
   if (p.datasheetData) {
     if (!o.datasheets) o.datasheets = [];
     var bestaatAl = o.datasheets.some(function(d){ return d.naam === p.datasheetNaam && d.data === p.datasheetData; });
@@ -3077,6 +3089,13 @@ function renderProductForm() {
   var h = '<button class="backbtn" onclick="setTab(\'producten\')">&larr; Terug naar producten</button>';
   h += '<div class="section-card"><h2>Product</h2><div class="grid2">';
   h += '<div class="full"><label class="fl">Naam product</label><input class="f" value="' + esc(p.naam) + '" oninput="updateProductNaamMetHerkenning(\'' + p.id + '\', this.value)" /></div>';
+  h += '<div class="full"><label class="fl">Foto (optioneel &mdash; verschijnt ook bij deze regel op offerte/factuur)</label>';
+  if (p.foto) {
+    h += '<div style="display:flex;align-items:center;gap:10px;"><img src="' + p.foto + '" style="width:70px;height:70px;object-fit:cover;border-radius:8px;border:1px solid var(--border);" /><button class="del-x" onclick="verwijderProductFoto(\'' + p.id + '\')">Foto verwijderen</button></div>';
+  } else {
+    h += '<label class="photo-add" style="display:block;text-align:center;padding:16px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><path d="M20 12.5L11.5 21a4.5 4.5 0 0 1-6.4-6.4l9-9a3 3 0 0 1 4.3 4.3l-8.6 8.6a1.5 1.5 0 0 1-2.1-2.1l7.9-7.9"/></svg> Foto toevoegen<input type="file" accept="image/*" style="display:none;" onchange="uploadProductFoto(\'' + p.id + '\', this.files)" /></label>';
+  }
+  h += '</div>';
   h += '<div><label class="fl">Categorie</label><select class="f" onchange="updateProduct(\'' + p.id + '\',{categorie:this.value})">';
   PRODUCT_CATEGORIEEN.forEach(function(c){ h += '<option value="' + c + '"' + (p.categorie===c?" selected":"") + '>' + c + '</option>'; });
   h += '</select></div>';
@@ -3438,7 +3457,8 @@ function renderOfferteWerkblad() {
   h += '<table class="ow-regels-table"><thead><tr><th>Omschrijving</th><th style="text-align:right;">Aantal</th><th style="text-align:right;">Prijs</th><th style="text-align:right;">Totaal</th></tr></thead><tbody>';
   o.regels.forEach(function(r){
     var lijn = (parseFloat(r.aantal)||0)*(parseFloat(r.prijs)||0);
-    h += '<tr><td>' + esc(r.omschrijving||"—") + '</td><td style="text-align:right;">' + esc(r.aantal) + ' ' + esc(r.eenheid||"") + '</td><td style="text-align:right;">' + euro(r.prijs) + '</td><td style="text-align:right;">' + euro(lijn) + '</td></tr>';
+    var omschrijvingCel = r.productFoto ? '<div style="display:flex;align-items:center;gap:8px;"><img src="' + r.productFoto + '" style="width:38px;height:38px;object-fit:cover;border-radius:4px;flex-shrink:0;" />' + esc(r.omschrijving||"—") + '</div>' : esc(r.omschrijving||"—");
+    h += '<tr><td>' + omschrijvingCel + '</td><td style="text-align:right;">' + esc(r.aantal) + ' ' + esc(r.eenheid||"") + '</td><td style="text-align:right;">' + euro(r.prijs) + '</td><td style="text-align:right;">' + euro(lijn) + '</td></tr>';
   });
   h += '</tbody></table>';
   h += '<div class="ow-totals"><div class="ow-totals-box">';
@@ -4135,7 +4155,8 @@ function renderFactuurDocument(f) {
   h += '<table class="ow-regels-table"><thead><tr><th>Omschrijving</th><th style="text-align:right;">Aantal</th><th style="text-align:right;">Prijs</th><th style="text-align:right;">BTW</th><th style="text-align:right;">Totaal</th></tr></thead><tbody>';
   f.regels.forEach(function(r){
     var lijn = (parseFloat(r.aantal)||0)*(parseFloat(r.prijs)||0);
-    h += '<tr><td>' + esc(r.omschrijving||"—") + '</td><td style="text-align:right;">' + esc(r.aantal) + '</td><td style="text-align:right;">' + euro(r.prijs) + '</td><td style="text-align:right;">' + r.btw + '%</td><td style="text-align:right;">' + euro(lijn) + '</td></tr>';
+    var omschrijvingCel = r.productFoto ? '<div style="display:flex;align-items:center;gap:8px;"><img src="' + r.productFoto + '" style="width:38px;height:38px;object-fit:cover;border-radius:4px;flex-shrink:0;" />' + esc(r.omschrijving||"—") + '</div>' : esc(r.omschrijving||"—");
+    h += '<tr><td>' + omschrijvingCel + '</td><td style="text-align:right;">' + esc(r.aantal) + '</td><td style="text-align:right;">' + euro(r.prijs) + '</td><td style="text-align:right;">' + r.btw + '%</td><td style="text-align:right;">' + euro(lijn) + '</td></tr>';
   });
   h += '</tbody></table>';
 
@@ -4896,7 +4917,8 @@ function renderKlantOfferteView(o) {
   h += '<table class="r-table"><thead><tr><th>Omschrijving</th><th class="num">Aantal</th><th class="num">Prijs</th><th class="num">Bedrag</th></tr></thead><tbody>';
   (o.data.regels||[]).forEach(function(r){
     var lijn = (parseFloat(r.aantal)||0)*(parseFloat(r.prijs)||0);
-    h += '<tr><td>' + esc(r.omschrijving||"—") + '</td><td class="num">' + esc(r.aantal) + '</td><td class="num">' + euro(r.prijs) + '</td><td class="num">' + euro(lijn) + '</td></tr>';
+    var omschrijvingCel = r.productFoto ? '<div style="display:flex;align-items:center;gap:8px;"><img src="' + r.productFoto + '" style="width:38px;height:38px;object-fit:cover;border-radius:4px;flex-shrink:0;" />' + esc(r.omschrijving||"—") + '</div>' : esc(r.omschrijving||"—");
+    h += '<tr><td>' + omschrijvingCel + '</td><td class="num">' + esc(r.aantal) + '</td><td class="num">' + euro(r.prijs) + '</td><td class="num">' + euro(lijn) + '</td></tr>';
   });
   h += '</tbody></table>';
   h += '<div class="totals-box"><div class="totals-row grand"><span>Totaal incl. BTW</span><span>' + euro(t.totaalIncl) + '</span></div></div>';
