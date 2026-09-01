@@ -656,10 +656,62 @@ function downloadAlsPDF(elementId, bestandsnaam, knopId) {
     };
   }
 
-  function laadAfbeeldingAfmetingen(src) {
+  function trimEnLaadAfbeelding(src) {
+    // Snijdt witruimte rond de daadwerkelijke inhoud weg voordat de afbeelding in de PDF
+    // wordt geplaatst. Nodig omdat sommige brondata (bv. fabrikants-datasheets) zelf al een
+    // scheve witte rand bevat -- dat zit dan in de pixels zelf, niet in onze CSS/lay-out, en
+    // is dus alleen op te lossen door de content-rand te detecteren en bij te snijden.
     return new Promise(function(resolve){
       var img = new Image();
-      img.onload = function(){ resolve({ breedte: img.naturalWidth || img.width, hoogte: img.naturalHeight || img.height, src: src }); };
+      img.onload = function(){
+        try {
+          var w = img.naturalWidth, h = img.naturalHeight;
+          var canvas = document.createElement("canvas");
+          canvas.width = w; canvas.height = h;
+          var ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0);
+          var data = ctx.getImageData(0, 0, w, h).data;
+          var DREMPEL = 248; // pixel telt als "wit/leeg" vanaf deze helderheid per kanaal
+          var stapX = Math.max(1, Math.floor(w / 500));
+          var stapY = Math.max(1, Math.floor(h / 500));
+          function rijIsLeeg(y) {
+            for (var x = 0; x < w; x += stapX) {
+              var i = (y * w + x) * 4;
+              if (data[i] < DREMPEL || data[i+1] < DREMPEL || data[i+2] < DREMPEL) return false;
+            }
+            return true;
+          }
+          function kolomIsLeeg(x) {
+            for (var y = 0; y < h; y += stapY) {
+              var i = (y * w + x) * 4;
+              if (data[i] < DREMPEL || data[i+1] < DREMPEL || data[i+2] < DREMPEL) return false;
+            }
+            return true;
+          }
+          var top = 0, bottom = h - 1, left = 0, right = w - 1;
+          while (top < h - 1 && rijIsLeeg(top)) top++;
+          while (bottom > top && rijIsLeeg(bottom)) bottom--;
+          while (left < w - 1 && kolomIsLeeg(left)) left++;
+          while (right > left && kolomIsLeeg(right)) right--;
+          var marge = Math.round(Math.min(w, h) * 0.012);
+          left = Math.max(0, left - marge);
+          top = Math.max(0, top - marge);
+          right = Math.min(w - 1, right + marge);
+          bottom = Math.min(h - 1, bottom + marge);
+          var breedte = right - left + 1, hoogte = bottom - top + 1;
+          if (breedte < w * 0.15 || hoogte < h * 0.15) {
+            // Te agressief bijgesneden (vrijwel lege pagina) -- veiligheidshalve origineel gebruiken.
+            resolve({ breedte: w, hoogte: h, src: src });
+            return;
+          }
+          var uitCanvas = document.createElement("canvas");
+          uitCanvas.width = breedte; uitCanvas.height = hoogte;
+          uitCanvas.getContext("2d").drawImage(canvas, left, top, breedte, hoogte, 0, 0, breedte, hoogte);
+          resolve({ breedte: breedte, hoogte: hoogte, src: uitCanvas.toDataURL("image/png") });
+        } catch (fout) {
+          resolve({ breedte: img.naturalWidth || img.width, hoogte: img.naturalHeight || img.height, src: src });
+        }
+      };
       img.onerror = function(){ resolve(null); };
       img.src = src;
     });
@@ -678,7 +730,7 @@ function downloadAlsPDF(elementId, bestandsnaam, knopId) {
         var chipEl = paginaEl.querySelector(".pagina-nr-chip");
         var paginaTekst = chipEl ? chipEl.textContent : "";
         if (!imgEl) return;
-        return laadAfbeeldingAfmetingen(imgEl.currentSrc || imgEl.src).then(function(info){
+        return trimEnLaadAfbeelding(imgEl.currentSrc || imgEl.src).then(function(info){
           if (!eersteAfbeelding) pdf.addPage("a4", "p");
           if (info && info.breedte && info.hoogte) {
             var hoogteMm = pageWidth * (info.hoogte / info.breedte);
