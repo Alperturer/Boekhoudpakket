@@ -772,7 +772,7 @@ function filesToDataUrls(files, callback) {
 function loadJSON(key, fallback) { try { var raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : fallback; } catch(e) { return fallback; } }
 function saveJSON(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch(e) {} }
 
-function emptyBedrijf() { return { naam:"", adres:"", postcode:"", plaats:"", telefoon:"", email:"", kvk:"", btwnummer:"", iban:"", logoData:"", nextFactuurNr: 1, nextCreditNr: 1, nextOfferteNr: 100, nextKlantNr: 100, accentKleur:"#2F6B4F", offerteAccentKleur:"", factuurAccentKleur:"", voettekst:"", algemeneVoorwaarden:"", algemeneVoorwaardenBestandNaam:"", algemeneVoorwaardenPaginaAfbeeldingen:[], isInstallQErkend:false, isVCAGecertificeerd:false, certificeringNotities:"", betalingstermijn: 14, factuurInleiding:"", factuurAfsluiting:"" }; }
+function emptyBedrijf() { return { naam:"", adres:"", postcode:"", plaats:"", telefoon:"", email:"", kvk:"", btwnummer:"", iban:"", logoData:"", logoHoogte:70, nextFactuurNr: 1, nextCreditNr: 1, nextOfferteNr: 100, nextKlantNr: 100, accentKleur:"#2F6B4F", offerteAccentKleur:"", factuurAccentKleur:"", voettekst:"", algemeneVoorwaarden:"", algemeneVoorwaardenBestandNaam:"", algemeneVoorwaardenPaginaAfbeeldingen:[], isInstallQErkend:false, isVCAGecertificeerd:false, certificeringNotities:"", betalingstermijn: 14, factuurInleiding:"", factuurAfsluiting:"" }; }
 function lichterMaken(hex, factor) {
   hex = (hex||"").replace("#","");
   if (hex.length === 3) hex = hex.split("").map(function(c){ return c+c; }).join("");
@@ -3489,7 +3489,7 @@ function renderOfferteWerkblad() {
   h += '<div class="ow-letterhead">';
   h += '<div>';
   h += '<div style="display:flex;align-items:flex-start;justify-content:flex-start;gap:12px;">';
-  if (b.logoData) h += '<img src="' + b.logoData + '" style="height:320px;max-width:500px;object-fit:contain;object-position:left top;display:block;margin:0;" />';
+  if (b.logoData) h += '<img src="' + b.logoData + '" style="height:' + (b.logoHoogte||70) + 'px;max-width:340px;object-fit:contain;object-position:left top;display:block;margin:0;" />';
   h += '</div>';
   h += '<div class="ow-wordmark" style="margin-top:14px;margin-bottom:0;font-size:16px;line-height:1.6;">' + esc(b.naam || "Jouw bedrijf") + '</div>';
   h += verkoperGegevensHtml(b);
@@ -4207,7 +4207,7 @@ function renderFactuurDocument(f) {
   h += '<div class="ow-letterhead">';
   h += '<div>';
   h += '<div style="display:flex;align-items:flex-start;justify-content:flex-start;gap:12px;">';
-  if (b.logoData) h += '<img src="' + b.logoData + '" style="height:320px;max-width:500px;object-fit:contain;object-position:left top;display:block;margin:0;" />';
+  if (b.logoData) h += '<img src="' + b.logoData + '" style="height:' + (b.logoHoogte||70) + 'px;max-width:340px;object-fit:contain;object-position:left top;display:block;margin:0;" />';
   h += '</div>';
   h += '<div class="ow-wordmark" style="margin-top:14px;margin-bottom:0;font-size:16px;line-height:1.6;">' + esc(b.naam || "Jouw bedrijf") + '</div>';
   h += verkoperGegevensHtml(b);
@@ -4786,6 +4786,14 @@ function renderInstellingen() {
   if (b.logoData) h += '<span class="photo-wrap"><img class="photo-thumb" style="width:64px;height:64px;object-fit:contain;background:#fff;" src="' + b.logoData + '" /><button onclick="removeLogo()">&times;</button></span>';
   h += '<label class="photo-add"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z"/><circle cx="12" cy="13" r="4"/></svg> Logo uploaden<input type="file" accept="image/*" onchange="handleLogoUpload(this.files)" /></label>';
   h += '</div>';
+  if (b.logoData) {
+    h += '<label class="fl">Grootte van het logo op offerte/factuur</label>';
+    h += '<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">';
+    h += '<input type="range" min="30" max="200" value="' + (b.logoHoogte||70) + '" oninput="updateBedrijfField(\'logoHoogte\', parseInt(this.value)); render();" style="flex:1;" />';
+    h += '<span style="font-size:13px;color:var(--muted);width:50px;">' + (b.logoHoogte||70) + 'px</span>';
+    h += '</div>';
+    h += '<div style="background:#F1F5F9;border-radius:8px;padding:16px;margin-bottom:14px;"><p class="subtitle" style="margin:0 0 8px;">Zo groot komt het op de offerte/factuur te staan:</p><img src="' + b.logoData + '" style="height:' + (b.logoHoogte||70) + 'px;max-width:340px;object-fit:contain;display:block;" /></div>';
+  }
   h += huisstijlSectie("Algemene accentkleur", "accentKleur", b.accentKleur||"#2F6B4F", "Wordt gebruikt als je geen aparte kleur instelt voor offertes of facturen hieronder.");
   h += '<label class="fl">Voettekst op offertes/facturen (bijv. dankwoord, korte notitie)</label>';
   h += '<textarea class="f" oninput="updateBedrijfField(\'voettekst\', this.value)">' + esc(b.voettekst) + '</textarea>';
