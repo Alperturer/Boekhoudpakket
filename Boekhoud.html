@@ -238,6 +238,25 @@
     .ow-layout { display:block; margin:0; }
     .ow-preview { padding:0; background:#fff; }
     #ow-print-area, #r-page-factuur, .r-page { border:none; box-shadow:none; max-width:100%; }
+    /* Elke "pagina" moet een eigen afgedrukte pagina worden -- zonder dit plakt de browser
+       alles gewoon aan elkaar en knipt hij pas af zodra het papier vol is, waardoor de ene
+       pagina zomaar doorloopt in de volgende. */
+    #ow-print-area, #r-page-factuur, .r-page {
+      page-break-after: always;
+      break-after: page;
+    }
+    .r-page {
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+    #ow-print-area:first-child, #r-page-factuur:first-child {
+      page-break-before: auto;
+      break-before: auto;
+    }
+    .r-page:last-child, #ow-print-area:last-child, #r-page-factuur:last-child {
+      page-break-after: auto;
+      break-after: auto;
+    }
   }
 </style>
 <script>
