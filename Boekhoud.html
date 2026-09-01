@@ -121,7 +121,7 @@
   .ow-form .ow-mini-totals { color:#fff; }
   .ow-form .ow-mini-totals .row.final { color:#fff; border-top-color:rgba(255,255,255,0.25); }
 
-  .r-page { background:#fff; border:1px solid var(--border); padding:28px; margin:0 auto 14px; width:100%; max-width:700px; min-height:990px; box-sizing:border-box; }
+  .r-page { background:#fff; padding:28px; margin:0 auto 14px; width:100%; max-width:700px; min-height:990px; box-sizing:border-box; }
   .r-brand { font-size:11px; color:var(--muted); letter-spacing:0.08em; text-transform:uppercase; font-weight:700; }
   .r-title { font-size:22px; font-weight:800; margin-top:4px; }
   .r-rule { border:none; border-top:2px solid var(--blue); margin:12px 0 18px; }
@@ -188,7 +188,7 @@
   .ow-mini-totals .row { display:flex; justify-content:space-between; padding:1px 0; }
   .ow-mini-totals .row.final { color:var(--text); font-weight:700; border-top:1px solid var(--border); margin-top:4px; padding-top:4px; }
 
-  #ow-print-area, #r-page-factuur { width:100%; max-width:700px; min-height:990px; margin:0 auto; background:#fff; border:1px solid var(--border); box-shadow:0 1px 3px rgba(0,0,0,0.06); box-sizing:border-box; }
+  #ow-print-area, #r-page-factuur { width:100%; max-width:700px; min-height:990px; margin:0 auto; background:#fff; box-sizing:border-box; }
   .ow-stripe { height:6px; }
   .ow-letterhead { padding:26px 34px 18px; border-bottom:1px solid #EFF6F5; display:flex; justify-content:space-between; align-items:flex-start; }
   .ow-wordmark { font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; font-size:19px; font-weight:800; letter-spacing:-0.01em; }
@@ -624,7 +624,9 @@ function downloadAlsPDF(elementId, bestandsnaam, knopId) {
   var keten = Promise.resolve();
   paginaElementen.forEach(function(paginaEl, idx){
     keten = keten.then(function(){
-      return html2canvas(paginaEl, { scale: 2, backgroundColor: "#ffffff" }).then(function(canvas){
+      var volledigeHoogte = Math.max(paginaEl.scrollHeight, paginaEl.offsetHeight, paginaEl.getBoundingClientRect().height);
+      var volledigeBreedte = Math.max(paginaEl.scrollWidth, paginaEl.offsetWidth, paginaEl.getBoundingClientRect().width);
+      return html2canvas(paginaEl, { scale: 2, backgroundColor: "#ffffff", width: volledigeBreedte, height: volledigeHoogte, windowWidth: volledigeBreedte, windowHeight: volledigeHoogte }).then(function(canvas){
         var imgData = canvas.toDataURL("image/png");
         var imgWidth = pageWidth;
         var imgHeight = (canvas.height * imgWidth) / canvas.width;
@@ -3487,7 +3489,7 @@ function renderOfferteWerkblad() {
   h += '<div class="ow-letterhead">';
   h += '<div>';
   h += '<div style="display:flex;align-items:flex-start;justify-content:flex-start;gap:12px;">';
-  if (b.logoData) h += '<img src="' + b.logoData + '" style="height:160px;max-width:360px;object-fit:contain;object-position:left;display:block;" />';
+  if (b.logoData) h += '<img src="' + b.logoData + '" style="height:320px;max-width:500px;object-fit:contain;object-position:left top;display:block;margin:0;" />';
   h += '</div>';
   h += '<div class="ow-wordmark" style="margin-top:14px;margin-bottom:0;font-size:16px;line-height:1.6;">' + esc(b.naam || "Jouw bedrijf") + '</div>';
   h += verkoperGegevensHtml(b);
@@ -3846,15 +3848,15 @@ function renderDatasheetsSectie(datasheets, startPaginaNr, totaalPaginas, bedrij
   var pn = startPaginaNr;
   datasheets.forEach(function(d){
     if (d.data && d.data.indexOf("image") !== -1 && (!d.paginaAfbeeldingen || d.paginaAfbeeldingen.length === 0)) {
-      h += '<div class="r-page">' + paginaLogoHeader(bedrijfOverride) + '<div class="r-h">Bijlage &mdash; ' + esc(d.naam||"") + '</div>';
-      h += '<img src="' + d.data + '" style="max-width:100%;border:1px solid var(--border);border-radius:6px;display:block;" />';
-      h += paginaVoetnoot(pn, totaalPaginas) + '</div>';
+      h += '<div class="r-page" style="padding:0;height:990px;display:flex;align-items:center;justify-content:center;overflow:hidden;">';
+      h += '<img src="' + d.data + '" style="width:100%;height:100%;object-fit:contain;display:block;" />';
+      h += '</div>';
       pn++;
     } else if (d.paginaAfbeeldingen && d.paginaAfbeeldingen.length > 0) {
-      d.paginaAfbeeldingen.forEach(function(pagUrl, idx){
-        h += '<div class="r-page">' + paginaLogoHeader(bedrijfOverride) + '<div class="r-h">' + esc(d.naam||"Bijlage") + (d.paginaAfbeeldingen.length > 1 ? ' <span style="font-weight:400;color:var(--muted);font-size:12px;">(pagina ' + (idx+1) + ' van ' + d.paginaAfbeeldingen.length + ')</span>' : '') + '</div>';
-        h += '<img src="' + pagUrl + '" style="max-width:100%;border:1px solid var(--border);border-radius:6px;display:block;" />';
-        h += paginaVoetnoot(pn, totaalPaginas) + '</div>';
+      d.paginaAfbeeldingen.forEach(function(pagUrl){
+        h += '<div class="r-page" style="padding:0;height:990px;display:flex;align-items:center;justify-content:center;overflow:hidden;">';
+        h += '<img src="' + pagUrl + '" style="width:100%;height:100%;object-fit:contain;display:block;" />';
+        h += '</div>';
         pn++;
       });
     } else {
@@ -3881,7 +3883,7 @@ function algemeneVoorwaardenPagina(paginaNr, totaalPaginas, bedrijfOverride) {
     var h = "";
     b.algemeneVoorwaardenPaginaAfbeeldingen.forEach(function(pagUrl, idx){
       h += '<div class="r-page">' + paginaLogoHeader(bedrijfOverride) + '<div class="r-h">Algemene voorwaarden' + (b.algemeneVoorwaardenPaginaAfbeeldingen.length > 1 ? ' <span style="font-weight:400;color:var(--muted);font-size:12px;">(pagina ' + (idx+1) + ' van ' + b.algemeneVoorwaardenPaginaAfbeeldingen.length + ')</span>' : '') + '</div>';
-      h += '<img src="' + pagUrl + '" style="max-width:100%;border:1px solid var(--border);border-radius:6px;display:block;" />';
+      h += '<div style="height:850px;display:flex;align-items:center;justify-content:center;"><img src="' + pagUrl + '" style="max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;border:1px solid var(--border);border-radius:6px;display:block;" /></div>';
       h += paginaVoetnoot(paginaNr + idx, totaalPaginas) + '</div>';
     });
     return h;
@@ -4205,7 +4207,7 @@ function renderFactuurDocument(f) {
   h += '<div class="ow-letterhead">';
   h += '<div>';
   h += '<div style="display:flex;align-items:flex-start;justify-content:flex-start;gap:12px;">';
-  if (b.logoData) h += '<img src="' + b.logoData + '" style="height:160px;max-width:360px;object-fit:contain;object-position:left;display:block;" />';
+  if (b.logoData) h += '<img src="' + b.logoData + '" style="height:320px;max-width:500px;object-fit:contain;object-position:left top;display:block;margin:0;" />';
   h += '</div>';
   h += '<div class="ow-wordmark" style="margin-top:14px;margin-bottom:0;font-size:16px;line-height:1.6;">' + esc(b.naam || "Jouw bedrijf") + '</div>';
   h += verkoperGegevensHtml(b);
