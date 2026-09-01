@@ -156,6 +156,7 @@
     .app-shell { display:block; }
     .page { max-width:100%; padding:0; }
     .r-page { border:none; padding:0; }
+    * { -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; color-adjust:exact !important; }
   }
   /* ---- Offerte-werkblad: twee kolommen, briefpapier-stijl preview ---- */
   .ow-layout { display:flex; gap:0; margin: -28px -32px; min-height: calc(100vh - 60px); }
@@ -3756,8 +3757,7 @@ function renderOfferteWerkblad() {
 
   h += '<div class="ow-floating no-print">';
   h += '<button style="background:' + accent + ';color:#fff;" onclick="verstuurOffertePerEmail(\'' + o.id + '\')">Verstuur per e-mail</button>';
-  h += '<button id="pdf-btn-offerte" style="background:#12242A;color:#fff;" onclick="downloadAlsPDF(\'offerte-volledig-document\', \'' + o.offertenummer + '\', \'pdf-btn-offerte\')">Exporteer als PDF (compleet)</button>';
-  h += '<button style="background:#fff;color:var(--text);border:1px solid var(--border);" onclick="window.print()">Print</button>';
+  h += '<button id="pdf-btn-offerte" style="background:#12242A;color:#fff;" onclick="window.print()">' + icon("printer") + ' Print / Opslaan als PDF</button>';
   h += '</div>';
   h += '</div></div>'; // ow-preview
 
@@ -4062,7 +4062,7 @@ function paginaLogoHeader(bedrijfOverride) {
 }
 function paginaVoetnoot(nr, totaal) {
   if (!nr || !totaal) return "";
-  return '<div style="text-align:right;font-size:10px;color:#000000;margin-top:18px;padding-top:8px;border-top:1px solid #F1F5F9;">Pagina ' + nr + ' van ' + totaal + '</div>';
+  return '<div style="text-align:right;font-size:10px;color:#000000;margin-top:18px;padding-top:8px;border-top:1px solid #F1F5F9;page-break-before:avoid;break-before:avoid-page;page-break-inside:avoid;break-inside:avoid;">Pagina ' + nr + ' van ' + totaal + '</div>';
 }
 function algemeneVoorwaardenPagina(paginaNr, totaalPaginas, bedrijfOverride) {
   var b = bedrijfOverride || state.bedrijf;
@@ -4468,8 +4468,7 @@ function renderFactuurView() {
   if (f.status === "verzonden") h += '<button class="btn-secondary" style="width:auto;" onclick="updateFactuurStatus(\'' + f.id + '\',\'betaald\')">Markeer betaald</button>';
   if (st === "vervallen") h += '<a class="btn-secondary" style="width:auto;display:inline-block;text-decoration:none;" href="' + herinneringMailtoLink(f) + '" onclick="markeerHerinneringVerstuurd(\'' + f.id + '\')">Stuur herinnering</a>';
   if (f.type === "factuur") h += '<button class="btn-secondary" style="width:auto;" onclick="maakCreditNota(\'' + f.id + '\')">Credit nota maken</button>';
-  h += '<button class="print-btn" onclick="window.print()">' + icon("printer") + ' Print</button>';
-  h += '<button class="print-btn" id="pdf-btn-factuur" style="background:#0D9488;" onclick="downloadAlsPDF(\'factuur-volledig-document\', \'' + f.factuurnummer + '\', \'pdf-btn-factuur\')">' + icon("file") + ' Download PDF</button>';
+  h += '<button class="print-btn" id="pdf-btn-factuur" style="background:#0D9488;" onclick="window.print()">' + icon("printer") + ' Print / Opslaan als PDF</button>';
   h += '<button class="del-x" onclick="removeFactuur(\'' + f.id + '\')">' + icon("trash") + '</button>';
   h += '</div></div>';
   h += renderFactuurDocument(f);
