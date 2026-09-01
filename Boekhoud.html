@@ -3848,14 +3848,16 @@ function renderDatasheetsSectie(datasheets, startPaginaNr, totaalPaginas, bedrij
   var pn = startPaginaNr;
   datasheets.forEach(function(d){
     if (d.data && d.data.indexOf("image") !== -1 && (!d.paginaAfbeeldingen || d.paginaAfbeeldingen.length === 0)) {
-      h += '<div class="r-page" style="padding:0;height:990px;display:flex;align-items:center;justify-content:center;overflow:hidden;">';
+      h += '<div class="r-page" style="padding:0;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;height:990px;">';
       h += '<img src="' + d.data + '" style="width:100%;height:100%;object-fit:contain;display:block;" />';
+      h += '<div style="position:absolute;bottom:10px;right:14px;font-size:10px;color:#94A3B8;background:rgba(255,255,255,0.85);padding:2px 8px;border-radius:4px;">Pagina ' + pn + ' van ' + totaalPaginas + '</div>';
       h += '</div>';
       pn++;
     } else if (d.paginaAfbeeldingen && d.paginaAfbeeldingen.length > 0) {
       d.paginaAfbeeldingen.forEach(function(pagUrl){
-        h += '<div class="r-page" style="padding:0;height:990px;display:flex;align-items:center;justify-content:center;overflow:hidden;">';
+        h += '<div class="r-page" style="padding:0;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;height:990px;">';
         h += '<img src="' + pagUrl + '" style="width:100%;height:100%;object-fit:contain;display:block;" />';
+        h += '<div style="position:absolute;bottom:10px;right:14px;font-size:10px;color:#94A3B8;background:rgba(255,255,255,0.85);padding:2px 8px;border-radius:4px;">Pagina ' + pn + ' van ' + totaalPaginas + '</div>';
         h += '</div>';
         pn++;
       });
@@ -4261,9 +4263,10 @@ function renderFactuurDocument(f) {
   }
   if (b.voettekst) h += '<p style="font-size:11.5px;color:var(--muted);margin-top:20px;">' + esc(b.voettekst) + '</p>';
   h += '<div class="ow-footer-note">' + esc(b.naam||"") + '</div>';
+  var fVoorwaardenCount = algemeneVoorwaardenPaginaAantal(b);
+  h += paginaVoetnoot(1, 1 + fVoorwaardenCount);
   h += '</div>'; // ow-body
   h += '</div>'; // r-page-factuur
-  var fVoorwaardenCount = algemeneVoorwaardenPaginaAantal(b);
   h += algemeneVoorwaardenPagina(2, 1 + fVoorwaardenCount, b);
   h += '</div>'; // factuur-volledig-document
   return h;
