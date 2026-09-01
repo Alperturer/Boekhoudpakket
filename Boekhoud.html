@@ -191,7 +191,7 @@
 
   #ow-print-area, #r-page-factuur { width:100%; max-width:700px; min-height:990px; margin:0 auto; background:#fff; box-sizing:border-box; }
   .ow-stripe { height:6px; }
-  .ow-letterhead { padding:18px 22px 14px; border-bottom:1px solid #EFF6F5; display:flex; justify-content:space-between; align-items:flex-start; }
+  .ow-letterhead { padding:18px 8px 14px; border-bottom:1px solid #EFF6F5; display:flex; justify-content:space-between; align-items:flex-start; }
   .ow-wordmark { font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; font-size:calc(19px * var(--tekst-schaal, 1)); font-weight:800; letter-spacing:-0.01em; }
   .verkoper-gegevens { margin-top:0; font-size:calc(11px * var(--tekst-schaal, 1)); line-height:1.6; color:var(--muted); }
   .ow-tagline { font-size:calc(11px * var(--tekst-schaal, 1)); color:var(--muted); margin-top:2px; }
@@ -201,7 +201,7 @@
   .ow-klant-block { padding:0 34px; margin-top:16px; font-size:calc(13px * var(--tekst-schaal, 1)); }
   .ow-klant-block .naam { font-weight:700; }
   .ow-klant-block .sub-line { color:var(--muted); }
-  .ow-body { padding:18px 22px; font-size:calc(12.5px * var(--tekst-schaal, 1)); line-height:1.42; color:#0A0A0A; }
+  .ow-body { padding:18px 8px; font-size:calc(12.5px * var(--tekst-schaal, 1)); line-height:1.42; color:#0A0A0A; }
   .ow-body p { margin:0 0 8px; }
   .ow-body h4.ow-section-title { margin:12px 0 5px; }
   #ow-print-area, #ow-print-area .ow-klant-block, #ow-print-area .ow-wordmark, #r-page-factuur, #r-page-factuur .ow-klant-block, #r-page-factuur .ow-wordmark { color:#0A0A0A; }
@@ -733,18 +733,18 @@ function downloadAlsPDF(elementId, bestandsnaam, knopId) {
         return trimEnLaadAfbeelding(imgEl.currentSrc || imgEl.src).then(function(info){
           if (!eersteAfbeelding) pdf.addPage("a4", "p");
           if (info && info.breedte && info.hoogte) {
-            var hoogteMm = pageWidth * (info.hoogte / info.breedte);
-            var yOffset = 0;
-            if (hoogteMm > pageHeight) {
-              // Beeld is verhoudingsgewijs hoger dan de pagina: breedte verkleinen i.p.v. afbeelding
-              // uitrekken, en dan horizontaal centreren -- ook dan blijft links/rechts gelijk.
-              var breedteMm = pageHeight * (info.breedte / info.hoogte);
-              var xOffset = (pageWidth - breedteMm) / 2;
-              pdf.addImage(info.src, "PNG", xOffset, 0, breedteMm, pageHeight);
-            } else {
-              yOffset = (pageHeight - hoogteMm) / 2;
-              pdf.addImage(info.src, "PNG", 0, yOffset, pageWidth, hoogteMm);
-            }
+            // Datasheet/bijlage-paginas moeten altijd de volledige A4-pagina vullen, zonder
+            // enige rand -- dus altijd op de as met de meeste "overflow" uitrekken tot de
+            // volledige pagina bedekt is (vergelijkbaar met CSS object-fit: cover), in plaats
+            // van eventuele restmarge boven/onder of links/rechts te laten staan.
+            var schaalOpBreedte = pageWidth / info.breedte;
+            var schaalOpHoogte = pageHeight / info.hoogte;
+            var schaal = Math.max(schaalOpBreedte, schaalOpHoogte);
+            var renderBreedte = info.breedte * schaal;
+            var renderHoogte = info.hoogte * schaal;
+            var xOffset = (pageWidth - renderBreedte) / 2;
+            var yOffset = (pageHeight - renderHoogte) / 2;
+            pdf.addImage(info.src, "PNG", xOffset, yOffset, renderBreedte, renderHoogte);
           }
           if (paginaTekst) {
             pdf.setFontSize(9);
@@ -754,7 +754,7 @@ function downloadAlsPDF(elementId, bestandsnaam, knopId) {
             pdf.rect(pageWidth - 14 - tekstBreedte - 4, pageHeight - 14, tekstBreedte + 8, 6, "F");
             pdf.text(paginaTekst, pageWidth - 14, pageHeight - 10);
           }
-          tekenPaginaRand(pdf, pageWidth, pageHeight);
+          // Bewust GEEN tekenPaginaRand hier: bijlage-paginas moeten volledig randloos/full-page zijn.
           eersteAfbeelding = false;
         });
       }
@@ -3681,7 +3681,7 @@ function renderOfferteWerkblad() {
   h += '</div>';
   h += '</div>';
   h += '</div>';
-  if (o.aanbetalingsmethode) h += '<div style="padding:10px 34px 0;font-size:12px;color:var(--muted);">Aanbetalingsmethode: ' + esc(o.aanbetalingsmethode) + '</div>';
+  if (o.aanbetalingsmethode) h += '<div style="padding:10px 8px 0;font-size:12px;color:var(--muted);">Aanbetalingsmethode: ' + esc(o.aanbetalingsmethode) + '</div>';
   h += '<div class="ow-body">';
   if (o.tekstmodus === "eigen") {
     if (o.inleiding) h += '<p>' + esc(o.inleiding) + '</p>';
@@ -4401,7 +4401,7 @@ function renderFactuurDocument(f) {
   h += '</div>';
   h += '</div>';
   h += '</div>';
-  if (f.gekoppeldAan) { var orig = getFactuur(f.gekoppeldAan); if (orig) h += '<div style="padding:10px 34px 0;font-size:12px;color:var(--muted);">Betreft factuur ' + esc(orig.factuurnummer) + '</div>'; }
+  if (f.gekoppeldAan) { var orig = getFactuur(f.gekoppeldAan); if (orig) h += '<div style="padding:10px 8px 0;font-size:12px;color:var(--muted);">Betreft factuur ' + esc(orig.factuurnummer) + '</div>'; }
   h += '<div class="ow-body">';
   if (f.inleiding) h += '<p>' + esc(f.inleiding) + '</p>';
   if (f.werkzaamheden) h += '<h4 class="ow-section-title">Werkzaamheden</h4><p>' + esc(f.werkzaamheden) + '</p>';
