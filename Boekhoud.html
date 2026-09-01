@@ -121,7 +121,7 @@
   .ow-form .ow-mini-totals { color:#fff; }
   .ow-form .ow-mini-totals .row.final { color:#fff; border-top-color:rgba(255,255,255,0.25); }
 
-  .r-page { background:#fff; border:1px solid var(--border); padding:28px; margin:0 auto 14px; max-width:700px; box-sizing:border-box; }
+  .r-page { background:#fff; border:1px solid var(--border); padding:28px; margin:0 auto 14px; max-width:700px; min-height:990px; box-sizing:border-box; }
   .r-brand { font-size:11px; color:var(--muted); letter-spacing:0.08em; text-transform:uppercase; font-weight:700; }
   .r-title { font-size:22px; font-weight:800; margin-top:4px; }
   .r-rule { border:none; border-top:2px solid var(--blue); margin:12px 0 18px; }
@@ -188,7 +188,7 @@
   .ow-mini-totals .row { display:flex; justify-content:space-between; padding:1px 0; }
   .ow-mini-totals .row.final { color:var(--text); font-weight:700; border-top:1px solid var(--border); margin-top:4px; padding-top:4px; }
 
-  #ow-print-area, #r-page-factuur { width:100%; max-width:700px; margin:0 auto; background:#fff; border:1px solid var(--border); box-shadow:0 1px 3px rgba(0,0,0,0.06); height:fit-content; }
+  #ow-print-area, #r-page-factuur { width:100%; max-width:700px; min-height:990px; margin:0 auto; background:#fff; border:1px solid var(--border); box-shadow:0 1px 3px rgba(0,0,0,0.06); box-sizing:border-box; }
   .ow-stripe { height:6px; }
   .ow-letterhead { padding:26px 34px 18px; border-bottom:1px solid #EFF6F5; display:flex; justify-content:space-between; align-items:flex-start; }
   .ow-wordmark { font-family:ui-monospace,monospace; font-size:19px; font-weight:800; letter-spacing:-0.02em; }
@@ -230,7 +230,7 @@
     .ow-form, .ow-floating, .ow-akkoord-block { display:none !important; }
     .ow-layout { display:block; margin:0; }
     .ow-preview { padding:0; background:#fff; }
-    #ow-print-area, #r-page-factuur { border:none; box-shadow:none; max-width:100%; }
+    #ow-print-area, #r-page-factuur, .r-page { border:none; box-shadow:none; max-width:100%; }
   }
 </style>
 <script>
@@ -768,7 +768,7 @@ function filesToDataUrls(files, callback) {
 function loadJSON(key, fallback) { try { var raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : fallback; } catch(e) { return fallback; } }
 function saveJSON(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch(e) {} }
 
-function emptyBedrijf() { return { naam:"", adres:"", postcode:"", plaats:"", telefoon:"", email:"", kvk:"", btwnummer:"", iban:"", logoData:"", nextFactuurNr: 1, nextCreditNr: 1, nextOfferteNr: 100, nextKlantNr: 100, accentKleur:"#2F6B4F", offerteAccentKleur:"", factuurAccentKleur:"", voettekst:"", algemeneVoorwaarden:"", isInstallQErkend:false, isVCAGecertificeerd:false, certificeringNotities:"", betalingstermijn: 14, factuurInleiding:"", factuurAfsluiting:"" }; }
+function emptyBedrijf() { return { naam:"", adres:"", postcode:"", plaats:"", telefoon:"", email:"", kvk:"", btwnummer:"", iban:"", logoData:"", nextFactuurNr: 1, nextCreditNr: 1, nextOfferteNr: 100, nextKlantNr: 100, accentKleur:"#2F6B4F", offerteAccentKleur:"", factuurAccentKleur:"", voettekst:"", algemeneVoorwaarden:"", algemeneVoorwaardenBestandNaam:"", algemeneVoorwaardenPaginaAfbeeldingen:[], isInstallQErkend:false, isVCAGecertificeerd:false, certificeringNotities:"", betalingstermijn: 14, factuurInleiding:"", factuurAfsluiting:"" }; }
 function lichterMaken(hex, factor) {
   hex = (hex||"").replace("#","");
   if (hex.length === 3) hex = hex.split("").map(function(c){ return c+c; }).join("");
@@ -1698,6 +1698,33 @@ function verwijderProductDatasheet(id) {
   var p = getProduct(id);
   if (p) { p.datasheetNaam = ""; p.datasheetData = ""; persistProducten(); render(); }
 }
+function uploadAlgemeneVoorwaardenBestand(files) {
+  if (!files || !files[0]) return;
+  var f = files[0];
+  var reader = new FileReader();
+  reader.onload = function(e){
+    var dataUrl = e.target.result;
+    state.bedrijf.algemeneVoorwaardenBestandNaam = f.name;
+    if (dataUrl.indexOf("application/pdf") !== -1) {
+      state.bedrijf.algemeneVoorwaardenPaginaAfbeeldingen = [];
+      toonToast("PDF wordt verwerkt...");
+      converteerPdfNaarAfbeeldingen(dataUrl, function(afbeeldingen){
+        state.bedrijf.algemeneVoorwaardenPaginaAfbeeldingen = afbeeldingen;
+        persistBedrijf(); render();
+        toonToast("Algemene voorwaarden (" + afbeeldingen.length + " pagina's) opgeslagen.");
+      });
+    } else {
+      state.bedrijf.algemeneVoorwaardenPaginaAfbeeldingen = [dataUrl];
+      persistBedrijf(); render();
+    }
+  };
+  reader.readAsDataURL(f);
+}
+function verwijderAlgemeneVoorwaardenBestand() {
+  state.bedrijf.algemeneVoorwaardenBestandNaam = "";
+  state.bedrijf.algemeneVoorwaardenPaginaAfbeeldingen = [];
+  persistBedrijf(); render();
+}
 
 // Product kiezen en direct in een factuur- of offerteregel zetten
 function kiesProductVoorFactuurRegel(factuurId, regelId, productId) {
@@ -2603,7 +2630,7 @@ function magBekijken(sectie) { var r = sectieRecht(sectie); return r === "bekijk
 function magBewerken(sectie) { return sectieRecht(sectie) === "bewerken"; }
 function tabZichtbaar(t) { var s = TAB_SECTIE[t]; return !s || magBekijken(s); }
 
-var TAB_ICONS = { dashboard:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><line x1="6" y1="20" x2="6" y2="12"/><line x1="12" y1="20" x2="12" y2="6"/><line x1="18" y1="20" x2="18" y2="15"/></svg>', projecten:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2Z"/></svg>', agenda:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>', offertes:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="16" y2="16"/><line x1="8" y1="8" x2="10" y2="8"/></svg>', facturen:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>', producten:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><path d="M21 8V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8"/><path d="M1 6l11-4 11 4-11 4Z"/><line x1="12" y1="10" x2="12" y2="21"/></svg>', klanten:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><path d="M14 21v-2a4 4 0 0 0-4-4H4a4 4 0 0 0-4 4v2"/><circle cx="7" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M15.5 3.13a4 4 0 0 1 0 7.75"/></svg>', uitgaven:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><path d="M17 7a6.5 6.5 0 1 0 0 10"/><line x1="4" y1="10" x2="14" y2="10"/><line x1="4" y1="14" x2="12" y2="14"/></svg>', registraties:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 16 14"/></svg>', btw:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><rect x="4" y="2" width="16" height="20" rx="1"/><line x1="9" y1="6" x2="9" y2="6.01"/><line x1="15" y1="6" x2="15" y2="6.01"/><line x1="9" y1="10" x2="9" y2="10.01"/><line x1="15" y1="10" x2="15" y2="10.01"/><line x1="9" y1="14" x2="9" y2="14.01"/><line x1="15" y1="14" x2="15" y2="14.01"/><line x1="9" y1="18" x2="15" y2="18"/></svg>', rapportage:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>', instellingen:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6V21a2 2 0 0 1-4 0v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 0 1 0-4h.2a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.6V3a2 2 0 0 1 4 0v.2a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.6 1H21a2 2 0 0 1 0 4h-.2a1.7 1.7 0 0 0-1.5 1Z"/></svg>' };
+var TAB_ICONS = { dashboard:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><line x1="6" y1="20" x2="6" y2="12"/><line x1="12" y1="20" x2="12" y2="6"/><line x1="18" y1="20" x2="18" y2="15"/></svg>', projecten:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2Z"/></svg>', agenda:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>', schouwen:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>', offertes:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="16" y2="16"/><line x1="8" y1="8" x2="10" y2="8"/></svg>', facturen:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>', producten:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><path d="M21 8V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8"/><path d="M1 6l11-4 11 4-11 4Z"/><line x1="12" y1="10" x2="12" y2="21"/></svg>', klanten:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><path d="M14 21v-2a4 4 0 0 0-4-4H4a4 4 0 0 0-4 4v2"/><circle cx="7" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M15.5 3.13a4 4 0 0 1 0 7.75"/></svg>', uitgaven:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><path d="M17 7a6.5 6.5 0 1 0 0 10"/><line x1="4" y1="10" x2="14" y2="10"/><line x1="4" y1="14" x2="12" y2="14"/></svg>', registraties:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 16 14"/></svg>', btw:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><rect x="4" y="2" width="16" height="20" rx="1"/><line x1="9" y1="6" x2="9" y2="6.01"/><line x1="15" y1="6" x2="15" y2="6.01"/><line x1="9" y1="10" x2="9" y2="10.01"/><line x1="15" y1="10" x2="15" y2="10.01"/><line x1="9" y1="14" x2="9" y2="14.01"/><line x1="15" y1="14" x2="15" y2="14.01"/><line x1="9" y1="18" x2="15" y2="18"/></svg>', rapportage:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>', legplantest:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 15l5-5 4 4 5-6 4 5"/></svg>', instellingen:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6V21a2 2 0 0 1-4 0v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 0 1 0-4h.2a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.6V3a2 2 0 0 1 4 0v.2a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.6 1H21a2 2 0 0 1 0 4h-.2a1.7 1.7 0 0 0-1.5 1Z"/></svg>' };
 
 function render() {
   var root = document.getElementById("root");
@@ -3501,7 +3528,7 @@ function renderOfferteWerkblad() {
   var energiePaginaCount = (o.energieActief && o.energie && o.energie.zonActief) ? 4 : 0;
   var legplanPaginaCount = o.legplanFoto ? 1 : 0;
   var datasheetsPaginaCount = datasheetsPaginaAantal(o.datasheets);
-  var voorwaardenPaginaCount = state.bedrijf.algemeneVoorwaarden ? 1 : 0;
+  var voorwaardenPaginaCount = algemeneVoorwaardenPaginaAantal();
   var totaalPaginasOfferte = 1 + energiePaginaCount + legplanPaginaCount + datasheetsPaginaCount + voorwaardenPaginaCount;
   h += paginaVoetnoot(1, totaalPaginasOfferte);
   h += '</div>'; // ow-body
@@ -3821,8 +3848,23 @@ function paginaVoetnoot(nr, totaal) {
   return '<div style="text-align:center;font-size:10px;color:#94A3B8;margin-top:18px;padding-top:8px;border-top:1px solid #F1F5F9;">Pagina ' + nr + ' van ' + totaal + '</div>';
 }
 function algemeneVoorwaardenPagina(paginaNr, totaalPaginas, bedrijfOverride) {
-  if (!state.bedrijf.algemeneVoorwaarden) return "";
-  return '<div class="r-page">' + paginaLogoHeader(bedrijfOverride) + '<div class="r-h">Algemene voorwaarden</div><p style="font-size:12px;line-height:1.6;white-space:pre-wrap;">' + esc(state.bedrijf.algemeneVoorwaarden) + '</p>' + paginaVoetnoot(paginaNr, totaalPaginas) + '</div>';
+  var b = bedrijfOverride || state.bedrijf;
+  if (b.algemeneVoorwaardenPaginaAfbeeldingen && b.algemeneVoorwaardenPaginaAfbeeldingen.length > 0) {
+    var h = "";
+    b.algemeneVoorwaardenPaginaAfbeeldingen.forEach(function(pagUrl, idx){
+      h += '<div class="r-page">' + paginaLogoHeader(bedrijfOverride) + '<div class="r-h">Algemene voorwaarden' + (b.algemeneVoorwaardenPaginaAfbeeldingen.length > 1 ? ' <span style="font-weight:400;color:var(--muted);font-size:12px;">(pagina ' + (idx+1) + ' van ' + b.algemeneVoorwaardenPaginaAfbeeldingen.length + ')</span>' : '') + '</div>';
+      h += '<img src="' + pagUrl + '" style="max-width:100%;border:1px solid var(--border);border-radius:6px;display:block;" />';
+      h += paginaVoetnoot(paginaNr + idx, totaalPaginas) + '</div>';
+    });
+    return h;
+  }
+  if (!b.algemeneVoorwaarden) return "";
+  return '<div class="r-page">' + paginaLogoHeader(bedrijfOverride) + '<div class="r-h">Algemene voorwaarden</div><p style="font-size:12px;line-height:1.6;white-space:pre-wrap;">' + esc(b.algemeneVoorwaarden) + '</p>' + paginaVoetnoot(paginaNr, totaalPaginas) + '</div>';
+}
+function algemeneVoorwaardenPaginaAantal(bedrijfOverride) {
+  var b = bedrijfOverride || state.bedrijf;
+  if (b.algemeneVoorwaardenPaginaAfbeeldingen && b.algemeneVoorwaardenPaginaAfbeeldingen.length > 0) return b.algemeneVoorwaardenPaginaAfbeeldingen.length;
+  return b.algemeneVoorwaarden ? 1 : 0;
 }
 function kompasRoosSvg(grootte) {
   var g = grootte || 90;
@@ -4190,7 +4232,8 @@ function renderFactuurDocument(f) {
   h += '<div class="ow-footer-note">' + esc(b.naam||"") + '</div>';
   h += '</div>'; // ow-body
   h += '</div>'; // r-page-factuur
-  h += algemeneVoorwaardenPagina();
+  var fVoorwaardenCount = algemeneVoorwaardenPaginaAantal(b);
+  h += algemeneVoorwaardenPagina(2, 1 + fVoorwaardenCount, b);
   h += '</div>'; // factuur-volledig-document
   return h;
 }
@@ -4716,7 +4759,13 @@ function renderInstellingen() {
   h += '<label class="fl">Voettekst op offertes/facturen (bijv. dankwoord, korte notitie)</label>';
   h += '<textarea class="f" oninput="updateBedrijfField(\'voettekst\', this.value)">' + esc(b.voettekst) + '</textarea>';
   h += '<label class="fl">Algemene voorwaarden</label>';
-  h += '<p class="subtitle" style="margin-top:-6px;">Volledige tekst van je algemene voorwaarden &mdash; wordt automatisch als aparte pagina toegevoegd aan elke offerte en factuur die je print/opslaat als PDF.</p>';
+  h += '<p class="subtitle" style="margin-top:-6px;">Upload je eigen PDF (aanbevolen, ziet er professioneel uit) of typ/plak de tekst hieronder. Wordt automatisch als aparte pagina(&#39;s) toegevoegd aan elke offerte en factuur.</p>';
+  if (b.algemeneVoorwaardenBestandNaam) {
+    h += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;"><span style="font-size:13px;">' + icon("file") + ' ' + esc(b.algemeneVoorwaardenBestandNaam) + (b.algemeneVoorwaardenPaginaAfbeeldingen && b.algemeneVoorwaardenPaginaAfbeeldingen.length ? ' (' + b.algemeneVoorwaardenPaginaAfbeeldingen.length + " pagina's)" : '') + '</span><button class="del-x" onclick="verwijderAlgemeneVoorwaardenBestand()">Verwijderen</button></div>';
+  } else {
+    h += '<label class="photo-add" style="display:block;text-align:center;padding:16px;margin-bottom:10px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><path d="M20 12.5L11.5 21a4.5 4.5 0 0 1-6.4-6.4l9-9a3 3 0 0 1 4.3 4.3l-8.6 8.6a1.5 1.5 0 0 1-2.1-2.1l7.9-7.9"/></svg> PDF of foto uploaden<input type="file" accept="application/pdf,image/*" style="display:none;" onchange="uploadAlgemeneVoorwaardenBestand(this.files)" /></label>';
+  }
+  h += '<p class="subtitle" style="margin:10px 0 -6px;">&mdash; of typ/plak hieronder als je geen bestand hebt &mdash;</p>';
   h += '<textarea class="f" style="min-height:160px;" oninput="updateBedrijfField(\'algemeneVoorwaarden\', this.value)">' + esc(b.algemeneVoorwaarden) + '</textarea>';
   h += '</div>';
 
