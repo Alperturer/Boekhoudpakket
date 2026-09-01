@@ -630,16 +630,29 @@ function downloadAlsPDF(elementId, bestandsnaam, knopId) {
     keten = keten.then(function(){
       var volledigeHoogte = Math.max(paginaEl.scrollHeight, paginaEl.offsetHeight, paginaEl.getBoundingClientRect().height);
       var volledigeBreedte = Math.max(paginaEl.scrollWidth, paginaEl.offsetWidth, paginaEl.getBoundingClientRect().width);
+      // Grenzen van blokken die nooit doormidden geknipt mogen worden (tabel, totalen, kwaliteitsblok...),
+      // gemeten t.o.v. de bovenkant van deze pagina, in CSS-pixels (dezelfde eenheid als volledigeHoogte).
+      var basisTop = paginaEl.getBoundingClientRect().top;
+      var nietKnippenZones = Array.prototype.map.call(paginaEl.querySelectorAll(".no-split"), function(el){
+        var r = el.getBoundingClientRect();
+        return { top: r.top - basisTop, bottom: r.bottom - basisTop };
+      });
       return html2canvas(paginaEl, { scale: 2, backgroundColor: "#ffffff", width: volledigeBreedte, height: volledigeHoogte, windowWidth: volledigeBreedte, windowHeight: volledigeHoogte }).then(function(canvas){
-        // Breedte blijft altijd de volle paginabreedte (210mm) -- nooit verkleind, dus nooit witruimte
-        // aan de zijkanten. Is de inhoud hoger dan één A4-pagina, dan knippen we 'm in stukken van
-        // precies één pagina hoog, in plaats van alles proportioneel te verkleinen.
-        var pxPerMm = canvas.width / pageWidth;
-        var pageHeightPx = Math.round(pageHeight * pxPerMm);
+        var pxPerMm = canvas.width / pageWidth; // ook de conversie tussen CSS-pixels en canvas-pixels (scale 2)
+        var pxPerCssPx = canvas.height / volledigeHoogte;
+        var pageHeightPx = pageHeight * pxPerMm;
         var totaalHoogtePx = canvas.height;
         var geplaatstPx = 0;
         while (geplaatstPx < totaalHoogtePx) {
-          var sliceHoogtePx = Math.min(pageHeightPx, totaalHoogtePx - geplaatstPx);
+          var voorgesteldeGrensPx = Math.min(geplaatstPx + pageHeightPx, totaalHoogtePx);
+          // Val je met deze grens middenin een no-split-blok? Verschuif de knip dan naar vóór dat blok.
+          nietKnippenZones.forEach(function(zone){
+            var zoneTopPx = zone.top * pxPerCssPx, zoneBottomPx = zone.bottom * pxPerCssPx;
+            if (zoneTopPx < voorgesteldeGrensPx && zoneBottomPx > voorgesteldeGrensPx && zoneTopPx > geplaatstPx) {
+              voorgesteldeGrensPx = zoneTopPx;
+            }
+          });
+          var sliceHoogtePx = Math.max(1, voorgesteldeGrensPx - geplaatstPx);
           var sliceCanvas = document.createElement("canvas");
           sliceCanvas.width = canvas.width;
           sliceCanvas.height = sliceHoogtePx;
@@ -3528,14 +3541,14 @@ function renderOfferteWerkblad() {
     if (o.inleiding) h += '<p>' + esc(o.inleiding) + '</p>';
     if (o.werkzaamheden) h += '<h4 class="ow-section-title">Werkzaamheden</h4><p>' + esc(o.werkzaamheden) + '</p>';
   }
-  h += '<table class="ow-regels-table"><thead><tr><th>Omschrijving</th><th style="text-align:right;">Aantal</th><th style="text-align:right;">Prijs</th><th style="text-align:right;">Totaal</th></tr></thead><tbody>';
+  h += '<div class="no-split" style="width:100%;box-sizing:border-box;"><table class="ow-regels-table"><thead><tr><th>Omschrijving</th><th style="text-align:right;">Aantal</th><th style="text-align:right;">Prijs</th><th style="text-align:right;">Totaal</th></tr></thead><tbody>';
   o.regels.forEach(function(r){
     var lijn = (parseFloat(r.aantal)||0)*(parseFloat(r.prijs)||0);
     var omschrijvingCel = r.productFoto ? '<div style="display:flex;align-items:center;gap:8px;"><img src="' + r.productFoto + '" style="width:38px;height:38px;object-fit:cover;border-radius:4px;flex-shrink:0;" />' + esc(r.omschrijving||"—") + '</div>' : esc(r.omschrijving||"—");
     h += '<tr><td>' + omschrijvingCel + '</td><td style="text-align:right;">' + esc(r.aantal) + ' ' + esc(r.eenheid||"") + '</td><td style="text-align:right;">' + euro(r.prijs) + '</td><td style="text-align:right;">' + euro(lijn) + '</td></tr>';
   });
-  h += '</tbody></table>';
-  h += '<div class="ow-totals"><div class="ow-totals-box">';
+  h += '</tbody></table></div>';
+  h += '<div class="ow-totals no-split"><div class="ow-totals-box">';
   h += '<div class="ow-totals-row"><span>Subtotaal</span><span>' + euro(t.totaalExcl) + '</span></div>';
   h += '<div class="ow-totals-row"><span>BTW</span><span>' + euro(t.totaalBtw) + '</span></div>';
   h += '<div class="ow-totals-final"><span>Totaal</span><span>' + euro(t.totaalIncl) + '</span></div>';
@@ -3544,7 +3557,7 @@ function renderOfferteWerkblad() {
   if (o.opmerking) h += '<h4 class="ow-section-title">Toelichting</h4><p>' + esc(o.opmerking) + '</p>';
   if (o.afsluiting) h += '<p style="margin-top:16px;">' + esc(o.afsluiting) + '</p>';
   if (b.isInstallQErkend || b.isVCAGecertificeerd || b.certificeringNotities) {
-    h += '<div style="margin-top:18px;padding:12px 14px;background:#F7FEFC;border:1px solid var(--border);border-radius:8px;font-size:11.5px;line-height:1.6;color:var(--muted);text-align:left;">';
+    h += '<div class="no-split" style="margin-top:18px;padding:12px 14px;background:#F7FEFC;border:1px solid var(--border);border-radius:8px;font-size:11.5px;line-height:1.6;color:var(--muted);text-align:left;">';
     h += '<b style="color:var(--navy);">Kwaliteit &amp; zekerheid</b><br/>';
     var puntjes = [];
     if (b.isInstallQErkend) puntjes.push(icon("checkCircle") + ' <b>' + esc(b.naam||"Ons bedrijf") + '</b> is een <b>InstallQ-erkend installatiebedrijf</b>, wat betekent dat onze installaties voldoen aan de landelijk erkende kwaliteits- en veiligheidsnormen voor duurzame energie-installaties.');
@@ -4244,15 +4257,15 @@ function renderFactuurDocument(f) {
   if (f.inleiding) h += '<p>' + esc(f.inleiding) + '</p>';
   if (f.werkzaamheden) h += '<h4 class="ow-section-title">Werkzaamheden</h4><p>' + esc(f.werkzaamheden) + '</p>';
 
-  h += '<table class="ow-regels-table"><thead><tr><th>Omschrijving</th><th style="text-align:right;">Aantal</th><th style="text-align:right;">Prijs</th><th style="text-align:right;">BTW</th><th style="text-align:right;">Totaal</th></tr></thead><tbody>';
+  h += '<div class="no-split" style="width:100%;box-sizing:border-box;"><table class="ow-regels-table"><thead><tr><th>Omschrijving</th><th style="text-align:right;">Aantal</th><th style="text-align:right;">Prijs</th><th style="text-align:right;">BTW</th><th style="text-align:right;">Totaal</th></tr></thead><tbody>';
   f.regels.forEach(function(r){
     var lijn = (parseFloat(r.aantal)||0)*(parseFloat(r.prijs)||0);
     var omschrijvingCel = r.productFoto ? '<div style="display:flex;align-items:center;gap:8px;"><img src="' + r.productFoto + '" style="width:38px;height:38px;object-fit:cover;border-radius:4px;flex-shrink:0;" />' + esc(r.omschrijving||"—") + '</div>' : esc(r.omschrijving||"—");
     h += '<tr><td>' + omschrijvingCel + '</td><td style="text-align:right;">' + esc(r.aantal) + '</td><td style="text-align:right;">' + euro(r.prijs) + '</td><td style="text-align:right;">' + r.btw + '%</td><td style="text-align:right;">' + euro(lijn) + '</td></tr>';
   });
-  h += '</tbody></table>';
+  h += '</tbody></table></div>';
 
-  h += '<div class="ow-totals"><div class="ow-totals-box">';
+  h += '<div class="ow-totals no-split"><div class="ow-totals-box">';
   h += '<div class="ow-totals-row"><span>Subtotaal excl. BTW</span><span>' + euro(t.totaalExcl) + '</span></div>';
   Object.keys(t.subtotalen).forEach(function(tarief){
     if (t.subtotalen[tarief] !== 0) h += '<div class="ow-totals-row"><span>BTW ' + tarief + '%</span><span>' + euro(t.subtotalen[tarief]*(parseInt(tarief)/100)) + '</span></div>';
@@ -4269,7 +4282,7 @@ function renderFactuurDocument(f) {
   if (f.opmerking) h += '<h4 class="ow-section-title">Toelichting</h4><p>' + esc(f.opmerking) + '</p>';
   if (f.afsluiting) h += '<p style="margin-top:16px;">' + esc(f.afsluiting) + '</p>';
   if (b.isInstallQErkend || b.isVCAGecertificeerd || b.certificeringNotities) {
-    h += '<div style="margin-top:18px;padding:12px 14px;background:#F7FEFC;border:1px solid var(--border);border-radius:8px;font-size:11.5px;line-height:1.6;color:var(--muted);text-align:left;">';
+    h += '<div class="no-split" style="margin-top:18px;padding:12px 14px;background:#F7FEFC;border:1px solid var(--border);border-radius:8px;font-size:11.5px;line-height:1.6;color:var(--muted);text-align:left;">';
     h += '<b style="color:var(--navy);">Kwaliteit &amp; zekerheid</b><br/>';
     var puntjesF = [];
     if (b.isInstallQErkend) puntjesF.push(icon("checkCircle") + ' <b>' + esc(b.naam||"Ons bedrijf") + '</b> is een <b>InstallQ-erkend installatiebedrijf</b>, wat betekent dat onze installaties voldoen aan de landelijk erkende kwaliteits- en veiligheidsnormen voor duurzame energie-installaties.');
