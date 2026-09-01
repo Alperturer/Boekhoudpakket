@@ -656,10 +656,56 @@ function downloadAlsPDF(elementId, bestandsnaam, knopId) {
     };
   }
 
+  function laadAfbeeldingAfmetingen(src) {
+    return new Promise(function(resolve){
+      var img = new Image();
+      img.onload = function(){ resolve({ breedte: img.naturalWidth || img.width, hoogte: img.naturalHeight || img.height, src: src }); };
+      img.onerror = function(){ resolve(null); };
+      img.src = src;
+    });
+  }
+
   var eersteAfbeelding = true;
   var keten = Promise.resolve();
   paginaElementen.forEach(function(paginaEl){
     keten = keten.then(function(){
+      // Full-bleed productafbeeldingen (bijlages/datasheets) plaatsen we rechtstreeks via de
+      // brondata i.p.v. via een html2canvas-schermafbeelding van de gecentreerde flex-container.
+      // Zo kan er nooit een scheve marge links/rechts ontstaan -- de breedte wordt altijd
+      // exact gelijk aan de paginabreedte gezet, dus links en rechts is het per definitie gelijk (nul).
+      if (paginaEl.getAttribute("data-fullbleed-img") === "1") {
+        var imgEl = paginaEl.querySelector("img");
+        var chipEl = paginaEl.querySelector(".pagina-nr-chip");
+        var paginaTekst = chipEl ? chipEl.textContent : "";
+        if (!imgEl) return;
+        return laadAfbeeldingAfmetingen(imgEl.currentSrc || imgEl.src).then(function(info){
+          if (!eersteAfbeelding) pdf.addPage("a4", "p");
+          if (info && info.breedte && info.hoogte) {
+            var hoogteMm = pageWidth * (info.hoogte / info.breedte);
+            var yOffset = 0;
+            if (hoogteMm > pageHeight) {
+              // Beeld is verhoudingsgewijs hoger dan de pagina: breedte verkleinen i.p.v. afbeelding
+              // uitrekken, en dan horizontaal centreren -- ook dan blijft links/rechts gelijk.
+              var breedteMm = pageHeight * (info.breedte / info.hoogte);
+              var xOffset = (pageWidth - breedteMm) / 2;
+              pdf.addImage(info.src, "PNG", xOffset, 0, breedteMm, pageHeight);
+            } else {
+              yOffset = (pageHeight - hoogteMm) / 2;
+              pdf.addImage(info.src, "PNG", 0, yOffset, pageWidth, hoogteMm);
+            }
+          }
+          if (paginaTekst) {
+            pdf.setFontSize(9);
+            pdf.setTextColor(0, 0, 0);
+            pdf.setFillColor(255, 255, 255);
+            var tekstBreedte = pdf.getTextWidth(paginaTekst);
+            pdf.rect(pageWidth - 14 - tekstBreedte - 4, pageHeight - 14, tekstBreedte + 8, 6, "F");
+            pdf.text(paginaTekst, pageWidth - 14, pageHeight - 10);
+          }
+          tekenPaginaRand(pdf, pageWidth, pageHeight);
+          eersteAfbeelding = false;
+        });
+      }
       var isHoofdpagina = paginaEl.id === "ow-print-area" || paginaEl.id === "r-page-factuur";
       var herstelFn = isHoofdpagina ? verkleinTotEenPagina(paginaEl) : null;
       var volledigeHoogte = Math.max(paginaEl.scrollHeight, paginaEl.offsetHeight, paginaEl.getBoundingClientRect().height);
@@ -3929,16 +3975,16 @@ function renderDatasheetsSectie(datasheets, startPaginaNr, totaalPaginas, bedrij
   var pn = startPaginaNr;
   datasheets.forEach(function(d){
     if (d.data && d.data.indexOf("image") !== -1 && (!d.paginaAfbeeldingen || d.paginaAfbeeldingen.length === 0)) {
-      h += '<div class="r-page" style="padding:0;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;height:990px;">';
+      h += '<div class="r-page" data-fullbleed-img="1" style="padding:0;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;height:990px;">';
       h += '<img src="' + d.data + '" style="width:100%;height:100%;object-fit:contain;display:block;" />';
-      h += '<div style="position:absolute;bottom:10px;right:14px;font-size:10px;color:#000000;background:rgba(255,255,255,0.85);padding:2px 8px;border-radius:4px;">Pagina ' + pn + ' van ' + totaalPaginas + '</div>';
+      h += '<div class="pagina-nr-chip" style="position:absolute;bottom:10px;right:14px;font-size:10px;color:#000000;background:rgba(255,255,255,0.85);padding:2px 8px;border-radius:4px;">Pagina ' + pn + ' van ' + totaalPaginas + '</div>';
       h += '</div>';
       pn++;
     } else if (d.paginaAfbeeldingen && d.paginaAfbeeldingen.length > 0) {
       d.paginaAfbeeldingen.forEach(function(pagUrl){
-        h += '<div class="r-page" style="padding:0;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;height:990px;">';
+        h += '<div class="r-page" data-fullbleed-img="1" style="padding:0;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;height:990px;">';
         h += '<img src="' + pagUrl + '" style="width:100%;height:100%;object-fit:contain;display:block;" />';
-        h += '<div style="position:absolute;bottom:10px;right:14px;font-size:10px;color:#000000;background:rgba(255,255,255,0.85);padding:2px 8px;border-radius:4px;">Pagina ' + pn + ' van ' + totaalPaginas + '</div>';
+        h += '<div class="pagina-nr-chip" style="position:absolute;bottom:10px;right:14px;font-size:10px;color:#000000;background:rgba(255,255,255,0.85);padding:2px 8px;border-radius:4px;">Pagina ' + pn + ' van ' + totaalPaginas + '</div>';
         h += '</div>';
         pn++;
       });
