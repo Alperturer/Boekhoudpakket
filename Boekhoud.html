@@ -191,7 +191,7 @@
   #ow-print-area, #r-page-factuur { width:100%; max-width:700px; min-height:990px; margin:0 auto; background:#fff; border:1px solid var(--border); box-shadow:0 1px 3px rgba(0,0,0,0.06); box-sizing:border-box; }
   .ow-stripe { height:6px; }
   .ow-letterhead { padding:26px 34px 18px; border-bottom:1px solid #EFF6F5; display:flex; justify-content:space-between; align-items:flex-start; }
-  .ow-wordmark { font-family:ui-monospace,monospace; font-size:19px; font-weight:800; letter-spacing:-0.02em; }
+  .ow-wordmark { font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; font-size:19px; font-weight:800; letter-spacing:-0.01em; }
   .verkoper-gegevens { margin-top:0; font-size:11px; line-height:1.6; color:var(--muted); }
   .ow-tagline { font-size:11px; color:var(--muted); margin-top:2px; }
   .ow-lh-right { text-align:right; font-size:12px; color:var(--muted); }
@@ -890,6 +890,7 @@ function newOfferte() {
     legplanNoordBoven: false, legplanPaneelWp: null, legplanDakhoek: 0,
     gefactureerd: false,
     energieActief: false, energie: null, // gevuld via EO_nieuwSysteem() zodra ingeschakeld
+    pakketprijsActief: false, pakketprijs: "", pakketprijsBtw: 21,
   };
 }
 function volgendVrijFactuurnummer(type) {
@@ -924,6 +925,7 @@ function newFactuur(type) {
     gekoppeldAan: null,
     herinneringVerstuurd: false,
     betaallink: "",
+    pakketprijsActief: false, pakketprijs: "", pakketprijsBtw: 21,
   };
 }
 function newUitgave() {
@@ -1938,6 +1940,21 @@ function productKiezer(applyExpr) {
   return h;
 }
 function offerteTotalen(o) { return factuurTotalen(o); }
+function pakketprijsSectieHtml(doc, updateFnNaam) {
+  var h = '<div style="background:rgba(255,255,255,0.06);border-radius:8px;padding:10px;margin:10px 0;">';
+  h += '<div style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="pakket-' + doc.id + '" ' + (doc.pakketprijsActief?"checked":"") + ' onchange="' + updateFnNaam + '(\'' + doc.id + '\',\'pakketprijsActief\',this.checked); render();" style="width:auto;" /><label for="pakket-' + doc.id + '" style="margin:0;font-weight:700;font-size:13px;color:#fff;">Verkopen als pakket (vaste totaalprijs, ongeacht regelprijzen)</label></div>';
+  if (doc.pakketprijsActief) {
+    h += '<p class="subtitle" style="margin:8px 0;color:#B9DDD6;">Tip: zet de losse regelprijzen op &euro; 0,00 &mdash; de klant ziet dan alleen wat er inbegrepen is, met daaronder deze ene pakketprijs.</p>';
+    h += '<div style="display:flex;gap:8px;">';
+    h += '<div style="flex:2;"><label class="fl">Pakketprijs (incl. BTW)</label><input class="f" placeholder="bijv. 12000" value="' + esc(doc.pakketprijs) + '" oninput="' + updateFnNaam + '(\'' + doc.id + '\',\'pakketprijs\',this.value); render();" /></div>';
+    h += '<div style="flex:1;"><label class="fl">BTW %</label><select class="f" onchange="' + updateFnNaam + '(\'' + doc.id + '\',\'pakketprijsBtw\',parseFloat(this.value)); render();">';
+    BTW_TARIEVEN.forEach(function(tp){ h += '<option value="' + tp + '"' + (doc.pakketprijsBtw===tp?" selected":"") + '>' + tp + '%</option>'; });
+    h += '</select></div>';
+    h += '</div>';
+  }
+  h += '</div>';
+  return h;
+}
 function vraagOmzettenNaarFactuur(offerteId) {
   var o = getOfferte(offerteId);
   if (!o) return;
@@ -2051,6 +2068,14 @@ function updateFactuurRegelField(id, regelId, key, val) { var f = getFactuur(id)
 function updateFactuurRegel(id, regelId, patch) { var f = getFactuur(id); var r = f.regels.find(function(x){return x.id===regelId;}); if (r) Object.assign(r, patch); persistFacturen(); render(); }
 
 function factuurTotalen(f) {
+  if (f.pakketprijsActief && parseFloat(f.pakketprijs)) {
+    var incl = parseFloat(f.pakketprijs) || 0;
+    var btwPct = parseFloat(f.pakketprijsBtw) || 0;
+    var excl = incl / (1 + btwPct/100);
+    var btw = incl - excl;
+    var subtotalenPakket = {}; subtotalenPakket[btwPct] = round2(excl);
+    return { totaalExcl: round2(excl), totaalBtw: round2(btw), totaalIncl: round2(incl), subtotalen: subtotalenPakket };
+  }
   var subtotalen = {};
   var totaalExcl = 0;
   f.regels.forEach(function(r){
@@ -3353,6 +3378,7 @@ function renderOfferteWerkblad() {
     h += '</div></div>';
   });
   h += '<button class="btn-add" onclick="addOfferteRegel(\'' + o.id + '\')">+ Regel toevoegen</button>';
+  h += pakketprijsSectieHtml(o, "updateOfferteField");
   h += '<div style="margin-top:10px;"><label class="fl">BTW-tarief (voor nieuwe regels)</label><select class="f" onchange="state.owBtwKeuze=parseInt(this.value);">';
   BTW_TARIEVEN.forEach(function(tp){ h += '<option value="' + tp + '">' + tp + '%</option>'; });
   h += '</select></div>';
@@ -3435,8 +3461,8 @@ function renderOfferteWerkblad() {
   h += '</div>';
 
   h += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;">';
-  if (o.status === "concept") h += '<button class="btn-secondary" style="width:auto;color:#0D9488;" onclick="updateOfferteStatus(\'' + o.id + '\',\'verzonden\')">Markeer verzonden</button>';
-  if (o.status === "concept" || o.status === "verzonden") h += '<button class="btn-secondary" style="width:auto;color:#0D9488;" onclick="kopieerDeellink(\'' + o.id + '\')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><path d="M10 13a5 5 0 0 0 7.5.5l2-2a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7.5-.5l-2 2a5 5 0 0 0 7 7l1-1"/></svg> Deelbare link</button>';
+  if (o.status === "concept") h += '<button class="btn-secondary" style="width:auto;" onclick="updateOfferteStatus(\'' + o.id + '\',\'verzonden\')">Markeer verzonden</button>';
+  if (o.status === "concept" || o.status === "verzonden") h += '<button class="btn-secondary" style="width:auto;" onclick="kopieerDeellink(\'' + o.id + '\')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><path d="M10 13a5 5 0 0 0 7.5.5l2-2a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7.5-.5l-2 2a5 5 0 0 0 7 7l1-1"/></svg> Deelbare link</button>';
   if (o.status === "verzonden") h += '<button class="btn-secondary" style="width:auto;" onclick="ververKlantStatus(\'' + o.id + '\')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.5 9a9 9 0 0 1 14.9-3.4L23 10M1 14l4.6 4.4A9 9 0 0 0 20.5 15"/></svg> Ververs</button>';
   h += '</div>';
   if (!o.gefactureerd) {
@@ -4131,6 +4157,7 @@ function renderFactuurForm() {
     h += '</div>';
   });
   h += '<button class="btn-add" onclick="addFactuurRegel(\'' + f.id + '\')">+ Regel toevoegen</button>';
+  h += pakketprijsSectieHtml(f, "updateFactuurField");
 
   h += '<div class="ow-mini-totals" style="background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:8px 10px;"><div class="row" style="color:#fff;"><span>Subtotaal</span><span>' + euro(t.totaalExcl) + '</span></div><div class="row" style="color:#fff;"><span>BTW</span><span>' + euro(t.totaalIncl - t.totaalExcl) + '</span></div><div class="row final" style="color:#fff;"><span>Totaal</span><span>' + euro(t.totaalIncl) + '</span></div></div>';
   h += '</div>';
@@ -4245,9 +4272,9 @@ function renderFactuurView() {
   h += '<button class="backbtn" onclick="setTab(\'facturen\')">&larr; Terug</button>';
   h += '<div style="display:flex;gap:8px;flex-wrap:wrap;">';
   h += '<button class="btn-secondary" style="width:auto;" onclick="bewerkFactuur(\'' + f.id + '\')">Bewerken</button>';
-  if (f.status === "concept") h += '<button class="btn-secondary" style="width:auto;color:#3A7DBF;" onclick="updateFactuurStatus(\'' + f.id + '\',\'verzonden\')">Markeer verzonden</button>';
-  if (f.status === "verzonden") h += '<button class="btn-secondary" style="width:auto;color:#2F6B4F;" onclick="updateFactuurStatus(\'' + f.id + '\',\'betaald\')">Markeer betaald</button>';
-  if (st === "vervallen") h += '<a class="btn-secondary" style="width:auto;color:#B23A2F;display:inline-block;text-decoration:none;" href="' + herinneringMailtoLink(f) + '" onclick="markeerHerinneringVerstuurd(\'' + f.id + '\')">Stuur herinnering</a>';
+  if (f.status === "concept") h += '<button class="btn-secondary" style="width:auto;" onclick="updateFactuurStatus(\'' + f.id + '\',\'verzonden\')">Markeer verzonden</button>';
+  if (f.status === "verzonden") h += '<button class="btn-secondary" style="width:auto;" onclick="updateFactuurStatus(\'' + f.id + '\',\'betaald\')">Markeer betaald</button>';
+  if (st === "vervallen") h += '<a class="btn-secondary" style="width:auto;display:inline-block;text-decoration:none;" href="' + herinneringMailtoLink(f) + '" onclick="markeerHerinneringVerstuurd(\'' + f.id + '\')">Stuur herinnering</a>';
   if (f.type === "factuur") h += '<button class="btn-secondary" style="width:auto;" onclick="maakCreditNota(\'' + f.id + '\')">Credit nota maken</button>';
   h += '<button class="print-btn" onclick="window.print()">' + icon("printer") + ' Print</button>';
   h += '<button class="print-btn" id="pdf-btn-factuur" style="background:#0D9488;" onclick="downloadAlsPDF(\'factuur-volledig-document\', \'' + f.factuurnummer + '\', \'pdf-btn-factuur\')">' + icon("file") + ' Download PDF</button>';
