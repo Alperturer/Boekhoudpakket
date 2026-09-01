@@ -607,6 +607,15 @@ function standaardOfferteTekst(stijl, bedrijfsnaam) {
 // ---------------------------------------------------------------------
 // ECHTE PDF-BESTANDSEXPORT (jsPDF + html2canvas)
 // ---------------------------------------------------------------------
+function tekenPaginaRand(pdf, pageWidth, pageHeight) {
+  // Trekt een dun grijs kader om de volledige pagina. Zonder dit kader is de
+  // grens tussen twee pagina's onzichtbaar zodra ze allebei wit/licht zijn
+  // aan de naad (bv. offerte-einde + start van een productafbeelding) -- de
+  // pagina's ZIJN dan al correct gesplitst, maar je ziet het verschil niet.
+  pdf.setDrawColor(200, 200, 200);
+  pdf.setLineWidth(0.2);
+  pdf.rect(0.5, 0.5, pageWidth - 1, pageHeight - 1);
+}
 function downloadAlsPDF(elementId, bestandsnaam, knopId) {
   var el = document.getElementById(elementId);
   if (!el || !window.html2canvas || !window.jspdf) { toonToast("PDF-export kon niet laden. Check je verbinding."); return; }
@@ -674,8 +683,9 @@ function downloadAlsPDF(elementId, bestandsnaam, knopId) {
         if (isHoofdpagina) {
           // Deze pagina is al gegarandeerd verkleind tot hij op 1 pagina past -- gewoon in zijn geheel plaatsen.
           var hoofdHoogteMm = canvas.height / pxPerMm;
-          if (!eersteAfbeelding) pdf.addPage();
+          if (!eersteAfbeelding) pdf.addPage("a4", "p");
           pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, pageWidth, Math.min(hoofdHoogteMm, pageHeight));
+          tekenPaginaRand(pdf, pageWidth, pageHeight);
           eersteAfbeelding = false;
           return;
         }
@@ -702,8 +712,9 @@ function downloadAlsPDF(elementId, bestandsnaam, knopId) {
           ctx.drawImage(canvas, 0, geplaatstPx, canvas.width, sliceHoogtePx, 0, 0, canvas.width, sliceHoogtePx);
           var sliceData = sliceCanvas.toDataURL("image/png");
           var sliceHoogteMm = sliceHoogtePx / pxPerMm;
-          if (!eersteAfbeelding) pdf.addPage();
+          if (!eersteAfbeelding) pdf.addPage("a4", "p");
           pdf.addImage(sliceData, "PNG", 0, 0, pageWidth, sliceHoogteMm);
+          tekenPaginaRand(pdf, pageWidth, pageHeight);
           eersteAfbeelding = false;
           geplaatstPx += sliceHoogtePx;
         }
@@ -3920,14 +3931,14 @@ function renderDatasheetsSectie(datasheets, startPaginaNr, totaalPaginas, bedrij
     if (d.data && d.data.indexOf("image") !== -1 && (!d.paginaAfbeeldingen || d.paginaAfbeeldingen.length === 0)) {
       h += '<div class="r-page" style="padding:0;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;height:990px;">';
       h += '<img src="' + d.data + '" style="width:100%;height:100%;object-fit:contain;display:block;" />';
-      h += '<div style="position:absolute;bottom:10px;right:14px;font-size:10px;color:#94A3B8;background:rgba(255,255,255,0.85);padding:2px 8px;border-radius:4px;">Pagina ' + pn + ' van ' + totaalPaginas + '</div>';
+      h += '<div style="position:absolute;bottom:10px;right:14px;font-size:10px;color:#000000;background:rgba(255,255,255,0.85);padding:2px 8px;border-radius:4px;">Pagina ' + pn + ' van ' + totaalPaginas + '</div>';
       h += '</div>';
       pn++;
     } else if (d.paginaAfbeeldingen && d.paginaAfbeeldingen.length > 0) {
       d.paginaAfbeeldingen.forEach(function(pagUrl){
         h += '<div class="r-page" style="padding:0;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;height:990px;">';
         h += '<img src="' + pagUrl + '" style="width:100%;height:100%;object-fit:contain;display:block;" />';
-        h += '<div style="position:absolute;bottom:10px;right:14px;font-size:10px;color:#94A3B8;background:rgba(255,255,255,0.85);padding:2px 8px;border-radius:4px;">Pagina ' + pn + ' van ' + totaalPaginas + '</div>';
+        h += '<div style="position:absolute;bottom:10px;right:14px;font-size:10px;color:#000000;background:rgba(255,255,255,0.85);padding:2px 8px;border-radius:4px;">Pagina ' + pn + ' van ' + totaalPaginas + '</div>';
         h += '</div>';
         pn++;
       });
@@ -3947,7 +3958,7 @@ function paginaLogoHeader(bedrijfOverride) {
 }
 function paginaVoetnoot(nr, totaal) {
   if (!nr || !totaal) return "";
-  return '<div style="text-align:center;font-size:10px;color:#94A3B8;margin-top:18px;padding-top:8px;border-top:1px solid #F1F5F9;">Pagina ' + nr + ' van ' + totaal + '</div>';
+  return '<div style="text-align:right;font-size:10px;color:#000000;margin-top:18px;padding-top:8px;border-top:1px solid #F1F5F9;">Pagina ' + nr + ' van ' + totaal + '</div>';
 }
 function algemeneVoorwaardenPagina(paginaNr, totaalPaginas, bedrijfOverride) {
   var b = bedrijfOverride || state.bedrijf;
