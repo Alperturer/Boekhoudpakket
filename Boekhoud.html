@@ -621,22 +621,36 @@ function downloadAlsPDF(elementId, bestandsnaam, knopId) {
   var pdf = new jsPDF("p", "mm", "a4");
   var pageWidth = 210, pageHeight = 297;
 
+  var eersteAfbeelding = true;
   var keten = Promise.resolve();
-  paginaElementen.forEach(function(paginaEl, idx){
+  paginaElementen.forEach(function(paginaEl){
     keten = keten.then(function(){
       var volledigeHoogte = Math.max(paginaEl.scrollHeight, paginaEl.offsetHeight, paginaEl.getBoundingClientRect().height);
       var volledigeBreedte = Math.max(paginaEl.scrollWidth, paginaEl.offsetWidth, paginaEl.getBoundingClientRect().width);
       return html2canvas(paginaEl, { scale: 2, backgroundColor: "#ffffff", width: volledigeBreedte, height: volledigeHoogte, windowWidth: volledigeBreedte, windowHeight: volledigeHoogte }).then(function(canvas){
-        var imgData = canvas.toDataURL("image/png");
-        var imgWidth = pageWidth;
-        var imgHeight = (canvas.height * imgWidth) / canvas.width;
-        if (imgHeight > pageHeight) { // past net niet op één A4-pagina -> proportioneel verkleinen zodat alles zichtbaar blijft
-          imgHeight = pageHeight;
-          imgWidth = (canvas.width * imgHeight) / canvas.height;
+        // Breedte blijft altijd de volle paginabreedte (210mm) -- nooit verkleind, dus nooit witruimte
+        // aan de zijkanten. Is de inhoud hoger dan één A4-pagina, dan knippen we 'm in stukken van
+        // precies één pagina hoog, in plaats van alles proportioneel te verkleinen.
+        var pxPerMm = canvas.width / pageWidth;
+        var pageHeightPx = Math.round(pageHeight * pxPerMm);
+        var totaalHoogtePx = canvas.height;
+        var geplaatstPx = 0;
+        while (geplaatstPx < totaalHoogtePx) {
+          var sliceHoogtePx = Math.min(pageHeightPx, totaalHoogtePx - geplaatstPx);
+          var sliceCanvas = document.createElement("canvas");
+          sliceCanvas.width = canvas.width;
+          sliceCanvas.height = sliceHoogtePx;
+          var ctx = sliceCanvas.getContext("2d");
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
+          ctx.drawImage(canvas, 0, geplaatstPx, canvas.width, sliceHoogtePx, 0, 0, canvas.width, sliceHoogtePx);
+          var sliceData = sliceCanvas.toDataURL("image/png");
+          var sliceHoogteMm = sliceHoogtePx / pxPerMm;
+          if (!eersteAfbeelding) pdf.addPage();
+          pdf.addImage(sliceData, "PNG", 0, 0, pageWidth, sliceHoogteMm);
+          eersteAfbeelding = false;
+          geplaatstPx += sliceHoogtePx;
         }
-        if (idx > 0) pdf.addPage();
-        var xOffset = Math.max(0, (pageWidth - imgWidth) / 2);
-        pdf.addImage(imgData, "PNG", xOffset, 0, imgWidth, imgHeight);
       });
     });
   });
