@@ -130,8 +130,8 @@
   table.r-table { width:100%; border-collapse:collapse; font-size:13px; margin-top:10px; }
   table.r-table th { text-align:left; font-size:10.5px; color:var(--navy); background:var(--blue-light); border-bottom:2px solid var(--blue); padding:8px 8px 8px 8px; text-transform:uppercase; letter-spacing:0.02em; }
   table.r-table td { padding:10px 8px; border-bottom:1px solid #F1F5F9; }
-  table.r-table td.num { text-align:right; }
-  table.r-table th.num { text-align:right; }
+  table.r-table td.num { text-align:right; white-space:nowrap; }
+  table.r-table th.num { text-align:right; white-space:nowrap; }
   table.r-table tr.total-row td { font-weight:800; border-top:2px solid var(--navy); border-bottom:none; }
   table.r-table tbody tr:hover { background:#F8FAFC; }
 
@@ -213,6 +213,8 @@
   table.ow-regels-table th:first-child { border-radius:6px 0 0 6px; }
   table.ow-regels-table th:last-child { border-radius:0 6px 6px 0; }
   table.ow-regels-table td { padding:8px 10px; border-bottom:1px solid #F1F5F9; }
+  table.ow-regels-table td:not(:first-child) { white-space:nowrap; }
+  table.ow-regels-table th:not(:first-child) { white-space:nowrap; }
   .ow-totals { display:flex; justify-content:flex-end; margin-top:10px; }
   .ow-totals-box { width:240px; font-size:13px; }
   .ow-totals-row { display:flex; justify-content:space-between; padding:2px 0; color:var(--muted); }
@@ -3485,7 +3487,7 @@ function renderOfferteWerkblad() {
   h += '<div class="ow-letterhead">';
   h += '<div>';
   h += '<div style="display:flex;align-items:center;gap:12px;">';
-  if (b.logoData) h += '<img src="' + b.logoData + '" style="height:82px;max-width:250px;object-fit:contain;" />';
+  if (b.logoData) h += '<img src="' + b.logoData + '" style="height:120px;max-width:320px;object-fit:contain;" />';
   h += '</div>';
   h += '<div class="ow-wordmark" style="margin-top:14px;margin-bottom:0;font-size:16px;line-height:1.6;">' + esc(b.naam || "Jouw bedrijf") + '</div>';
   h += verkoperGegevensHtml(b);
@@ -4203,7 +4205,7 @@ function renderFactuurDocument(f) {
   h += '<div class="ow-letterhead">';
   h += '<div>';
   h += '<div style="display:flex;align-items:center;gap:12px;">';
-  if (b.logoData) h += '<img src="' + b.logoData + '" style="height:82px;max-width:250px;object-fit:contain;" />';
+  if (b.logoData) h += '<img src="' + b.logoData + '" style="height:120px;max-width:320px;object-fit:contain;" />';
   h += '</div>';
   h += '<div class="ow-wordmark" style="margin-top:14px;margin-bottom:0;font-size:16px;line-height:1.6;">' + esc(b.naam || "Jouw bedrijf") + '</div>';
   h += verkoperGegevensHtml(b);
