@@ -214,10 +214,10 @@
   .ow-section-title { font-size:calc(11px * var(--tekst-schaal, 1)); text-transform:uppercase; letter-spacing:0.06em; color:#9FB8B6; margin-top:18px; margin-bottom:6px; font-weight:700; }
   table.ow-regels-table { width:100%; table-layout:fixed; border-collapse:collapse; margin-top:14px; font-size:calc(13px * var(--tekst-schaal, 1)); }
   table.ow-regels-table td:first-child, table.ow-regels-table th:first-child { word-wrap:break-word; overflow-wrap:break-word; white-space:normal; }
-  table.ow-regels-table th { text-align:left; padding:9px 10px; font-size:calc(11px * var(--tekst-schaal, 1)); color:#fff; font-weight:700; text-transform:uppercase; letter-spacing:0.03em; background:linear-gradient(to right, #0F6E6E, #2FA398); }
+  table.ow-regels-table th { text-align:left; padding:7px 10px; font-size:calc(11px * var(--tekst-schaal, 1)); color:#fff; font-weight:700; text-transform:uppercase; letter-spacing:0.03em; background:linear-gradient(to right, #0F6E6E, #2FA398); }
   table.ow-regels-table th:first-child { border-radius:6px 0 0 6px; }
   table.ow-regels-table th:last-child { border-radius:0 6px 6px 0; }
-  table.ow-regels-table td { padding:6px 10px; border-bottom:1px solid #F1F5F9; }
+  table.ow-regels-table td { padding:4px 10px; border-bottom:1px solid #F1F5F9; line-height:1.25; }
   table.ow-regels-table td:not(:first-child) { white-space:nowrap; }
   table.ow-regels-table th:not(:first-child) { white-space:nowrap; }
   .ow-totals { display:flex; justify-content:flex-end; margin-top:10px; }
@@ -307,7 +307,7 @@ function svgDonutChart(data, kleuren) {
 <body>
 <div id="root"></div>
 <script>
-var APP_BUILD_VERSIE = "20260901-2148";
+var APP_BUILD_VERSIE = "20260901-2215";
 // ---------------------------------------------------------------------
 // DATA / STORAGE
 // ---------------------------------------------------------------------
@@ -3743,7 +3743,7 @@ function renderOfferteWerkblad() {
     if (b.certificeringNotities) h += (puntjes.length?'<br/>':'') + esc(b.certificeringNotities);
     h += '</div>';
   }
-  h += '<div class="ow-footer-note">' + esc(b.naam||"") + " &middot; " + (o.geldigTot ? "Deze offerte is geldig tot " + esc(o.geldigTot) + "." : "Deze offerte is 30 dagen geldig vanaf bovenstaande datum.") + '</div>';
+  var offerteFooterTekst = esc(b.naam||"") + " &middot; " + (o.geldigTot ? "Deze offerte is geldig tot " + esc(o.geldigTot) + "." : "Deze offerte is 30 dagen geldig vanaf bovenstaande datum.");
 
   if (o.akkoordTerPlekkeAan) {
     if (o.klantAkkoordHandtekening) {
@@ -3767,7 +3767,7 @@ function renderOfferteWerkblad() {
   var datasheetsPaginaCount = datasheetsPaginaAantal(o.datasheets);
   var voorwaardenPaginaCount = algemeneVoorwaardenPaginaAantal();
   var totaalPaginasOfferte = 1 + energiePaginaCount + legplanPaginaCount + datasheetsPaginaCount + voorwaardenPaginaCount;
-  h += paginaVoetnoot(1, totaalPaginasOfferte);
+  h += paginaVoetnoot(1, totaalPaginasOfferte, offerteFooterTekst);
   h += '</div>'; // ow-body
   h += '</div>'; // ow-print-area
   h += EO_renderRapportPaginas(o, 2, totaalPaginasOfferte, state.bedrijf);
@@ -4081,9 +4081,13 @@ function paginaLogoHeader(bedrijfOverride) {
   if (!b.logoData) return "";
   return '<div style="margin-bottom:14px;"><img src="' + b.logoData + '" style="height:44px;max-width:170px;object-fit:contain;" /></div>';
 }
-function paginaVoetnoot(nr, totaal) {
+function paginaVoetnoot(nr, totaal, linksTekst) {
   if (!nr || !totaal) return "";
-  return '<div style="text-align:right;font-size:10px;color:#000000;margin-top:18px;padding-top:8px;border-top:1px solid #F1F5F9;page-break-before:avoid;break-before:avoid-page;page-break-inside:avoid;break-inside:avoid;">Pagina ' + nr + ' van ' + totaal + '</div>';
+  var basisStijl = "margin-top:18px;padding-top:8px;border-top:1px solid #F1F5F9;font-size:10px;color:#000000;page-break-before:avoid;break-before:avoid-page;page-break-inside:avoid;break-inside:avoid;";
+  if (linksTekst) {
+    return '<div style="' + basisStijl + 'display:flex;justify-content:space-between;align-items:center;gap:10px;color:#9FB8B6;"><span>' + linksTekst + '</span><span style="color:#000000;white-space:nowrap;">Pagina ' + nr + ' van ' + totaal + '</span></div>';
+  }
+  return '<div style="' + basisStijl + 'text-align:right;">Pagina ' + nr + ' van ' + totaal + '</div>';
 }
 function algemeneVoorwaardenPagina(paginaNr, totaalPaginas, bedrijfOverride) {
   var b = bedrijfOverride || state.bedrijf;
@@ -4468,9 +4472,8 @@ function renderFactuurDocument(f) {
     h += '</div>';
   }
   if (b.voettekst) h += '<p style="font-size:11.5px;color:var(--muted);margin-top:20px;">' + esc(b.voettekst) + '</p>';
-  h += '<div class="ow-footer-note">' + esc(b.naam||"") + '</div>';
   var fVoorwaardenCount = algemeneVoorwaardenPaginaAantal(b);
-  h += paginaVoetnoot(1, 1 + fVoorwaardenCount);
+  h += paginaVoetnoot(1, 1 + fVoorwaardenCount, esc(b.naam||""));
   h += '</div>'; // ow-body
   h += '</div>'; // r-page-factuur
   h += algemeneVoorwaardenPagina(2, 1 + fVoorwaardenCount, b);
