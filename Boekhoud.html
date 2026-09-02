@@ -307,7 +307,7 @@ function svgDonutChart(data, kleuren) {
 <body>
 <div id="root"></div>
 <script>
-var APP_BUILD_VERSIE = "20260901-2230";
+var APP_BUILD_VERSIE = "20260901-2300";
 // ---------------------------------------------------------------------
 // DATA / STORAGE
 // ---------------------------------------------------------------------
@@ -353,6 +353,8 @@ function EO_nieuwSysteem() {
     batterijBackupActief: false, batterijBruikbaarPct: "90", batterijBackupVermogen: "0.8",
     wpActief: false, huidigGasverbruik: "1200", gasprijs: "1.45", wpCOP: "4.2", wpAandeelUitZon: "20",
     aircoActief: false, aircoInstallaties: [],
+    laadpaalActief: false, laadpaalVermogen: "11", kmPerJaar: "15000", verbruikPer100km: "18", laadpaalAandeelUitZon: "30",
+    investeringLaadpaal: "1200", laadpaalProductId: "",
     stroomprijs: "0.35", terugleverprijs: "0.09", eigenVerbruikPct: "30",
     terugleverGrensGratis: "0", terugleverBoetePerKwh: "0.10",
     prijsstijgingPct: "4",
@@ -543,11 +545,23 @@ function EO_berekenAlles(s) {
 
   var totaleJaarlijkseBesparing = netoOpbrengstZon + besparingWP + besparingAirco;
 
+  var elektriciteitLaadpaal = 0, kostenLaadpaal = 0;
+  if (s.laadpaalActief) {
+    var kmPerJaar = parseFloat(s.kmPerJaar)||0;
+    var verbruikPer100km = parseFloat(s.verbruikPer100km)||0;
+    elektriciteitLaadpaal = (kmPerJaar/100) * verbruikPer100km;
+    var aandeelUitZonLaadpaal = (parseFloat(s.laadpaalAandeelUitZon)||0)/100;
+    var elektriciteitLaadpaalUitNet = elektriciteitLaadpaal * (1-aandeelUitZonLaadpaal);
+    kostenLaadpaal = elektriciteitLaadpaalUitNet * stroomprijs;
+    totaleJaarlijkseBesparing -= kostenLaadpaal;
+  }
+
   var investering = 0;
   if (s.zonActief) investering += parseFloat(s.investeringZon)||0;
   if (s.batterijActief) investering += parseFloat(s.investeringBatterij)||0;
   if (s.wpActief) investering += parseFloat(s.investeringWP)||0;
   if (s.aircoActief) investering += investeringAircoTotaal;
+  if (s.laadpaalActief) investering += parseFloat(s.investeringLaadpaal)||0;
 
   var terugverdientijd = totaleJaarlijkseBesparing > 0 ? investering / totaleJaarlijkseBesparing : null;
 
@@ -568,6 +582,7 @@ function EO_berekenAlles(s) {
     besparingEigenVerbruik: besparingEigenVerbruik, opbrengstTeruglevering: opbrengstTeruglevering, terugleverBoete: terugleverBoete,
     netoOpbrengstZon: netoOpbrengstZon, besparingWP: besparingWP, besparingAirco: besparingAirco,
     elektriciteitWP: elektriciteitWP, elektriciteitAirco: elektriciteitAirco,
+    elektriciteitLaadpaal: elektriciteitLaadpaal, kostenLaadpaal: kostenLaadpaal,
     totaleJaarlijkseBesparing: totaleJaarlijkseBesparing, investering: investering, terugverdientijd: terugverdientijd,
     jaren: jaren, cumulatiefBesparing: cumulatiefBesparing, cumulatiefNetto: cumulatiefNetto,
   };
@@ -855,7 +870,7 @@ function downloadAlsPDF(elementId, bestandsnaam, knopId) {
     if (btn) { btn.innerText = origTekst; btn.disabled = false; }
   });
 }
-var PRODUCT_CATEGORIEEN = ["Zonnepanelen", "Omvormers", "Thuisbatterijen", "Warmtepompen", "Airco's", "Meterkasten", "Elektrotechnisch materiaal", "Kabel", "Onderconstructie", "Arbeid", "Overig"];
+var PRODUCT_CATEGORIEEN = ["Zonnepanelen", "Omvormers", "Thuisbatterijen", "Warmtepompen", "Airco's", "Laadpalen", "Meterkasten", "Elektrotechnisch materiaal", "Kabel", "Onderconstructie", "Arbeid", "Overig"];
 var PROJECT_STATUSSEN = {
   nieuw: { label: "Nieuw", kleur: "#94A3B8" },
   schouw_gepland: { label: "Schouw gepland", kleur: "#0891B2" },
@@ -880,6 +895,7 @@ var DIENSTEN = [
   { id: "elektra", label: "Elektrotechnisch werk" },
   { id: "warmtepomp", label: "Warmtepomp" },
   { id: "airco", label: "Airco" },
+  { id: "laadpaal", label: "Laadpaal" },
   { id: "overig", label: "Overig" },
 ];
 function standaardOfferteSecties(stijl, bedrijfsnaam, dienstLabels) {
@@ -1748,7 +1764,7 @@ function synchroniseerEnergieMetRegel(o, r) {
   if (!r || !r.productId) return;
   var p = getProduct(r.productId);
   if (!p || !p.categorie) return;
-  var relevanteCategorieen = ["Zonnepanelen", "Thuisbatterijen", "Warmtepompen", "Airco's"];
+  var relevanteCategorieen = ["Zonnepanelen", "Thuisbatterijen", "Warmtepompen", "Airco's", "Laadpalen"];
   if (relevanteCategorieen.indexOf(p.categorie) === -1 || !p.specWaarde) return;
   if (!o.energieActief) { o.energieActief = true; }
   if (!o.energie) { o.energie = EO_nieuwSysteem(); o.energie.zonActief = false; } // niet automatisch zon aanzetten als dat niet gekozen is
@@ -1777,11 +1793,16 @@ function synchroniseerEnergieMetRegel(o, r) {
       inst.gekoppeldAanRegelId = r.id;
       o.energie.aircoInstallaties.push(inst);
     }
+  } else if (p.categorie === "Laadpalen") {
+    o.energie.laadpaalActief = true;
+    o.energie.laadpaalVermogen = p.specWaarde;
+    o.energie.laadpaalProductId = p.id;
   }
 }
 var ZON_MERKEN = ["aiko","jinko","trina","longi","canadian solar","qcells","q cells","ja solar","jasolar","astronergy","sunpower","risen","hyundai solar","lg solar"];
 var BATTERIJ_MERKEN = ["alpha ess","alphaess","byd","pylontech","growatt","huawei luna","sonnen","powerwall","lg energy","dyness","solax","deye","sigenergy"];
 var WARMTEPOMP_MERKEN = ["daikin altherma","mitsubishi ecodan","toshiba estia","panasonic aquarea","nibe","itho daalderop","remeha","vaillant arotherm","lg therma"];
+var LAADPAAL_MERKEN = ["wallbox","easee","zaptec","alfen","evbox","ev box","webasto","ratio electric","victron","smappee","keba","go-e","myenergi","ohme","new motion","newmotion"];
 
 function synchroniseerEnergieMetVrijeTekst(o, r) {
   var tekst = (r.omschrijving || "").toLowerCase();
@@ -1855,6 +1876,17 @@ function synchroniseerEnergieMetVrijeTekst(o, r) {
       inst.gekoppeldAanRegelId = r.id;
       o.energie.aircoInstallaties.push(inst);
     }
+  }
+
+  // Laadpaal: trefwoord of bekend merk, met eventueel kW-vermogen
+  var isLaadpaal = /laadpaal|laadpunt|wallbox|thuislader|laadstation|ev.?charger|ev.?lader/.test(tekst) || bevatMerk(LAADPAAL_MERKEN);
+  if (isLaadpaal) {
+    if (!o.energieActief) o.energieActief = true;
+    if (!o.energie) o.energie = EO_nieuwSysteem();
+    o.energie.laadpaalActief = true;
+    var kwMatchLaadpaal = tekst.match(/(\d+(?:[.,]\d+)?)\s*kw\b(?!h)/);
+    if (kwMatchLaadpaal) o.energie.laadpaalVermogen = kwMatchLaadpaal[1].replace(",", ".");
+    return;
   }
 }
 function updateOfferteRegelField(id, regelId, key, val) {
@@ -1967,6 +1999,7 @@ function kiesProductVoorOfferteRegel(offerteId, regelId, productId) {
   else if (p.categorie === "Thuisbatterijen" && p.specWaarde) toonToast("Energieberekening bijgewerkt: " + (parseFloat(p.specWaarde)*(parseFloat(r.aantal)||1)) + " kWh batterijcapaciteit");
   else if (p.categorie === "Warmtepompen" && p.specWaarde) toonToast("Energieberekening bijgewerkt: COP " + p.specWaarde);
   else if (p.categorie === "Airco's" && p.specWaarde) toonToast("Energieberekening bijgewerkt: " + r.aantal + " \u00d7 " + p.specWaarde + " kW airco");
+  else if (p.categorie === "Laadpalen" && p.specWaarde) toonToast("Energieberekening bijgewerkt: laadpaal " + p.specWaarde + " kW");
   persistOffertes(); render();
 }
 function addOfferteDatasheets(id, files) {
@@ -3377,6 +3410,8 @@ function renderProductForm() {
     h += pfield(p.id,"specWaarde","COP",p.specWaarde);
   } else if (p.categorie === "Airco's") {
     h += pfield(p.id,"specWaarde","Vermogen (kW)",p.specWaarde);
+  } else if (p.categorie === "Laadpalen") {
+    h += pfield(p.id,"specWaarde","Vermogen (kW)",p.specWaarde);
   }
   h += pfield(p.id,"prijs","Prijs per eenheid (&euro;, excl. BTW)",p.prijs);
   h += '<div><label class="fl">BTW %</label><select class="f" onchange="updateProduct(\'' + p.id + '\',{btw:parseInt(this.value)})">';
@@ -3842,6 +3877,14 @@ function kiesWarmtepompProduct(offerteId, productId) {
   persistOffertes(); render();
   toonToast(pr.naam + " gekozen \u2014 COP " + pr.specWaarde + " overgenomen");
 }
+function kiesLaadpaalProduct(offerteId, productId) {
+  var o = getOfferte(offerteId); var pr = getProduct(productId);
+  if (!o || !pr || !pr.specWaarde) return;
+  o.energie.laadpaalVermogen = pr.specWaarde;
+  o.energie.laadpaalProductId = productId;
+  persistOffertes(); render();
+  toonToast(pr.naam + " gekozen \u2014 " + pr.specWaarde + " kW overgenomen");
+}
 function kiesAircoProduct(offerteId, instId, productId) {
   var o = getOfferte(offerteId); var pr = getProduct(productId);
   var inst = (o.energie.aircoInstallaties||[]).find(function(x){return x.id===instId;});
@@ -3970,7 +4013,26 @@ function EO_renderConfig(o) {
   }
   h += '</div>';
 
-  // Energie & financieel
+  // Laadpaal
+  h += '<div style="border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;background:#FAFCFA;">';
+  h += '<div class="toggle-row" style="margin-bottom:10px;"><input type="checkbox" ' + (s.laadpaalActief?"checked":"") + ' onchange="eoVeldRender(\'' + oid + '\',\'laadpaalActief\', this.checked)" style="width:18px;height:18px;" /><label style="font-weight:700;font-size:13px;color:#0A0A0A;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><rect x="1" y="7" width="15" height="13" rx="2"/><path d="M16 11h2l3 3v3h-5"/><circle cx="6" cy="20" r="1.5"/><circle cx="15" cy="20" r="1.5"/><line x1="5" y1="4" x2="5" y2="7"/><line x1="9" y1="4" x2="9" y2="7"/></svg> Laadpaal</label></div>';
+  if (s.laadpaalActief) {
+    var laadpaalProducten = state.producten.filter(function(pr){ return pr.categorie === "Laadpalen" && pr.specWaarde; });
+    if (laadpaalProducten.length > 0) {
+      h += '<label class="fl">Laadpaal kiezen uit productenlijst (vult vermogen automatisch in)</label>';
+      h += '<select class="f" onchange="kiesLaadpaalProduct(\'' + oid + '\', this.value)"><option value="">&mdash; Kies een laadpaal &mdash;</option>';
+      laadpaalProducten.forEach(function(pr){ h += '<option value="' + pr.id + '"' + (s.laadpaalProductId===pr.id?" selected":"") + '>' + esc(pr.naam) + ' (' + pr.specWaarde + ' kW)</option>'; });
+      h += '</select>';
+    }
+    h += '<div class="grid3">';
+    h += eoField(oid,"laadpaalVermogen","Vermogen laadpaal (kW)",s.laadpaalVermogen);
+    h += eoField(oid,"kmPerJaar","Kilometers per jaar",s.kmPerJaar);
+    h += eoField(oid,"verbruikPer100km","Verbruik (kWh/100km)",s.verbruikPer100km);
+    h += eoField(oid,"laadpaalAandeelUitZon","% laden uit eigen zon",s.laadpaalAandeelUitZon);
+    h += '</div>';
+    h += eoImpactRegel('<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><rect x="1" y="7" width="15" height="13" rx="2"/><path d="M16 11h2l3 3v3h-5"/><circle cx="6" cy="20" r="1.5"/><circle cx="15" cy="20" r="1.5"/></svg> ' + nf(r.elektriciteitLaadpaal) + " kWh/jaar verbruik &middot; resterende stroomkosten: " + euro(r.kostenLaadpaal) + "/jaar");
+  }
+  h += '</div>';
   h += '<div style="border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;background:#FAFCFA;">';
   h += '<h3 style="margin-top:0;">Energieprijzen &amp; investering</h3><div class="grid3">';
   h += eoGeldField(oid,"stroomprijs","Stroomprijs (&euro;/kWh)",s.stroomprijs);
@@ -3982,6 +4044,7 @@ function EO_renderConfig(o) {
   if (s.zonActief) h += eoGeldField(oid,"investeringZon","Investering zon (&euro;)",s.investeringZon);
   if (s.batterijActief) h += eoGeldField(oid,"investeringBatterij","Investering batterij (&euro;)",s.investeringBatterij);
   if (s.wpActief) h += eoGeldField(oid,"investeringWP","Investering warmtepomp (&euro;)",s.investeringWP);
+  if (s.laadpaalActief) h += eoGeldField(oid,"investeringLaadpaal","Investering laadpaal (&euro;)",s.investeringLaadpaal);
   h += '</div></div>';
 
   h += '<div class="stats-row">';
@@ -4212,6 +4275,7 @@ function EO_renderRapportPaginas(o, startPaginaNr, totaalPaginas, bedrijfOverrid
   }
   if (s.wpActief) h += '<tr><td>Besparing warmtepomp (t.o.v. gas, ' + nf(r.elektriciteitWP) + ' kWh verbruik)</td><td class="num">' + euro(r.besparingWP) + '</td></tr>';
   if (s.aircoActief) h += '<tr><td>Besparing airco (t.o.v. direct elektrisch verwarmen, ' + nf(r.elektriciteitAirco) + ' kWh verbruik)</td><td class="num">' + euro(r.besparingAirco) + '</td></tr>';
+  if (s.laadpaalActief) h += '<tr><td>Extra stroomkosten laadpaal (' + nf(r.elektriciteitLaadpaal) + ' kWh verbruik, ' + esc(s.laadpaalAandeelUitZon) + '% uit eigen zon)</td><td class="num" style="color:#DC2626;">&minus; ' + euro(r.kostenLaadpaal) + '</td></tr>';
   if (s.onderhoudJaarlijks && parseFloat(s.onderhoudJaarlijks) > 0) h += '<tr><td>Onderhoud/schoonmaak</td><td class="num" style="color:#DC2626;">&minus; ' + euro(s.onderhoudJaarlijks) + '</td></tr>';
   h += '<tr style="font-weight:800;border-top:2px solid var(--border);"><td>Totale jaarlijkse besparing</td><td class="num">' + euro(r.totaleJaarlijkseBesparing) + '</td></tr>';
   h += '</tbody></table>';
@@ -4221,6 +4285,7 @@ function EO_renderRapportPaginas(o, startPaginaNr, totaalPaginas, bedrijfOverrid
   if (s.batterijActief) h += '<tr><td>Thuisbatterij (' + esc(s.batterijCapaciteit) + ' kWh)</td><td class="num">' + euro(s.investeringBatterij) + '</td></tr>';
   if (s.wpActief) h += '<tr><td>Warmtepomp</td><td class="num">' + euro(s.investeringWP) + '</td></tr>';
   if (s.aircoActief) { var investAirco = (s.aircoInstallaties||[]).reduce(function(sum,i){return sum+(parseFloat(i.investering)||0);},0); h += '<tr><td>Airco (' + (s.aircoInstallaties||[]).length + ' installatie(s))</td><td class="num">' + euro(investAirco) + '</td></tr>'; }
+  if (s.laadpaalActief) h += '<tr><td>Laadpaal (' + esc(s.laadpaalVermogen) + ' kW)</td><td class="num">' + euro(s.investeringLaadpaal) + '</td></tr>';
   h += '<tr style="font-weight:800;border-top:2px solid var(--border);"><td>Totale investering</td><td class="num">' + euro(r.investering) + '</td></tr>';
   h += '</tbody></table>';
   h += paginaVoetnoot(pn++, totaalPaginas) + '</div>';
