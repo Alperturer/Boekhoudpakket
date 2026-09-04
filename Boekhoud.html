@@ -137,10 +137,12 @@
   .r-brand { font-size:calc(11px * var(--tekst-schaal, 1)); color:var(--muted); letter-spacing:0.08em; text-transform:uppercase; font-weight:700; }
   .r-title { font-size:calc(22px * var(--tekst-schaal, 1)); font-weight:800; margin-top:4px; }
   .r-rule { border:none; border-top:2px solid var(--blue); margin:10px 0 14px; }
-  .r-kv { display:grid; grid-template-columns:140px 1fr; gap:3px 0; font-size:calc(12.5px * var(--tekst-schaal, 1)); }
+  .r-kv { display:grid; grid-template-columns:140px 1fr; gap:3px 0; font-size:calc(15px * var(--tekst-schaal, 1)); }
   .r-kv .k { color:var(--muted); }
-  table.r-table { width:100%; border-collapse:collapse; font-size:calc(13px * var(--tekst-schaal, 1)); margin-top:8px; }
-  table.r-table th { text-align:left; font-size:calc(10.5px * var(--tekst-schaal, 1)); color:var(--navy); background:var(--blue-light); border-bottom:2px solid var(--blue); padding:calc(6px * var(--tekst-schaal, 1)) 8px; text-transform:uppercase; letter-spacing:0.02em; }
+  table.r-table { width:100%; border-collapse:collapse; font-size:calc(15px * var(--tekst-schaal, 1)); margin-top:8px; }
+  table.r-table th { text-align:left; font-size:calc(12px * var(--tekst-schaal, 1)); color:var(--navy); background:var(--blue-light); border-bottom:2px solid var(--blue); padding:calc(6px * var(--tekst-schaal, 1)) 8px; text-transform:uppercase; letter-spacing:0.02em; }
+  /* Koppen (h3) en kernstatistieken binnen rapportpagina's even groot als de rest van het document */
+  .r-page h3 { font-size:calc(15px * var(--tekst-schaal, 1)); }
   table.r-table td { padding:calc(7px * var(--tekst-schaal, 1)) 8px; border-bottom:1px solid #F1F5F9; }
   table.r-table td.num { text-align:right; white-space:nowrap; }
   table.r-table th.num { text-align:right; white-space:nowrap; }
@@ -639,19 +641,36 @@ function standaardOfferteTekst(stijl, bedrijfsnaam) {
 // hieronder als de "beforeprint"-listener (native browser-print / "Opslaan als PDF").
 // ---------------------------------------------------------------------
 var DOEL_HOOGTE_PX = 950; // iets kleiner dan de min-height (990px) van .r-page, als veiligheidsmarge
+var MIN_LEESBARE_SCHAAL = 0.85; // tekst wordt NOOIT kleiner dan 85% -- moet altijd goed leesbaar blijven
 
+// Verkleint tekst alleen als dat de pagina met een klein, nog goed leesbaar beetje (tot
+// MIN_LEESBARE_SCHAAL) op 1 vel laat passen. Past het ook dan niet (veel content), dan wordt er
+// helemaal NIET verkleind -- de pagina blijft op volle, leesbare grootte en loopt door naar een
+// volgende PDF-pagina (zie downloadAlsPDF hieronder). Zo wordt tekst nooit onleesbaar klein.
 function verkleinTotEenPagina(paginaEl) {
   if (paginaEl.style.height) return null; // heeft al een vaste hoogte (bijv. bijlage-afbeelding) -- past altijd al op 1 pagina
   var origineleMinHeight = paginaEl.style.minHeight;
   paginaEl.style.minHeight = "0px"; // even uitzetten om de ECHTE natuurlijke hoogte te meten
   paginaEl.style.setProperty("--tekst-schaal", "1");
-  var schaal = 1;
-  for (var poging = 0; poging < 10; poging++) {
-    var huidigeHoogte = paginaEl.scrollHeight;
-    if (huidigeHoogte <= DOEL_HOOGTE_PX || schaal <= 0.5) break;
-    schaal = schaal * (DOEL_HOOGTE_PX / huidigeHoogte) * 0.94;
-    schaal = Math.max(schaal, 0.5);
-    paginaEl.style.setProperty("--tekst-schaal", String(schaal));
+  var natuurlijkeHoogte = paginaEl.scrollHeight;
+  if (natuurlijkeHoogte > DOEL_HOOGTE_PX) {
+    var benodigdeSchaal = (DOEL_HOOGTE_PX / natuurlijkeHoogte) * 0.94;
+    if (benodigdeSchaal >= MIN_LEESBARE_SCHAAL) {
+      // past prima op 1 pagina met een lichte, nog goed leesbare verkleining
+      var schaal = benodigdeSchaal;
+      paginaEl.style.setProperty("--tekst-schaal", String(schaal));
+      for (var poging = 0; poging < 4; poging++) {
+        var huidigeHoogte = paginaEl.scrollHeight;
+        if (huidigeHoogte <= DOEL_HOOGTE_PX) break;
+        schaal = Math.max(schaal * (DOEL_HOOGTE_PX / huidigeHoogte) * 0.96, MIN_LEESBARE_SCHAAL);
+        paginaEl.style.setProperty("--tekst-schaal", String(schaal));
+      }
+    } else {
+      // zou onder de 85% moeten om op 1 pagina te passen -- dat is te klein, dus NIET verkleinen
+      paginaEl.style.removeProperty("--tekst-schaal");
+    }
+  } else {
+    paginaEl.style.removeProperty("--tekst-schaal");
   }
   paginaEl.style.minHeight = DOEL_HOOGTE_PX + "px"; // weer aanzetten zodat korte pagina's het vel vullen
   return function herstel() {
@@ -720,8 +739,9 @@ function downloadAlsPDF(elementId, bestandsnaam, knopId) {
   // kleurverlopen/foto's vele malen groter en gaf PDF's van tientallen MB's).
   var pdf = new jsPDF({ orientation: "p", unit: "mm", format: "a4", compress: true });
   var pageWidth = 210, pageHeight = 297;
-  var CANVAS_SCHAAL = 1.5; // scherp genoeg voor print, zonder onnodig grote bestanden
-  var JPEG_KWALITEIT = 0.82;
+  var CANVAS_SCHAAL = 2.2; // scherpte van de vastgelegde foto -- hoog genoeg voor scherpe tekst in de PDF
+  var JPEG_KWALITEIT = 0.92;
+  var PAGINA_ONTWERP_BREEDTE_PX = 700; // vaste ontwerpbreedte van elke pagina (zie .r-page/#ow-print-area/#r-page-factuur max-width)
 
   var eersteAfbeelding = true;
   var totaalPaginas = paginaElementen.length;
@@ -729,18 +749,43 @@ function downloadAlsPDF(elementId, bestandsnaam, knopId) {
   paginaElementen.forEach(function(paginaEl, index){
     keten = keten.then(function(){
       toonVoortgang("Pagina " + (index + 1) + " van " + totaalPaginas + "...");
+      // Leg altijd op de vaste ontwerpbreedte vast, ongeacht het werkelijke schermformaat waarop
+      // wordt gegenereerd (bijv. een telefoon/iPhone met een veel smaller scherm). Zonder dit werd
+      // op een smal scherm een kleine/lage-resolutie foto gemaakt die daarna werd uitgerekt over de
+      // volle paginabreedte in de PDF -- dat gaf een wazig, onscherp resultaat.
+      var origineleBreedteStijl = paginaEl.style.width;
+      var origineleMaxBreedteStijl = paginaEl.style.maxWidth;
+      paginaEl.style.width = PAGINA_ONTWERP_BREEDTE_PX + "px";
+      paginaEl.style.maxWidth = PAGINA_ONTWERP_BREEDTE_PX + "px";
       var herstelFn = verkleinTotEenPagina(paginaEl);
       var volledigeHoogte = Math.max(paginaEl.scrollHeight, paginaEl.offsetHeight, paginaEl.getBoundingClientRect().height);
-      var volledigeBreedte = Math.max(paginaEl.scrollWidth, paginaEl.offsetWidth, paginaEl.getBoundingClientRect().width);
       return html2canvas(paginaEl, {
-        scale: CANVAS_SCHAAL, backgroundColor: "#ffffff", width: volledigeBreedte, height: volledigeHoogte, windowWidth: volledigeBreedte, windowHeight: volledigeHoogte
+        scale: CANVAS_SCHAAL, backgroundColor: "#ffffff", width: PAGINA_ONTWERP_BREEDTE_PX, height: volledigeHoogte, windowWidth: PAGINA_ONTWERP_BREEDTE_PX, windowHeight: volledigeHoogte
       }).then(function(canvas){
         if (herstelFn) herstelFn(); // lettergrootte weer normaal zetten, klaar met fotograferen
+        paginaEl.style.width = origineleBreedteStijl;
+        paginaEl.style.maxWidth = origineleMaxBreedteStijl;
         var pxPerMm = canvas.width / pageWidth;
-        var hoogteMm = canvas.height / pxPerMm;
-        if (!eersteAfbeelding) pdf.addPage();
-        pdf.addImage(canvas.toDataURL("image/jpeg", JPEG_KWALITEIT), "JPEG", 0, 0, pageWidth, Math.min(hoogteMm, pageHeight), undefined, "FAST");
-        eersteAfbeelding = false;
+        // Past de foto niet op 1 PDF-pagina (bijv. omdat verkleinTotEenPagina bewust NIET
+        // verkleind heeft om tekst leesbaar te houden), snijd 'm dan in nette stroken van
+        // precies 1 A4-hoogte en verdeel over meerdere PDF-pagina's -- i.p.v. de afbeelding
+        // samen te persen (wat de tekst juist weer klein/vervormd zou maken).
+        var strookHoogtePx = Math.max(1, Math.round(pageHeight * pxPerMm));
+        var aantalStroken = Math.max(1, Math.ceil(canvas.height / strookHoogtePx));
+        for (var s = 0; s < aantalStroken; s++) {
+          var vanafPx = s * strookHoogtePx;
+          var hoogteDezeStrookPx = Math.min(strookHoogtePx, canvas.height - vanafPx);
+          var stripCanvas = document.createElement("canvas");
+          stripCanvas.width = canvas.width;
+          stripCanvas.height = hoogteDezeStrookPx;
+          var ctx = stripCanvas.getContext("2d");
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(0, 0, stripCanvas.width, stripCanvas.height);
+          ctx.drawImage(canvas, 0, vanafPx, canvas.width, hoogteDezeStrookPx, 0, 0, canvas.width, hoogteDezeStrookPx);
+          if (!eersteAfbeelding) pdf.addPage();
+          pdf.addImage(stripCanvas.toDataURL("image/jpeg", JPEG_KWALITEIT), "JPEG", 0, 0, pageWidth, hoogteDezeStrookPx / pxPerMm, undefined, "FAST");
+          eersteAfbeelding = false;
+        }
       });
     });
   });
