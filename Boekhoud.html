@@ -228,27 +228,32 @@
   .ow-klant-block { padding:0 34px; margin-top:16px; font-size:calc(15px * var(--tekst-schaal, 1)); }
   .ow-klant-block .naam { font-weight:700; }
   .ow-klant-block .sub-line { color:var(--muted); }
-  .ow-body { padding:18px 22px; font-size:calc(15px * var(--tekst-schaal, 1)); line-height:1.42; color:#0A0A0A; display:flex; flex-direction:column; flex:1; }
-  .ow-body p { margin:0 0 8px; }
-  .ow-body h4.ow-section-title { margin:12px 0 5px; }
+  .ow-body { padding:calc(16px * var(--tekst-schaal, 1)) 22px; font-size:calc(15px * var(--tekst-schaal, 1)); line-height:calc(1.42 - 0.1 * (1 - var(--tekst-schaal, 1))); color:#0A0A0A; display:flex; flex-direction:column; flex:1; }
+  .ow-body p { margin:0 0 calc(8px * var(--tekst-schaal, 1)); }
+  .ow-body h4.ow-section-title { margin:calc(11px * var(--tekst-schaal, 1)) 0 calc(4px * var(--tekst-schaal, 1)); }
   #ow-print-area, #ow-print-area .ow-klant-block, #ow-print-area .ow-wordmark, #r-page-factuur, #r-page-factuur .ow-klant-block, #r-page-factuur .ow-wordmark { color:#0A0A0A; }
   /* Alle lopende tekst op de offerte/factuur zwart, behalve waar het echt wit moet blijven om leesbaar te zijn (gekleurde balken/vakken) */
   #ow-print-area, #ow-print-area *, #r-page-factuur, #r-page-factuur * { color:#0A0A0A; }
   #ow-print-area table.ow-regels-table th, #r-page-factuur table.ow-regels-table th,
   #ow-print-area .ow-totals-final, #ow-print-area .ow-totals-final *, #r-page-factuur .ow-totals-final, #r-page-factuur .ow-totals-final *,
   #ow-print-area .badge, #r-page-factuur .badge { color:#fff; }
-  .ow-section-title { font-size:calc(12.5px * var(--tekst-schaal, 1)); text-transform:uppercase; letter-spacing:0.06em; color:#9FB8B6; margin-top:18px; margin-bottom:6px; font-weight:700; }
-  table.ow-regels-table { width:100%; border-collapse:collapse; margin-top:14px; font-size:calc(15px * var(--tekst-schaal, 1)); }
-  table.ow-regels-table th { text-align:left; padding:9px 10px; font-size:calc(12.5px * var(--tekst-schaal, 1)); color:#fff; font-weight:700; text-transform:uppercase; letter-spacing:0.03em; background:linear-gradient(to right, #0F6E6E, #2FA398); }
+  .ow-section-title { font-size:calc(12.5px * var(--tekst-schaal, 1)); text-transform:uppercase; letter-spacing:0.06em; color:#9FB8B6; margin-top:calc(14px * var(--tekst-schaal, 1)); margin-bottom:calc(5px * var(--tekst-schaal, 1)); font-weight:700; }
+  table.ow-regels-table { width:100%; border-collapse:collapse; margin-top:calc(10px * var(--tekst-schaal, 1)); font-size:calc(15px * var(--tekst-schaal, 1)); }
+  table.ow-regels-table th { text-align:left; padding:calc(7px * var(--tekst-schaal, 1)) 10px; font-size:calc(12.5px * var(--tekst-schaal, 1)); color:#fff; font-weight:700; text-transform:uppercase; letter-spacing:0.03em; background:linear-gradient(to right, #0F6E6E, #2FA398); }
   table.ow-regels-table th:first-child { border-radius:6px 0 0 6px; }
   table.ow-regels-table th:last-child { border-radius:0 6px 6px 0; }
-  table.ow-regels-table td { padding:6px 10px; border-bottom:1px solid #F1F5F9; }
+  table.ow-regels-table td { padding:calc(4.5px * var(--tekst-schaal, 1)) 10px; border-bottom:1px solid #F1F5F9; }
   table.ow-regels-table td:not(:first-child) { white-space:nowrap; }
   table.ow-regels-table th:not(:first-child) { white-space:nowrap; }
-  .ow-totals { display:flex; justify-content:flex-end; margin-top:10px; }
+  /* Bij veel regels wordt de tabel automatisch compacter (kleinere regels/padding), zodat een
+     offerte met veel producten toch op 1 pagina blijft passen -- zie ow-regelsTabelDichtheid(). */
+  table.ow-regels-table.dicht { font-size:calc(12.5px * var(--tekst-schaal, 1)); }
+  table.ow-regels-table.dicht th { padding:calc(5px * var(--tekst-schaal, 1)) 8px; }
+  table.ow-regels-table.dicht td { padding:calc(2.5px * var(--tekst-schaal, 1)) 8px; }
+  .ow-totals { display:flex; justify-content:flex-end; margin-top:calc(8px * var(--tekst-schaal, 1)); }
   .ow-totals-box { width:240px; font-size:calc(15px * var(--tekst-schaal, 1)); }
-  .ow-totals-row { display:flex; justify-content:space-between; padding:2px 0; color:var(--muted); }
-  .ow-totals-final { display:flex; justify-content:space-between; align-items:center; font-weight:800; margin-top:10px; padding:12px 14px; border-radius:10px; background:linear-gradient(to right, #0B2530, #0F6E6E); color:#fff; }
+  .ow-totals-row { display:flex; justify-content:space-between; padding:calc(2px * var(--tekst-schaal, 1)) 0; color:var(--muted); }
+  .ow-totals-final { display:flex; justify-content:space-between; align-items:center; font-weight:800; margin-top:calc(8px * var(--tekst-schaal, 1)); padding:calc(10px * var(--tekst-schaal, 1)) 14px; border-radius:10px; background:linear-gradient(to right, #0B2530, #0F6E6E); color:#fff; }
   .ow-totals-final span:first-child { color:#8FD9CC; font-size:calc(12.5px * var(--tekst-schaal, 1)); text-transform:uppercase; letter-spacing:0.05em; font-weight:700; }
   .ow-totals-final span:last-child { font-size:calc(19px * var(--tekst-schaal, 1)); }
   .ow-footer-note { margin-top:22px; font-size:calc(12.5px * var(--tekst-schaal, 1)); color:#9FB8B6; }
@@ -397,7 +402,7 @@ function berekenPvgisOpwek(offerteId) {
 }
 var DAKORIENTATIE_LABELS = { "180":"Zuid", "225":"Zuidwest", "270":"West", "315":"Noordwest", "0":"Noord", "45":"Noordoost", "90":"Oost", "135":"Zuidoost" };
 function EO_svgBarChart(labels, values, kleur, toonWaarden) {
-  var w=600, h = toonWaarden ? 195 : 175, padL=36, padB=24, padT = toonWaarden ? 34 : 10;
+  var w=600, h = toonWaarden ? 172 : 155, padL=36, padB=24, padT = toonWaarden ? 34 : 10;
   var maxVal = Math.max(1, Math.max.apply(null, values));
   var som = values.reduce(function(a,b){return a+b;}, 0) || 1;
   var plotW=w-padL-10, plotH=h-padT-padB;
@@ -425,7 +430,7 @@ function EO_svgBarChart(labels, values, kleur, toonWaarden) {
   return svg;
 }
 function EO_svgBesparingChart(labels, brutoSerie, nettoSerie) {
-  var w=640, h=220, padL=52, padR=16, padB=32, padT=20;
+  var w=640, h=192, padL=52, padR=16, padB=32, padT=20;
   var alle = brutoSerie.concat(nettoSerie);
   var maxVal = Math.max(1, Math.max.apply(null, alle));
   var minVal = Math.min(0, Math.min.apply(null, alle));
@@ -640,37 +645,25 @@ function standaardOfferteTekst(stijl, bedrijfsnaam) {
 // paginanummer onderaan altijd op exact dezelfde plek staat. Gebruikt door zowel de PDF-export
 // hieronder als de "beforeprint"-listener (native browser-print / "Opslaan als PDF").
 // ---------------------------------------------------------------------
-var DOEL_HOOGTE_PX = 950; // iets kleiner dan de min-height (990px) van .r-page, als veiligheidsmarge
-var MIN_LEESBARE_SCHAAL = 0.85; // tekst wordt NOOIT kleiner dan 85% -- moet altijd goed leesbaar blijven
+var DOEL_HOOGTE_PX = 970; // de echte 1-pagina-hoogte bij ontwerpbreedte 700px is 990px (A4-verhouding) -- 970 laat veiligheidsmarge voor afwijkingen in lettertype-rendering tussen apparaten/browsers
+var MIN_LEESBARE_SCHAAL = 0.8; // tekst wordt NOOIT kleiner dan 80% -- moet altijd goed leesbaar blijven (vergelijkbaar met de kleine lettertjes op de besparingstabel)
 
-// Verkleint tekst alleen als dat de pagina met een klein, nog goed leesbaar beetje (tot
-// MIN_LEESBARE_SCHAAL) op 1 vel laat passen. Past het ook dan niet (veel content), dan wordt er
-// helemaal NIET verkleind -- de pagina blijft op volle, leesbare grootte en loopt door naar een
-// volgende PDF-pagina (zie downloadAlsPDF hieronder). Zo wordt tekst nooit onleesbaar klein.
+// Probeert de pagina op 1 vel te laten passen door de tekst iterief (en ECHT gemeten, niet
+// geschat) te verkleinen tot maximaal MIN_LEESBARE_SCHAAL. Past de pagina ook op die leesbare
+// minimumgrootte niet volledig (uitzonderlijk veel content), dan blijft de tekst gewoon op die
+// leesbare minimumgrootte staan -- de allerlaatste restjes lopen dan door naar een volgende
+// PDF-pagina (zie downloadAlsPDF) i.p.v. dat de tekst nog verder (onleesbaar) verkleind wordt.
 function verkleinTotEenPagina(paginaEl) {
   if (paginaEl.style.height) return null; // heeft al een vaste hoogte (bijv. bijlage-afbeelding) -- past altijd al op 1 pagina
   var origineleMinHeight = paginaEl.style.minHeight;
   paginaEl.style.minHeight = "0px"; // even uitzetten om de ECHTE natuurlijke hoogte te meten
   paginaEl.style.setProperty("--tekst-schaal", "1");
-  var natuurlijkeHoogte = paginaEl.scrollHeight;
-  if (natuurlijkeHoogte > DOEL_HOOGTE_PX) {
-    var benodigdeSchaal = (DOEL_HOOGTE_PX / natuurlijkeHoogte) * 0.94;
-    if (benodigdeSchaal >= MIN_LEESBARE_SCHAAL) {
-      // past prima op 1 pagina met een lichte, nog goed leesbare verkleining
-      var schaal = benodigdeSchaal;
-      paginaEl.style.setProperty("--tekst-schaal", String(schaal));
-      for (var poging = 0; poging < 4; poging++) {
-        var huidigeHoogte = paginaEl.scrollHeight;
-        if (huidigeHoogte <= DOEL_HOOGTE_PX) break;
-        schaal = Math.max(schaal * (DOEL_HOOGTE_PX / huidigeHoogte) * 0.96, MIN_LEESBARE_SCHAAL);
-        paginaEl.style.setProperty("--tekst-schaal", String(schaal));
-      }
-    } else {
-      // zou onder de 85% moeten om op 1 pagina te passen -- dat is te klein, dus NIET verkleinen
-      paginaEl.style.removeProperty("--tekst-schaal");
-    }
-  } else {
-    paginaEl.style.removeProperty("--tekst-schaal");
+  var schaal = 1;
+  for (var poging = 0; poging < 10; poging++) {
+    var huidigeHoogte = paginaEl.scrollHeight;
+    if (huidigeHoogte <= DOEL_HOOGTE_PX || schaal <= MIN_LEESBARE_SCHAAL) break;
+    schaal = Math.max(schaal * (DOEL_HOOGTE_PX / huidigeHoogte) * 0.97, MIN_LEESBARE_SCHAAL);
+    paginaEl.style.setProperty("--tekst-schaal", String(schaal));
   }
   paginaEl.style.minHeight = DOEL_HOOGTE_PX + "px"; // weer aanzetten zodat korte pagina's het vel vullen
   return function herstel() {
@@ -739,8 +732,8 @@ function downloadAlsPDF(elementId, bestandsnaam, knopId) {
   // kleurverlopen/foto's vele malen groter en gaf PDF's van tientallen MB's).
   var pdf = new jsPDF({ orientation: "p", unit: "mm", format: "a4", compress: true });
   var pageWidth = 210, pageHeight = 297;
-  var CANVAS_SCHAAL = 2.2; // scherpte van de vastgelegde foto -- hoog genoeg voor scherpe tekst in de PDF
-  var JPEG_KWALITEIT = 0.92;
+  var CANVAS_SCHAAL = 3; // scherpte van de vastgelegde foto -- print-kwaliteit, ook op iPhone/iPad
+  var JPEG_KWALITEIT = 0.95;
   var PAGINA_ONTWERP_BREEDTE_PX = 700; // vaste ontwerpbreedte van elke pagina (zie .r-page/#ow-print-area/#r-page-factuur max-width)
 
   var eersteAfbeelding = true;
@@ -925,8 +918,8 @@ function btwOverzichtHtml(t) {
 function btwOverzichtPrintHtml(t) {
   var tarieven = Object.keys(t.subtotalen || {});
   if (tarieven.length < 2) return ""; // pas tonen als er meerdere tarieven door elkaar lopen
-  var h = '<div class="no-split" style="margin-top:10px;padding:10px 12px;background:#F7FEFC;border:1px solid var(--border);border-radius:8px;font-size:11.5px;max-width:240px;margin-left:auto;">';
-  h += '<div style="font-weight:700;color:var(--navy);margin-bottom:4px;">Verdeling per btw-tarief</div>';
+  var h = '<div class="no-split" style="margin-top:calc(8px * var(--tekst-schaal, 1));padding:calc(7px * var(--tekst-schaal, 1)) 12px;background:#F7FEFC;border:1px solid var(--border);border-radius:8px;font-size:calc(11.5px * var(--tekst-schaal, 1));max-width:240px;margin-left:auto;">';
+  h += '<div style="font-weight:700;color:var(--navy);margin-bottom:3px;">Verdeling per btw-tarief</div>';
   tarieven.sort(function(a,b){ return a-b; }).forEach(function(tarief){
     var kleur = btwKleur(parseInt(tarief));
     h += '<div style="display:flex;justify-content:space-between;padding:2px 0;"><span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:' + kleur.bg + ';border:1px solid ' + kleur.tekst + ';margin-right:5px;"></span>' + tarief + '% btw</span><span>' + euro(t.subtotalen[tarief]) + '</span></div>';
@@ -3680,6 +3673,7 @@ function renderOfferteWerkblad() {
   h += '<div class="ow-lh-right"><div class="doc-type-label">Offerte</div><div class="num">' + esc(o.offertenummer) + (o.status!=="concept" ? ' <span class="badge badge-' + o.status + '" style="margin-left:4px;">' + statusLabel(o.status) + '</span>' : '') + '</div><div>' + esc(o.datum) + (o.geldigTot ? '<br/>Geldig tot ' + esc(o.geldigTot) : '') + '</div>';
   h += '<div class="ow-klant-block" style="padding:0;margin-top:14px;text-align:right;"><div class="naam">' + esc(o.klantNaam || "Klantnaam") + '</div>' + (o.klantContactpersoon ? '<div class="sub-line">T.a.v. ' + esc(o.klantContactpersoon) + '</div>' : '');
   if (o.klantAdres) h += '<div class="sub-line">' + esc(o.klantAdres) + '</div>';
+  if (o.klantPostcode || o.klantPlaats) h += '<div class="sub-line">' + esc([o.klantPostcode,o.klantPlaats].filter(Boolean).join(" ")) + '</div>';
   if (o.klantEmail) h += '<div class="sub-line">' + esc(o.klantEmail) + '</div>';
   if (o.klantNummer) h += '<div class="sub-line">Klantnummer: ' + esc(o.klantNummer) + '</div>';
   h += '</div>';
@@ -3694,7 +3688,7 @@ function renderOfferteWerkblad() {
     if (o.inleiding) h += '<p>' + esc(o.inleiding) + '</p>';
     if (o.werkzaamheden) h += '<h4 class="ow-section-title">Werkzaamheden</h4><p>' + esc(o.werkzaamheden) + '</p>';
   }
-  h += '<div class="no-split" style="width:100%;box-sizing:border-box;"><table class="ow-regels-table"><thead><tr><th>Omschrijving</th><th style="text-align:right;">Aantal</th><th style="text-align:right;">Prijs</th><th style="text-align:right;">Totaal</th></tr></thead><tbody>';
+  h += '<div class="no-split" style="width:100%;box-sizing:border-box;"><table class="ow-regels-table' + (o.regels.length > 8 ? " dicht" : "") + '"><thead><tr><th>Omschrijving</th><th style="text-align:right;">Aantal</th><th style="text-align:right;">Prijs</th><th style="text-align:right;">Totaal</th></tr></thead><tbody>';
   o.regels.forEach(function(r){
     var lijn = (parseFloat(r.aantal)||0)*(parseFloat(r.prijs)||0);
     var omschrijvingCel = r.productFoto ? '<div style="display:flex;align-items:center;gap:8px;"><img src="' + r.productFoto + '" style="width:38px;height:38px;object-fit:cover;border-radius:4px;flex-shrink:0;" />' + esc(r.omschrijving||"—") + '</div>' : esc(r.omschrijving||"—");
@@ -3711,7 +3705,7 @@ function renderOfferteWerkblad() {
   if (o.opmerking) h += '<h4 class="ow-section-title">Toelichting</h4><p>' + esc(o.opmerking) + '</p>';
   if (o.afsluiting) h += '<p style="margin-top:16px;">' + esc(o.afsluiting) + '</p>';
   if (b.isInstallQErkend || b.isVCAGecertificeerd || b.certificeringNotities) {
-    h += '<div class="no-split" style="margin-top:18px;padding:12px 14px;background:#F7FEFC;border:1px solid var(--border);border-radius:8px;font-size:11.5px;line-height:1.6;color:var(--muted);text-align:left;">';
+    h += '<div class="no-split" style="margin-top:calc(14px * var(--tekst-schaal, 1));padding:calc(9px * var(--tekst-schaal, 1)) 14px;background:#F7FEFC;border:1px solid var(--border);border-radius:8px;font-size:calc(11.5px * var(--tekst-schaal, 1));line-height:1.55;color:var(--muted);text-align:left;">';
     h += '<b style="color:var(--navy);">Kwaliteit &amp; zekerheid</b><br/>';
     var puntjes = [];
     if (b.isInstallQErkend) puntjes.push(icon("checkCircle") + ' <b>' + esc(b.naam||"Ons bedrijf") + '</b> is een <b>InstallQ-erkend installatiebedrijf</b>, wat betekent dat onze installaties voldoen aan de landelijk erkende kwaliteits- en veiligheidsnormen voor duurzame energie-installaties.');
@@ -4163,8 +4157,9 @@ function EO_besparingPaginaAantal(totaalRijen) {
 function EO_paginaAantal(o) {
   if (!o || !o.energieActief || !o.energie || !o.energie.zonActief) return 0;
   var bp = EO_berekening25Jaar(o.energie);
-  // 1 pagina opwek + 1 pagina financiële opbouw + besparingstabel (1 of meer) + 1 pagina milieu-impact
-  return 2 + EO_besparingPaginaAantal(bp.rijen.length) + 1;
+  // 1 pagina opwek + 1 pagina financiële opbouw & milieu-impact (samengevoegd, past ruim samen op
+  // 1 pagina) + besparingstabel (1 of meer)
+  return 2 + EO_besparingPaginaAantal(bp.rijen.length);
 }
 function EO_renderRapportPaginas(o, startPaginaNr, totaalPaginas, bedrijfOverride) {
   if (!o.energieActief || !o.energie || !o.energie.zonActief) return "";
@@ -4217,6 +4212,26 @@ function EO_renderRapportPaginas(o, startPaginaNr, totaalPaginas, bedrijfOverrid
   if (s.aircoActief) { var investAirco = (s.aircoInstallaties||[]).reduce(function(sum,i){return sum+(parseFloat(i.investering)||0);},0); h += '<tr><td>Airco (' + (s.aircoInstallaties||[]).length + ' installatie(s))</td><td class="num">' + euro(investAirco) + '</td></tr>'; }
   h += '<tr style="font-weight:800;border-top:2px solid var(--border);"><td>Totale investering</td><td class="num">' + euro(r.investering) + '</td></tr>';
   h += '</tbody></table>';
+
+  // Milieu-impact staat op dezelfde pagina als de financiële opbouw -- samen is dit ruim genoeg
+  // voor 1 vel en het scheelt een bijna lege pagina.
+  var co2PerKwh = 0.35; // kg CO2/kWh grijze stroom, indicatief gemiddelde (bron: Milieu Centraal)
+  var co2PerBoomPerJaar = 22; // kg CO2/jaar opname per volwassen boom, gemiddelde van meerdere bronnen
+  var co2BespaardPerJaar = r.jaaropwek * co2PerKwh;
+  var bomenPerJaar = Math.round(co2BespaardPerJaar / co2PerBoomPerJaar);
+  var co2Bespaard25Jaar = bp.rijen.reduce(function(sum,row){ return sum + row.opwek * co2PerKwh; }, 0);
+  var bomen25Jaar = Math.round(co2Bespaard25Jaar / co2PerBoomPerJaar);
+  var rendementJaar1 = r.investering > 0 ? (r.totaleJaarlijkseBesparing / r.investering) * 100 : 0;
+
+  h += '<h3 style="margin-top:14px;">Wat betekent dit voor het milieu?</h3>';
+  h += '<div class="stats-row">';
+  h += '<div class="stat-box hero"><div class="stat-num">' + nf(bomenPerJaar) + '</div><div class="stat-label">Bomen per jaar bespaard</div></div>';
+  h += '<div class="stat-box"><div class="stat-num">' + nf(Math.round(co2BespaardPerJaar)) + ' kg</div><div class="stat-label">CO<sub>2</sub> bespaard per jaar</div></div>';
+  h += '<div class="stat-box"><div class="stat-num">' + nf(bomen25Jaar) + '</div><div class="stat-label">Bomen-equivalent over 25 jaar</div></div>';
+  h += '<div class="stat-box"><div class="stat-num">' + nf(rendementJaar1,1) + '%</div><div class="stat-label">Rendement op investering (jaar 1)</div></div>';
+  h += '</div>';
+  h += '<p style="font-size:11.5px;line-height:1.6;color:var(--muted);">Met ' + nf(r.jaaropwek) + ' kWh aan zelf opgewekte zonnestroom per jaar voorkom je dat er evenveel elektriciteit uit het (deels fossiele) net hoeft te komen. Op basis van gangbare, door Milieu Centraal gehanteerde gemiddelden (circa 0,35 kg CO<sub>2</sub> per kWh grijze stroom, en circa 22 kg CO<sub>2</sub>-opname per jaar door een volwassen boom) staat dat gelijk aan het jaarlijkse werk van ongeveer <b>' + nf(bomenPerJaar) + ' volwassen bomen</b>. Dit is een indicatieve, op gangbare kentallen gebaseerde vergelijking &mdash; de werkelijke CO<sub>2</sub>-uitstoot van grijze stroom en de CO<sub>2</sub>-opname van bomen variëren in de praktijk.</p>';
+
   h += paginaVoetnoot(pn++, totaalPaginas) + '</div>';
 
   // Pagina('s): "Uw besparing" 25-jaars overzicht -- verdeeld over meerdere pagina's, zie de
@@ -4246,25 +4261,6 @@ function EO_renderRapportPaginas(o, startPaginaNr, totaalPaginas, bedrijfOverrid
     h += EO_besparingTabelHtml(chunk, idx === besparingVervolgChunks.length - 1);
     h += paginaVoetnoot(pn++, totaalPaginas) + '</div>';
   });
-
-  // Pagina: milieu-impact
-  var co2PerKwh = 0.35; // kg CO2/kWh grijze stroom, indicatief gemiddelde (bron: Milieu Centraal)
-  var co2PerBoomPerJaar = 22; // kg CO2/jaar opname per volwassen boom, gemiddelde van meerdere bronnen
-  var co2BespaardPerJaar = r.jaaropwek * co2PerKwh;
-  var bomenPerJaar = Math.round(co2BespaardPerJaar / co2PerBoomPerJaar);
-  var co2Bespaard25Jaar = bp.rijen.reduce(function(sum,row){ return sum + row.opwek * co2PerKwh; }, 0);
-  var bomen25Jaar = Math.round(co2Bespaard25Jaar / co2PerBoomPerJaar);
-  var rendementJaar1 = r.investering > 0 ? (r.totaleJaarlijkseBesparing / r.investering) * 100 : 0;
-
-  h += '<div class="r-page">' + paginaLogoHeader(bedrijfOverride) + '<div class="r-h">Wat betekent dit voor het milieu?</div>';
-  h += '<div class="stats-row">';
-  h += '<div class="stat-box hero"><div class="stat-num">' + nf(bomenPerJaar) + '</div><div class="stat-label">Bomen per jaar bespaard</div></div>';
-  h += '<div class="stat-box"><div class="stat-num">' + nf(Math.round(co2BespaardPerJaar)) + ' kg</div><div class="stat-label">CO<sub>2</sub> bespaard per jaar</div></div>';
-  h += '<div class="stat-box"><div class="stat-num">' + nf(bomen25Jaar) + '</div><div class="stat-label">Bomen-equivalent over 25 jaar</div></div>';
-  h += '<div class="stat-box"><div class="stat-num">' + nf(rendementJaar1,1) + '%</div><div class="stat-label">Rendement op investering (jaar 1)</div></div>';
-  h += '</div>';
-  h += '<p style="font-size:11.5px;line-height:1.7;color:var(--muted);">Met ' + nf(r.jaaropwek) + ' kWh aan zelf opgewekte zonnestroom per jaar voorkom je dat er evenveel elektriciteit uit het (deels fossiele) net hoeft te komen. Op basis van gangbare, door Milieu Centraal gehanteerde gemiddelden (circa 0,35 kg CO<sub>2</sub> per kWh grijze stroom, en circa 22 kg CO<sub>2</sub>-opname per jaar door een volwassen boom) staat dat gelijk aan het jaarlijkse werk van ongeveer <b>' + nf(bomenPerJaar) + ' volwassen bomen</b>. Dit is een indicatieve, op gangbare kentallen gebaseerde vergelijking &mdash; de werkelijke CO<sub>2</sub>-uitstoot van grijze stroom en de CO<sub>2</sub>-opname van bomen variëren in de praktijk.</p>';
-  h += paginaVoetnoot(pn++, totaalPaginas) + '</div>';
 
   return h;
 }
@@ -4447,7 +4443,7 @@ function renderFactuurDocument(f) {
   if (f.inleiding) h += '<p>' + esc(f.inleiding) + '</p>';
   if (f.werkzaamheden) h += '<h4 class="ow-section-title">Werkzaamheden</h4><p>' + esc(f.werkzaamheden) + '</p>';
 
-  h += '<div class="no-split" style="width:100%;box-sizing:border-box;"><table class="ow-regels-table"><thead><tr><th>Omschrijving</th><th style="text-align:right;">Aantal</th><th style="text-align:right;">Prijs</th><th style="text-align:right;">BTW</th><th style="text-align:right;">Totaal</th></tr></thead><tbody>';
+  h += '<div class="no-split" style="width:100%;box-sizing:border-box;"><table class="ow-regels-table' + (f.regels.length > 8 ? " dicht" : "") + '"><thead><tr><th>Omschrijving</th><th style="text-align:right;">Aantal</th><th style="text-align:right;">Prijs</th><th style="text-align:right;">BTW</th><th style="text-align:right;">Totaal</th></tr></thead><tbody>';
   f.regels.forEach(function(r){
     var lijn = (parseFloat(r.aantal)||0)*(parseFloat(r.prijs)||0);
     var omschrijvingCel = r.productFoto ? '<div style="display:flex;align-items:center;gap:8px;"><img src="' + r.productFoto + '" style="width:38px;height:38px;object-fit:cover;border-radius:4px;flex-shrink:0;" />' + esc(r.omschrijving||"—") + '</div>' : esc(r.omschrijving||"—");
@@ -4473,7 +4469,7 @@ function renderFactuurDocument(f) {
   if (f.opmerking) h += '<h4 class="ow-section-title">Toelichting</h4><p>' + esc(f.opmerking) + '</p>';
   if (f.afsluiting) h += '<p style="margin-top:16px;">' + esc(f.afsluiting) + '</p>';
   if (b.isInstallQErkend || b.isVCAGecertificeerd || b.certificeringNotities) {
-    h += '<div class="no-split" style="margin-top:18px;padding:12px 14px;background:#F7FEFC;border:1px solid var(--border);border-radius:8px;font-size:11.5px;line-height:1.6;color:var(--muted);text-align:left;">';
+    h += '<div class="no-split" style="margin-top:calc(14px * var(--tekst-schaal, 1));padding:calc(9px * var(--tekst-schaal, 1)) 14px;background:#F7FEFC;border:1px solid var(--border);border-radius:8px;font-size:calc(11.5px * var(--tekst-schaal, 1));line-height:1.55;color:var(--muted);text-align:left;">';
     h += '<b style="color:var(--navy);">Kwaliteit &amp; zekerheid</b><br/>';
     var puntjesF = [];
     if (b.isInstallQErkend) puntjesF.push(icon("checkCircle") + ' <b>' + esc(b.naam||"Ons bedrijf") + '</b> is een <b>InstallQ-erkend installatiebedrijf</b>, wat betekent dat onze installaties voldoen aan de landelijk erkende kwaliteits- en veiligheidsnormen voor duurzame energie-installaties.');
