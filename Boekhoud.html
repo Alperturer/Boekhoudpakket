@@ -121,7 +121,7 @@
   .ow-form .ow-mini-totals { color:#fff; }
   .ow-form .ow-mini-totals .row.final { color:#fff; border-top-color:rgba(255,255,255,0.25); }
 
-  .r-page { background:#fff; padding:28px; margin:0 auto 14px; width:100%; max-width:700px; min-height:990px; box-sizing:border-box; }
+  .r-page { background:#fff; padding:28px; margin:0 auto 14px; width:100%; max-width:700px; min-height:990px; box-sizing:border-box; position:relative; }
   .r-brand { font-size:11px; color:var(--muted); letter-spacing:0.08em; text-transform:uppercase; font-weight:700; }
   .r-title { font-size:22px; font-weight:800; margin-top:4px; }
   .r-rule { border:none; border-top:2px solid var(--blue); margin:12px 0 18px; }
@@ -156,7 +156,6 @@
     .app-shell { display:block; }
     .page { max-width:100%; padding:0; }
     .r-page { border:none; padding:0; }
-    * { -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; color-adjust:exact !important; }
   }
   /* ---- Offerte-werkblad: twee kolommen, briefpapier-stijl preview ---- */
   .ow-layout { display:flex; gap:0; margin: -28px -32px; min-height: calc(100vh - 60px); }
@@ -190,9 +189,9 @@
   .ow-mini-totals .row { display:flex; justify-content:space-between; padding:1px 0; }
   .ow-mini-totals .row.final { color:var(--text); font-weight:700; border-top:1px solid var(--border); margin-top:4px; padding-top:4px; }
 
-  #ow-print-area, #r-page-factuur { width:100%; max-width:700px; min-height:990px; margin:0 auto; background:#fff; box-sizing:border-box; }
+  #ow-print-area, #r-page-factuur { width:100%; max-width:700px; min-height:990px; margin:0 auto; background:#fff; box-sizing:border-box; position:relative; }
   .ow-stripe { height:6px; }
-  .ow-letterhead { padding:18px 8px 14px; border-bottom:1px solid #EFF6F5; display:flex; justify-content:space-between; align-items:flex-start; }
+  .ow-letterhead { padding:18px 22px 14px; border-bottom:1px solid #EFF6F5; display:flex; justify-content:space-between; align-items:flex-start; }
   .ow-wordmark { font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; font-size:calc(19px * var(--tekst-schaal, 1)); font-weight:800; letter-spacing:-0.01em; }
   .verkoper-gegevens { margin-top:0; font-size:calc(11px * var(--tekst-schaal, 1)); line-height:1.6; color:var(--muted); }
   .ow-tagline { font-size:calc(11px * var(--tekst-schaal, 1)); color:var(--muted); margin-top:2px; }
@@ -202,7 +201,7 @@
   .ow-klant-block { padding:0 34px; margin-top:16px; font-size:calc(13px * var(--tekst-schaal, 1)); }
   .ow-klant-block .naam { font-weight:700; }
   .ow-klant-block .sub-line { color:var(--muted); }
-  .ow-body { padding:18px 8px; font-size:calc(12.5px * var(--tekst-schaal, 1)); line-height:1.42; color:#0A0A0A; }
+  .ow-body { padding:18px 22px; font-size:calc(12.5px * var(--tekst-schaal, 1)); line-height:1.42; color:#0A0A0A; }
   .ow-body p { margin:0 0 8px; }
   .ow-body h4.ow-section-title { margin:12px 0 5px; }
   #ow-print-area, #ow-print-area .ow-klant-block, #ow-print-area .ow-wordmark, #r-page-factuur, #r-page-factuur .ow-klant-block, #r-page-factuur .ow-wordmark { color:#0A0A0A; }
@@ -212,12 +211,11 @@
   #ow-print-area .ow-totals-final, #ow-print-area .ow-totals-final *, #r-page-factuur .ow-totals-final, #r-page-factuur .ow-totals-final *,
   #ow-print-area .badge, #r-page-factuur .badge { color:#fff; }
   .ow-section-title { font-size:calc(11px * var(--tekst-schaal, 1)); text-transform:uppercase; letter-spacing:0.06em; color:#9FB8B6; margin-top:18px; margin-bottom:6px; font-weight:700; }
-  table.ow-regels-table { width:100%; table-layout:fixed; border-collapse:collapse; margin-top:14px; font-size:calc(13px * var(--tekst-schaal, 1)); }
-  table.ow-regels-table td:first-child, table.ow-regels-table th:first-child { word-wrap:break-word; overflow-wrap:break-word; white-space:normal; width:46%; }
-  table.ow-regels-table th { text-align:left; padding:7px 10px; font-size:calc(11px * var(--tekst-schaal, 1)); color:#fff; font-weight:700; text-transform:uppercase; letter-spacing:0.03em; background:linear-gradient(to right, #0F6E6E, #2FA398); }
+  table.ow-regels-table { width:100%; border-collapse:collapse; margin-top:14px; font-size:calc(13px * var(--tekst-schaal, 1)); }
+  table.ow-regels-table th { text-align:left; padding:9px 10px; font-size:calc(11px * var(--tekst-schaal, 1)); color:#fff; font-weight:700; text-transform:uppercase; letter-spacing:0.03em; background:linear-gradient(to right, #0F6E6E, #2FA398); }
   table.ow-regels-table th:first-child { border-radius:6px 0 0 6px; }
   table.ow-regels-table th:last-child { border-radius:0 6px 6px 0; }
-  table.ow-regels-table td { padding:4px 10px; border-bottom:1px solid #F1F5F9; line-height:1.25; }
+  table.ow-regels-table td { padding:6px 10px; border-bottom:1px solid #F1F5F9; }
   table.ow-regels-table td:not(:first-child) { white-space:nowrap; }
   table.ow-regels-table th:not(:first-child) { white-space:nowrap; }
   .ow-totals { display:flex; justify-content:flex-end; margin-top:10px; }
@@ -238,25 +236,6 @@
     .ow-layout { display:block; margin:0; }
     .ow-preview { padding:0; background:#fff; }
     #ow-print-area, #r-page-factuur, .r-page { border:none; box-shadow:none; max-width:100%; }
-    /* Elke "pagina" moet een eigen afgedrukte pagina worden -- zonder dit plakt de browser
-       alles gewoon aan elkaar en knipt hij pas af zodra het papier vol is, waardoor de ene
-       pagina zomaar doorloopt in de volgende. */
-    #ow-print-area, #r-page-factuur, .r-page {
-      page-break-after: always;
-      break-after: page;
-    }
-    .r-page {
-      page-break-inside: avoid;
-      break-inside: avoid;
-    }
-    #ow-print-area:first-child, #r-page-factuur:first-child {
-      page-break-before: auto;
-      break-before: auto;
-    }
-    .r-page:last-child, #ow-print-area:last-child, #r-page-factuur:last-child {
-      page-break-after: auto;
-      break-after: auto;
-    }
   }
 </style>
 <script>
@@ -307,7 +286,6 @@ function svgDonutChart(data, kleuren) {
 <body>
 <div id="root"></div>
 <script>
-var APP_BUILD_VERSIE = "20260901-2300";
 // ---------------------------------------------------------------------
 // DATA / STORAGE
 // ---------------------------------------------------------------------
@@ -353,8 +331,6 @@ function EO_nieuwSysteem() {
     batterijBackupActief: false, batterijBruikbaarPct: "90", batterijBackupVermogen: "0.8",
     wpActief: false, huidigGasverbruik: "1200", gasprijs: "1.45", wpCOP: "4.2", wpAandeelUitZon: "20",
     aircoActief: false, aircoInstallaties: [],
-    laadpaalActief: false, laadpaalVermogen: "11", kmPerJaar: "15000", verbruikPer100km: "18", laadpaalAandeelUitZon: "30",
-    investeringLaadpaal: "1200", laadpaalProductId: "",
     stroomprijs: "0.35", terugleverprijs: "0.09", eigenVerbruikPct: "30",
     terugleverGrensGratis: "0", terugleverBoetePerKwh: "0.10",
     prijsstijgingPct: "4",
@@ -545,23 +521,11 @@ function EO_berekenAlles(s) {
 
   var totaleJaarlijkseBesparing = netoOpbrengstZon + besparingWP + besparingAirco;
 
-  var elektriciteitLaadpaal = 0, kostenLaadpaal = 0;
-  if (s.laadpaalActief) {
-    var kmPerJaar = parseFloat(s.kmPerJaar)||0;
-    var verbruikPer100km = parseFloat(s.verbruikPer100km)||0;
-    elektriciteitLaadpaal = (kmPerJaar/100) * verbruikPer100km;
-    var aandeelUitZonLaadpaal = (parseFloat(s.laadpaalAandeelUitZon)||0)/100;
-    var elektriciteitLaadpaalUitNet = elektriciteitLaadpaal * (1-aandeelUitZonLaadpaal);
-    kostenLaadpaal = elektriciteitLaadpaalUitNet * stroomprijs;
-    totaleJaarlijkseBesparing -= kostenLaadpaal;
-  }
-
   var investering = 0;
   if (s.zonActief) investering += parseFloat(s.investeringZon)||0;
   if (s.batterijActief) investering += parseFloat(s.investeringBatterij)||0;
   if (s.wpActief) investering += parseFloat(s.investeringWP)||0;
   if (s.aircoActief) investering += investeringAircoTotaal;
-  if (s.laadpaalActief) investering += parseFloat(s.investeringLaadpaal)||0;
 
   var terugverdientijd = totaleJaarlijkseBesparing > 0 ? investering / totaleJaarlijkseBesparing : null;
 
@@ -582,7 +546,6 @@ function EO_berekenAlles(s) {
     besparingEigenVerbruik: besparingEigenVerbruik, opbrengstTeruglevering: opbrengstTeruglevering, terugleverBoete: terugleverBoete,
     netoOpbrengstZon: netoOpbrengstZon, besparingWP: besparingWP, besparingAirco: besparingAirco,
     elektriciteitWP: elektriciteitWP, elektriciteitAirco: elektriciteitAirco,
-    elektriciteitLaadpaal: elektriciteitLaadpaal, kostenLaadpaal: kostenLaadpaal,
     totaleJaarlijkseBesparing: totaleJaarlijkseBesparing, investering: investering, terugverdientijd: terugverdientijd,
     jaren: jaren, cumulatiefBesparing: cumulatiefBesparing, cumulatiefNetto: cumulatiefNetto,
   };
@@ -644,15 +607,6 @@ function standaardOfferteTekst(stijl, bedrijfsnaam) {
 // ---------------------------------------------------------------------
 // ECHTE PDF-BESTANDSEXPORT (jsPDF + html2canvas)
 // ---------------------------------------------------------------------
-function tekenPaginaRand(pdf, pageWidth, pageHeight) {
-  // Trekt een dun grijs kader om de volledige pagina. Zonder dit kader is de
-  // grens tussen twee pagina's onzichtbaar zodra ze allebei wit/licht zijn
-  // aan de naad (bv. offerte-einde + start van een productafbeelding) -- de
-  // pagina's ZIJN dan al correct gesplitst, maar je ziet het verschil niet.
-  pdf.setDrawColor(200, 200, 200);
-  pdf.setLineWidth(0.2);
-  pdf.rect(0.5, 0.5, pageWidth - 1, pageHeight - 1);
-}
 function downloadAlsPDF(elementId, bestandsnaam, knopId) {
   var el = document.getElementById(elementId);
   if (!el || !window.html2canvas || !window.jspdf) { toonToast("PDF-export kon niet laden. Check je verbinding."); return; }
@@ -693,117 +647,14 @@ function downloadAlsPDF(elementId, bestandsnaam, knopId) {
     };
   }
 
-  function trimEnLaadAfbeelding(src) {
-    // Snijdt witruimte rond de daadwerkelijke inhoud weg voordat de afbeelding in de PDF
-    // wordt geplaatst. Nodig omdat sommige brondata (bv. fabrikants-datasheets) zelf al een
-    // scheve witte rand bevat -- dat zit dan in de pixels zelf, niet in onze CSS/lay-out, en
-    // is dus alleen op te lossen door de content-rand te detecteren en bij te snijden.
-    return new Promise(function(resolve){
-      var img = new Image();
-      img.onload = function(){
-        try {
-          var w = img.naturalWidth, h = img.naturalHeight;
-          var canvas = document.createElement("canvas");
-          canvas.width = w; canvas.height = h;
-          var ctx = canvas.getContext("2d");
-          ctx.drawImage(img, 0, 0);
-          var data = ctx.getImageData(0, 0, w, h).data;
-          var DREMPEL = 248; // pixel telt als "wit/leeg" vanaf deze helderheid per kanaal
-          var stapX = Math.max(1, Math.floor(w / 500));
-          var stapY = Math.max(1, Math.floor(h / 500));
-          function rijIsLeeg(y) {
-            for (var x = 0; x < w; x += stapX) {
-              var i = (y * w + x) * 4;
-              if (data[i] < DREMPEL || data[i+1] < DREMPEL || data[i+2] < DREMPEL) return false;
-            }
-            return true;
-          }
-          function kolomIsLeeg(x) {
-            for (var y = 0; y < h; y += stapY) {
-              var i = (y * w + x) * 4;
-              if (data[i] < DREMPEL || data[i+1] < DREMPEL || data[i+2] < DREMPEL) return false;
-            }
-            return true;
-          }
-          var top = 0, bottom = h - 1, left = 0, right = w - 1;
-          while (top < h - 1 && rijIsLeeg(top)) top++;
-          while (bottom > top && rijIsLeeg(bottom)) bottom--;
-          while (left < w - 1 && kolomIsLeeg(left)) left++;
-          while (right > left && kolomIsLeeg(right)) right--;
-          var marge = Math.round(Math.min(w, h) * 0.012);
-          left = Math.max(0, left - marge);
-          top = Math.max(0, top - marge);
-          right = Math.min(w - 1, right + marge);
-          bottom = Math.min(h - 1, bottom + marge);
-          var breedte = right - left + 1, hoogte = bottom - top + 1;
-          if (breedte < w * 0.15 || hoogte < h * 0.15) {
-            // Te agressief bijgesneden (vrijwel lege pagina) -- veiligheidshalve origineel gebruiken.
-            resolve({ breedte: w, hoogte: h, src: src });
-            return;
-          }
-          var uitCanvas = document.createElement("canvas");
-          uitCanvas.width = breedte; uitCanvas.height = hoogte;
-          uitCanvas.getContext("2d").drawImage(canvas, left, top, breedte, hoogte, 0, 0, breedte, hoogte);
-          resolve({ breedte: breedte, hoogte: hoogte, src: uitCanvas.toDataURL("image/png") });
-        } catch (fout) {
-          resolve({ breedte: img.naturalWidth || img.width, hoogte: img.naturalHeight || img.height, src: src });
-        }
-      };
-      img.onerror = function(){ resolve(null); };
-      img.src = src;
-    });
-  }
-
   var eersteAfbeelding = true;
   var keten = Promise.resolve();
   paginaElementen.forEach(function(paginaEl){
     keten = keten.then(function(){
-      // Full-bleed productafbeeldingen (bijlages/datasheets) plaatsen we rechtstreeks via de
-      // brondata i.p.v. via een html2canvas-schermafbeelding van de gecentreerde flex-container.
-      // Zo kan er nooit een scheve marge links/rechts ontstaan -- de breedte wordt altijd
-      // exact gelijk aan de paginabreedte gezet, dus links en rechts is het per definitie gelijk (nul).
-      if (paginaEl.getAttribute("data-fullbleed-img") === "1") {
-        var imgEl = paginaEl.querySelector("img");
-        var chipEl = paginaEl.querySelector(".pagina-nr-chip");
-        var paginaTekst = chipEl ? chipEl.textContent : "";
-        if (!imgEl) return;
-        return trimEnLaadAfbeelding(imgEl.currentSrc || imgEl.src).then(function(info){
-          if (!eersteAfbeelding) pdf.addPage("a4", "p");
-          if (info && info.breedte && info.hoogte) {
-            // Datasheet/bijlage-paginas moeten altijd de volledige A4-pagina vullen, zonder
-            // enige rand -- dus altijd op de as met de meeste "overflow" uitrekken tot de
-            // volledige pagina bedekt is (vergelijkbaar met CSS object-fit: cover), in plaats
-            // van eventuele restmarge boven/onder of links/rechts te laten staan.
-            var schaalOpBreedte = pageWidth / info.breedte;
-            var schaalOpHoogte = pageHeight / info.hoogte;
-            var schaal = Math.max(schaalOpBreedte, schaalOpHoogte);
-            var renderBreedte = info.breedte * schaal;
-            var renderHoogte = info.hoogte * schaal;
-            var xOffset = (pageWidth - renderBreedte) / 2;
-            var yOffset = (pageHeight - renderHoogte) / 2;
-            pdf.addImage(info.src, "PNG", xOffset, yOffset, renderBreedte, renderHoogte);
-          }
-          if (paginaTekst) {
-            pdf.setFontSize(9);
-            pdf.setTextColor(0, 0, 0);
-            pdf.setFillColor(255, 255, 255);
-            var tekstBreedte = pdf.getTextWidth(paginaTekst);
-            pdf.rect(pageWidth - 14 - tekstBreedte - 4, pageHeight - 14, tekstBreedte + 8, 6, "F");
-            pdf.text(paginaTekst, pageWidth - 14, pageHeight - 10, { align: "right" });
-          }
-          // Bewust GEEN tekenPaginaRand hier: bijlage-paginas moeten volledig randloos/full-page zijn.
-          eersteAfbeelding = false;
-        });
-      }
       var isHoofdpagina = paginaEl.id === "ow-print-area" || paginaEl.id === "r-page-factuur";
       var herstelFn = isHoofdpagina ? verkleinTotEenPagina(paginaEl) : null;
       var volledigeHoogte = Math.max(paginaEl.scrollHeight, paginaEl.offsetHeight, paginaEl.getBoundingClientRect().height);
-      // Voor de BREEDTE gebruiken we uitsluitend de echte, door CSS afgedwongen boxbreedte
-      // (getBoundingClientRect) -- nooit scrollWidth/offsetWidth. Die laatste twee kunnen groter
-      // uitvallen dan de bedoelde 700px zodra één cel in de tabel net iets te lang is om te passen,
-      // waardoor er dan een blanco witte strook rechts in de PDF verscheen. Voor de HOOGTE willen we
-      // dat groei-gedrag wel (dat detecteert precies hoe lang de inhoud daadwerkelijk is).
-      var volledigeBreedte = paginaEl.getBoundingClientRect().width;
+      var volledigeBreedte = Math.max(paginaEl.scrollWidth, paginaEl.offsetWidth, paginaEl.getBoundingClientRect().width);
       var nietKnippenZones = [];
       return html2canvas(paginaEl, {
         scale: 2, backgroundColor: "#ffffff", width: volledigeBreedte, height: volledigeHoogte, windowWidth: volledigeBreedte, windowHeight: volledigeHoogte,
@@ -823,9 +674,8 @@ function downloadAlsPDF(elementId, bestandsnaam, knopId) {
         if (isHoofdpagina) {
           // Deze pagina is al gegarandeerd verkleind tot hij op 1 pagina past -- gewoon in zijn geheel plaatsen.
           var hoofdHoogteMm = canvas.height / pxPerMm;
-          if (!eersteAfbeelding) pdf.addPage("a4", "p");
+          if (!eersteAfbeelding) pdf.addPage();
           pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, pageWidth, Math.min(hoofdHoogteMm, pageHeight));
-          tekenPaginaRand(pdf, pageWidth, pageHeight);
           eersteAfbeelding = false;
           return;
         }
@@ -852,9 +702,8 @@ function downloadAlsPDF(elementId, bestandsnaam, knopId) {
           ctx.drawImage(canvas, 0, geplaatstPx, canvas.width, sliceHoogtePx, 0, 0, canvas.width, sliceHoogtePx);
           var sliceData = sliceCanvas.toDataURL("image/png");
           var sliceHoogteMm = sliceHoogtePx / pxPerMm;
-          if (!eersteAfbeelding) pdf.addPage("a4", "p");
+          if (!eersteAfbeelding) pdf.addPage();
           pdf.addImage(sliceData, "PNG", 0, 0, pageWidth, sliceHoogteMm);
-          tekenPaginaRand(pdf, pageWidth, pageHeight);
           eersteAfbeelding = false;
           geplaatstPx += sliceHoogtePx;
         }
@@ -870,7 +719,7 @@ function downloadAlsPDF(elementId, bestandsnaam, knopId) {
     if (btn) { btn.innerText = origTekst; btn.disabled = false; }
   });
 }
-var PRODUCT_CATEGORIEEN = ["Zonnepanelen", "Omvormers", "Thuisbatterijen", "Warmtepompen", "Airco's", "Laadpalen", "Meterkasten", "Elektrotechnisch materiaal", "Kabel", "Onderconstructie", "Arbeid", "Overig"];
+var PRODUCT_CATEGORIEEN = ["Zonnepanelen", "Omvormers", "Thuisbatterijen", "Warmtepompen", "Airco's", "Meterkasten", "Elektrotechnisch materiaal", "Kabel", "Onderconstructie", "Arbeid", "Overig"];
 var PROJECT_STATUSSEN = {
   nieuw: { label: "Nieuw", kleur: "#94A3B8" },
   schouw_gepland: { label: "Schouw gepland", kleur: "#0891B2" },
@@ -895,7 +744,6 @@ var DIENSTEN = [
   { id: "elektra", label: "Elektrotechnisch werk" },
   { id: "warmtepomp", label: "Warmtepomp" },
   { id: "airco", label: "Airco" },
-  { id: "laadpaal", label: "Laadpaal" },
   { id: "overig", label: "Overig" },
 ];
 function standaardOfferteSecties(stijl, bedrijfsnaam, dienstLabels) {
@@ -976,6 +824,22 @@ function icon(naam, size, kleur) {
 }
 function nf(n, dec) { if (n==null || isNaN(n)) return "—"; return n.toLocaleString("nl-NL", {minimumFractionDigits:dec||0, maximumFractionDigits:dec||0}); }
 function euro(n) { n = parseFloat(n) || 0; return "\u20AC " + n.toLocaleString("nl-NL", {minimumFractionDigits:2, maximumFractionDigits:2}); }
+function btwKleur(pct) {
+  if (pct === 0) return { bg: "#DCFCE7", tekst: "#166534" };   // groen: 0%
+  if (pct === 9) return { bg: "#FEF9C3", tekst: "#854D0E" };   // geel: 9%
+  return { bg: "#F8FDFC", tekst: "var(--text)" };               // neutraal: 21% (standaard)
+}
+function btwOverzichtHtml(t) {
+  var tarieven = Object.keys(t.subtotalen || {});
+  if (tarieven.length < 2) return ""; // pas tonen als er meerdere tarieven door elkaar lopen
+  var h = '<div style="margin-top:6px;font-size:11px;color:#B9DDD6;">';
+  tarieven.sort(function(a,b){ return a-b; }).forEach(function(tarief){
+    var kleur = btwKleur(parseInt(tarief));
+    h += '<div style="display:flex;justify-content:space-between;"><span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:' + kleur.bg + ';border:1px solid rgba(255,255,255,0.3);margin-right:5px;"></span>' + tarief + '% btw</span><span>' + euro(t.subtotalen[tarief]) + '</span></div>';
+  });
+  h += '</div>';
+  return h;
+}
 function round2(n) { return Math.round((parseFloat(n)||0) * 100) / 100; }
 function addMaanden(dateStr, maanden) { var d = new Date(dateStr); d.setMonth(d.getMonth()+maanden); return d.toISOString().slice(0,10); }
 
@@ -1764,7 +1628,7 @@ function synchroniseerEnergieMetRegel(o, r) {
   if (!r || !r.productId) return;
   var p = getProduct(r.productId);
   if (!p || !p.categorie) return;
-  var relevanteCategorieen = ["Zonnepanelen", "Thuisbatterijen", "Warmtepompen", "Airco's", "Laadpalen"];
+  var relevanteCategorieen = ["Zonnepanelen", "Thuisbatterijen", "Warmtepompen", "Airco's"];
   if (relevanteCategorieen.indexOf(p.categorie) === -1 || !p.specWaarde) return;
   if (!o.energieActief) { o.energieActief = true; }
   if (!o.energie) { o.energie = EO_nieuwSysteem(); o.energie.zonActief = false; } // niet automatisch zon aanzetten als dat niet gekozen is
@@ -1793,16 +1657,11 @@ function synchroniseerEnergieMetRegel(o, r) {
       inst.gekoppeldAanRegelId = r.id;
       o.energie.aircoInstallaties.push(inst);
     }
-  } else if (p.categorie === "Laadpalen") {
-    o.energie.laadpaalActief = true;
-    o.energie.laadpaalVermogen = p.specWaarde;
-    o.energie.laadpaalProductId = p.id;
   }
 }
 var ZON_MERKEN = ["aiko","jinko","trina","longi","canadian solar","qcells","q cells","ja solar","jasolar","astronergy","sunpower","risen","hyundai solar","lg solar"];
 var BATTERIJ_MERKEN = ["alpha ess","alphaess","byd","pylontech","growatt","huawei luna","sonnen","powerwall","lg energy","dyness","solax","deye","sigenergy"];
 var WARMTEPOMP_MERKEN = ["daikin altherma","mitsubishi ecodan","toshiba estia","panasonic aquarea","nibe","itho daalderop","remeha","vaillant arotherm","lg therma"];
-var LAADPAAL_MERKEN = ["wallbox","easee","zaptec","alfen","evbox","ev box","webasto","ratio electric","victron","smappee","keba","go-e","myenergi","ohme","new motion","newmotion"];
 
 function synchroniseerEnergieMetVrijeTekst(o, r) {
   var tekst = (r.omschrijving || "").toLowerCase();
@@ -1876,17 +1735,6 @@ function synchroniseerEnergieMetVrijeTekst(o, r) {
       inst.gekoppeldAanRegelId = r.id;
       o.energie.aircoInstallaties.push(inst);
     }
-  }
-
-  // Laadpaal: trefwoord of bekend merk, met eventueel kW-vermogen
-  var isLaadpaal = /laadpaal|laadpunt|wallbox|thuislader|laadstation|ev.?charger|ev.?lader/.test(tekst) || bevatMerk(LAADPAAL_MERKEN);
-  if (isLaadpaal) {
-    if (!o.energieActief) o.energieActief = true;
-    if (!o.energie) o.energie = EO_nieuwSysteem();
-    o.energie.laadpaalActief = true;
-    var kwMatchLaadpaal = tekst.match(/(\d+(?:[.,]\d+)?)\s*kw\b(?!h)/);
-    if (kwMatchLaadpaal) o.energie.laadpaalVermogen = kwMatchLaadpaal[1].replace(",", ".");
-    return;
   }
 }
 function updateOfferteRegelField(id, regelId, key, val) {
@@ -1999,7 +1847,6 @@ function kiesProductVoorOfferteRegel(offerteId, regelId, productId) {
   else if (p.categorie === "Thuisbatterijen" && p.specWaarde) toonToast("Energieberekening bijgewerkt: " + (parseFloat(p.specWaarde)*(parseFloat(r.aantal)||1)) + " kWh batterijcapaciteit");
   else if (p.categorie === "Warmtepompen" && p.specWaarde) toonToast("Energieberekening bijgewerkt: COP " + p.specWaarde);
   else if (p.categorie === "Airco's" && p.specWaarde) toonToast("Energieberekening bijgewerkt: " + r.aantal + " \u00d7 " + p.specWaarde + " kW airco");
-  else if (p.categorie === "Laadpalen" && p.specWaarde) toonToast("Energieberekening bijgewerkt: laadpaal " + p.specWaarde + " kW");
   persistOffertes(); render();
 }
 function addOfferteDatasheets(id, files) {
@@ -2929,7 +2776,6 @@ function render() {
     // Zijbalk (zichtbaar vanaf ~900px breed)
     html += '<nav class="sidebar no-print">';
     html += '<div class="sidebar-logo" onclick="setTab(\'dashboard\')"><span class="dot"></span> Boekhouding' + (state.cloudSaving ? ' <span style="font-size:9px;font-weight:600;opacity:0.7;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><path d="M18 10h-1.3A6 6 0 1 0 6 15h12a4 4 0 0 0 0-8Z"/></svg> opslaan...</span>' : '') + '</div>';
-    html += '<div style="padding:0 20px 12px;font-size:10px;font-weight:700;color:#FDE047;letter-spacing:0.03em;">BUILD ' + APP_BUILD_VERSIE + '</div>';
     if (state.user) html += '<div style="padding:0 20px 14px;font-size:11px;color:#B7DFDA;">' + esc(state.user.email) + '<br/><span style="cursor:pointer;text-decoration:underline;" onclick="doLogout()">Uitloggen</span></div>';
     html += '<div class="sidebar-nav">';
     TABS.forEach(function(t){
@@ -3410,8 +3256,6 @@ function renderProductForm() {
     h += pfield(p.id,"specWaarde","COP",p.specWaarde);
   } else if (p.categorie === "Airco's") {
     h += pfield(p.id,"specWaarde","Vermogen (kW)",p.specWaarde);
-  } else if (p.categorie === "Laadpalen") {
-    h += pfield(p.id,"specWaarde","Vermogen (kW)",p.specWaarde);
   }
   h += pfield(p.id,"prijs","Prijs per eenheid (&euro;, excl. BTW)",p.prijs);
   h += '<div><label class="fl">BTW %</label><select class="f" onchange="updateProduct(\'' + p.id + '\',{btw:parseInt(this.value)})">';
@@ -3617,7 +3461,7 @@ function renderOfferteWerkblad() {
     h += '</select>';
     h += '<span class="ow-prijs-label">&agrave; &euro;</span>';
     h += '<input type="number" value="' + esc(r.prijs) + '" oninput="updateOfferteRegelField(\'' + o.id + '\',\'' + r.id + '\',\'prijs\',this.value)" />';
-    h += '<select style="font-size:11.5px;border:1px solid var(--border);border-radius:4px;background:#F8FDFC;padding:3px;" onchange="updateOfferteRegel(\'' + o.id + '\',\'' + r.id + '\',{btw:parseInt(this.value)})" title="BTW-tarief voor dit artikel">';
+    h += '<select style="font-size:11.5px;font-weight:700;border:1px solid var(--border);border-radius:4px;background:' + btwKleur(r.btw).bg + ';color:' + btwKleur(r.btw).tekst + ';padding:3px;" onchange="updateOfferteRegel(\'' + o.id + '\',\'' + r.id + '\',{btw:parseInt(this.value)})" title="BTW-tarief voor dit artikel">';
     BTW_TARIEVEN.forEach(function(tp){ h += '<option value="' + tp + '"' + (r.btw===tp?" selected":"") + '>' + tp + '% btw</option>'; });
     h += '</select>';
     h += '<button class="ow-remove" onclick="removeOfferteRegel(\'' + o.id + '\',\'' + r.id + '\')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>';
@@ -3628,7 +3472,7 @@ function renderOfferteWerkblad() {
   h += '<div style="margin-top:10px;"><label class="fl">BTW-tarief (voor nieuwe regels)</label><select class="f" onchange="state.owBtwKeuze=parseInt(this.value);">';
   BTW_TARIEVEN.forEach(function(tp){ h += '<option value="' + tp + '">' + tp + '%</option>'; });
   h += '</select></div>';
-  h += '<div class="ow-mini-totals" style="background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:8px 10px;"><div class="row" style="color:#fff;"><span>Subtotaal</span><span>' + euro(t.totaalExcl) + '</span></div><div class="row" style="color:#fff;"><span>BTW</span><span>' + euro(t.totaalBtw) + '</span></div><div class="row final" style="color:#fff;"><span>Totaal</span><span>' + euro(t.totaalIncl) + '</span></div></div>';
+  h += '<div class="ow-mini-totals" style="background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:8px 10px;"><div class="row" style="color:#fff;"><span>Subtotaal</span><span>' + euro(t.totaalExcl) + '</span></div><div class="row" style="color:#fff;"><span>BTW</span><span>' + euro(t.totaalBtw) + '</span></div><div class="row final" style="color:#fff;"><span>Totaal</span><span>' + euro(t.totaalIncl) + '</span></div></div>' + btwOverzichtHtml(t);
   h += '</div>';
 
   h += '<div class="ow-step"><div class="ow-step-head"><span class="ow-step-num">4</span><span class="ow-step-title">Toelichting (optioneel)</span></div>';
@@ -3744,7 +3588,7 @@ function renderOfferteWerkblad() {
   h += '</div>';
   h += '</div>';
   h += '</div>';
-  if (o.aanbetalingsmethode) h += '<div style="padding:10px 8px 0;font-size:12px;color:var(--muted);">Aanbetalingsmethode: ' + esc(o.aanbetalingsmethode) + '</div>';
+  if (o.aanbetalingsmethode) h += '<div style="padding:10px 34px 0;font-size:12px;color:var(--muted);">Aanbetalingsmethode: ' + esc(o.aanbetalingsmethode) + '</div>';
   h += '<div class="ow-body">';
   if (o.tekstmodus === "eigen") {
     if (o.inleiding) h += '<p>' + esc(o.inleiding) + '</p>';
@@ -3778,7 +3622,7 @@ function renderOfferteWerkblad() {
     if (b.certificeringNotities) h += (puntjes.length?'<br/>':'') + esc(b.certificeringNotities);
     h += '</div>';
   }
-  var offerteFooterTekst = esc(b.naam||"") + " &middot; " + (o.geldigTot ? "Deze offerte is geldig tot " + esc(o.geldigTot) + "." : "Deze offerte is 30 dagen geldig vanaf bovenstaande datum.");
+  h += '<div class="ow-footer-note">' + esc(b.naam||"") + " &middot; " + (o.geldigTot ? "Deze offerte is geldig tot " + esc(o.geldigTot) + "." : "Deze offerte is 30 dagen geldig vanaf bovenstaande datum.") + '</div>';
 
   if (o.akkoordTerPlekkeAan) {
     if (o.klantAkkoordHandtekening) {
@@ -3802,7 +3646,7 @@ function renderOfferteWerkblad() {
   var datasheetsPaginaCount = datasheetsPaginaAantal(o.datasheets);
   var voorwaardenPaginaCount = algemeneVoorwaardenPaginaAantal();
   var totaalPaginasOfferte = 1 + energiePaginaCount + legplanPaginaCount + datasheetsPaginaCount + voorwaardenPaginaCount;
-  h += paginaVoetnoot(1, totaalPaginasOfferte, offerteFooterTekst);
+  h += paginaVoetnoot(1, totaalPaginasOfferte);
   h += '</div>'; // ow-body
   h += '</div>'; // ow-print-area
   h += EO_renderRapportPaginas(o, 2, totaalPaginasOfferte, state.bedrijf);
@@ -3813,7 +3657,8 @@ function renderOfferteWerkblad() {
 
   h += '<div class="ow-floating no-print">';
   h += '<button style="background:' + accent + ';color:#fff;" onclick="verstuurOffertePerEmail(\'' + o.id + '\')">Verstuur per e-mail</button>';
-  h += '<button id="pdf-btn-offerte" style="background:#12242A;color:#fff;" onclick="window.print()">' + icon("printer") + ' Print / Opslaan als PDF</button>';
+  h += '<button id="pdf-btn-offerte" style="background:#12242A;color:#fff;" onclick="downloadAlsPDF(\'offerte-volledig-document\', \'' + o.offertenummer + '\', \'pdf-btn-offerte\')">Exporteer als PDF (compleet)</button>';
+  h += '<button style="background:#fff;color:var(--text);border:1px solid var(--border);" onclick="window.print()">Print</button>';
   h += '</div>';
   h += '</div></div>'; // ow-preview
 
@@ -3876,14 +3721,6 @@ function kiesWarmtepompProduct(offerteId, productId) {
   o.energie.warmtepompProductId = productId;
   persistOffertes(); render();
   toonToast(pr.naam + " gekozen \u2014 COP " + pr.specWaarde + " overgenomen");
-}
-function kiesLaadpaalProduct(offerteId, productId) {
-  var o = getOfferte(offerteId); var pr = getProduct(productId);
-  if (!o || !pr || !pr.specWaarde) return;
-  o.energie.laadpaalVermogen = pr.specWaarde;
-  o.energie.laadpaalProductId = productId;
-  persistOffertes(); render();
-  toonToast(pr.naam + " gekozen \u2014 " + pr.specWaarde + " kW overgenomen");
 }
 function kiesAircoProduct(offerteId, instId, productId) {
   var o = getOfferte(offerteId); var pr = getProduct(productId);
@@ -4013,26 +3850,7 @@ function EO_renderConfig(o) {
   }
   h += '</div>';
 
-  // Laadpaal
-  h += '<div style="border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;background:#FAFCFA;">';
-  h += '<div class="toggle-row" style="margin-bottom:10px;"><input type="checkbox" ' + (s.laadpaalActief?"checked":"") + ' onchange="eoVeldRender(\'' + oid + '\',\'laadpaalActief\', this.checked)" style="width:18px;height:18px;" /><label style="font-weight:700;font-size:13px;color:#0A0A0A;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><rect x="1" y="7" width="15" height="13" rx="2"/><path d="M16 11h2l3 3v3h-5"/><circle cx="6" cy="20" r="1.5"/><circle cx="15" cy="20" r="1.5"/><line x1="5" y1="4" x2="5" y2="7"/><line x1="9" y1="4" x2="9" y2="7"/></svg> Laadpaal</label></div>';
-  if (s.laadpaalActief) {
-    var laadpaalProducten = state.producten.filter(function(pr){ return pr.categorie === "Laadpalen" && pr.specWaarde; });
-    if (laadpaalProducten.length > 0) {
-      h += '<label class="fl">Laadpaal kiezen uit productenlijst (vult vermogen automatisch in)</label>';
-      h += '<select class="f" onchange="kiesLaadpaalProduct(\'' + oid + '\', this.value)"><option value="">&mdash; Kies een laadpaal &mdash;</option>';
-      laadpaalProducten.forEach(function(pr){ h += '<option value="' + pr.id + '"' + (s.laadpaalProductId===pr.id?" selected":"") + '>' + esc(pr.naam) + ' (' + pr.specWaarde + ' kW)</option>'; });
-      h += '</select>';
-    }
-    h += '<div class="grid3">';
-    h += eoField(oid,"laadpaalVermogen","Vermogen laadpaal (kW)",s.laadpaalVermogen);
-    h += eoField(oid,"kmPerJaar","Kilometers per jaar",s.kmPerJaar);
-    h += eoField(oid,"verbruikPer100km","Verbruik (kWh/100km)",s.verbruikPer100km);
-    h += eoField(oid,"laadpaalAandeelUitZon","% laden uit eigen zon",s.laadpaalAandeelUitZon);
-    h += '</div>';
-    h += eoImpactRegel('<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><rect x="1" y="7" width="15" height="13" rx="2"/><path d="M16 11h2l3 3v3h-5"/><circle cx="6" cy="20" r="1.5"/><circle cx="15" cy="20" r="1.5"/></svg> ' + nf(r.elektriciteitLaadpaal) + " kWh/jaar verbruik &middot; resterende stroomkosten: " + euro(r.kostenLaadpaal) + "/jaar");
-  }
-  h += '</div>';
+  // Energie & financieel
   h += '<div style="border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;background:#FAFCFA;">';
   h += '<h3 style="margin-top:0;">Energieprijzen &amp; investering</h3><div class="grid3">';
   h += eoGeldField(oid,"stroomprijs","Stroomprijs (&euro;/kWh)",s.stroomprijs);
@@ -4044,7 +3862,6 @@ function EO_renderConfig(o) {
   if (s.zonActief) h += eoGeldField(oid,"investeringZon","Investering zon (&euro;)",s.investeringZon);
   if (s.batterijActief) h += eoGeldField(oid,"investeringBatterij","Investering batterij (&euro;)",s.investeringBatterij);
   if (s.wpActief) h += eoGeldField(oid,"investeringWP","Investering warmtepomp (&euro;)",s.investeringWP);
-  if (s.laadpaalActief) h += eoGeldField(oid,"investeringLaadpaal","Investering laadpaal (&euro;)",s.investeringLaadpaal);
   h += '</div></div>';
 
   h += '<div class="stats-row">';
@@ -4117,16 +3934,16 @@ function renderDatasheetsSectie(datasheets, startPaginaNr, totaalPaginas, bedrij
   var pn = startPaginaNr;
   datasheets.forEach(function(d){
     if (d.data && d.data.indexOf("image") !== -1 && (!d.paginaAfbeeldingen || d.paginaAfbeeldingen.length === 0)) {
-      h += '<div class="r-page" data-fullbleed-img="1" style="padding:0;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;height:990px;">';
+      h += '<div class="r-page" style="padding:0;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;height:990px;">';
       h += '<img src="' + d.data + '" style="width:100%;height:100%;object-fit:contain;display:block;" />';
-      h += '<div class="pagina-nr-chip" style="position:absolute;bottom:10px;right:14px;font-size:10px;color:#000000;background:rgba(255,255,255,0.85);padding:2px 8px;border-radius:4px;">Pagina ' + pn + ' van ' + totaalPaginas + '</div>';
+      h += '<div style="position:absolute;bottom:10px;right:14px;font-size:10px;color:#94A3B8;background:rgba(255,255,255,0.85);padding:2px 8px;border-radius:4px;">Pagina ' + pn + ' van ' + totaalPaginas + '</div>';
       h += '</div>';
       pn++;
     } else if (d.paginaAfbeeldingen && d.paginaAfbeeldingen.length > 0) {
       d.paginaAfbeeldingen.forEach(function(pagUrl){
-        h += '<div class="r-page" data-fullbleed-img="1" style="padding:0;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;height:990px;">';
+        h += '<div class="r-page" style="padding:0;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;height:990px;">';
         h += '<img src="' + pagUrl + '" style="width:100%;height:100%;object-fit:contain;display:block;" />';
-        h += '<div class="pagina-nr-chip" style="position:absolute;bottom:10px;right:14px;font-size:10px;color:#000000;background:rgba(255,255,255,0.85);padding:2px 8px;border-radius:4px;">Pagina ' + pn + ' van ' + totaalPaginas + '</div>';
+        h += '<div style="position:absolute;bottom:10px;right:14px;font-size:10px;color:#94A3B8;background:rgba(255,255,255,0.85);padding:2px 8px;border-radius:4px;">Pagina ' + pn + ' van ' + totaalPaginas + '</div>';
         h += '</div>';
         pn++;
       });
@@ -4144,13 +3961,9 @@ function paginaLogoHeader(bedrijfOverride) {
   if (!b.logoData) return "";
   return '<div style="margin-bottom:14px;"><img src="' + b.logoData + '" style="height:44px;max-width:170px;object-fit:contain;" /></div>';
 }
-function paginaVoetnoot(nr, totaal, linksTekst) {
+function paginaVoetnoot(nr, totaal) {
   if (!nr || !totaal) return "";
-  var basisStijl = "margin-top:18px;padding-top:8px;border-top:1px solid #F1F5F9;font-size:10px;color:#000000;page-break-before:avoid;break-before:avoid-page;page-break-inside:avoid;break-inside:avoid;";
-  if (linksTekst) {
-    return '<div style="' + basisStijl + 'display:flex;justify-content:space-between;align-items:center;gap:10px;color:#9FB8B6;"><span>' + linksTekst + '</span><span style="color:#000000;white-space:nowrap;">Pagina ' + nr + ' van ' + totaal + '</span></div>';
-  }
-  return '<div style="' + basisStijl + 'text-align:right;">Pagina ' + nr + ' van ' + totaal + '</div>';
+  return '<div style="position:absolute;left:0;right:0;bottom:14px;text-align:center;font-size:10px;color:#94A3B8;padding-top:8px;border-top:1px solid #F1F5F9;">Pagina ' + nr + ' van ' + totaal + '</div>';
 }
 function algemeneVoorwaardenPagina(paginaNr, totaalPaginas, bedrijfOverride) {
   var b = bedrijfOverride || state.bedrijf;
@@ -4275,7 +4088,6 @@ function EO_renderRapportPaginas(o, startPaginaNr, totaalPaginas, bedrijfOverrid
   }
   if (s.wpActief) h += '<tr><td>Besparing warmtepomp (t.o.v. gas, ' + nf(r.elektriciteitWP) + ' kWh verbruik)</td><td class="num">' + euro(r.besparingWP) + '</td></tr>';
   if (s.aircoActief) h += '<tr><td>Besparing airco (t.o.v. direct elektrisch verwarmen, ' + nf(r.elektriciteitAirco) + ' kWh verbruik)</td><td class="num">' + euro(r.besparingAirco) + '</td></tr>';
-  if (s.laadpaalActief) h += '<tr><td>Extra stroomkosten laadpaal (' + nf(r.elektriciteitLaadpaal) + ' kWh verbruik, ' + esc(s.laadpaalAandeelUitZon) + '% uit eigen zon)</td><td class="num" style="color:#DC2626;">&minus; ' + euro(r.kostenLaadpaal) + '</td></tr>';
   if (s.onderhoudJaarlijks && parseFloat(s.onderhoudJaarlijks) > 0) h += '<tr><td>Onderhoud/schoonmaak</td><td class="num" style="color:#DC2626;">&minus; ' + euro(s.onderhoudJaarlijks) + '</td></tr>';
   h += '<tr style="font-weight:800;border-top:2px solid var(--border);"><td>Totale jaarlijkse besparing</td><td class="num">' + euro(r.totaleJaarlijkseBesparing) + '</td></tr>';
   h += '</tbody></table>';
@@ -4285,7 +4097,6 @@ function EO_renderRapportPaginas(o, startPaginaNr, totaalPaginas, bedrijfOverrid
   if (s.batterijActief) h += '<tr><td>Thuisbatterij (' + esc(s.batterijCapaciteit) + ' kWh)</td><td class="num">' + euro(s.investeringBatterij) + '</td></tr>';
   if (s.wpActief) h += '<tr><td>Warmtepomp</td><td class="num">' + euro(s.investeringWP) + '</td></tr>';
   if (s.aircoActief) { var investAirco = (s.aircoInstallaties||[]).reduce(function(sum,i){return sum+(parseFloat(i.investering)||0);},0); h += '<tr><td>Airco (' + (s.aircoInstallaties||[]).length + ' installatie(s))</td><td class="num">' + euro(investAirco) + '</td></tr>'; }
-  if (s.laadpaalActief) h += '<tr><td>Laadpaal (' + esc(s.laadpaalVermogen) + ' kW)</td><td class="num">' + euro(s.investeringLaadpaal) + '</td></tr>';
   h += '<tr style="font-weight:800;border-top:2px solid var(--border);"><td>Totale investering</td><td class="num">' + euro(r.investering) + '</td></tr>';
   h += '</tbody></table>';
   h += paginaVoetnoot(pn++, totaalPaginas) + '</div>';
@@ -4431,7 +4242,7 @@ function renderFactuurForm() {
     h += '<input class="f" placeholder="Omschrijving" value="' + esc(r.omschrijving) + '" oninput="updateFactuurRegelField(\'' + f.id + '\',\'' + r.id + '\',\'omschrijving\',this.value)" />';
     h += '<input class="f" placeholder="1" value="' + esc(r.aantal) + '" oninput="updateFactuurRegelField(\'' + f.id + '\',\'' + r.id + '\',\'aantal\',this.value)" />';
     h += '<input class="f" placeholder="0,00" value="' + esc(r.prijs) + '" oninput="updateFactuurRegelField(\'' + f.id + '\',\'' + r.id + '\',\'prijs\',this.value)" />';
-    h += '<select class="f" onchange="updateFactuurRegel(\'' + f.id + '\',\'' + r.id + '\',{btw:parseInt(this.value)})">';
+    h += '<select class="f" style="font-weight:700;background:' + btwKleur(r.btw).bg + ';color:' + btwKleur(r.btw).tekst + ';" onchange="updateFactuurRegel(\'' + f.id + '\',\'' + r.id + '\',{btw:parseInt(this.value)})">';
     BTW_TARIEVEN.forEach(function(tp){ h += '<option value="' + tp + '"' + (r.btw===tp?" selected":"") + '>' + tp + '%</option>'; });
     h += '</select>';
     h += '<button class="del-x" onclick="removeFactuurRegel(\'' + f.id + '\',\'' + r.id + '\')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></button>';
@@ -4440,7 +4251,7 @@ function renderFactuurForm() {
   h += '<button class="btn-add" onclick="addFactuurRegel(\'' + f.id + '\')">+ Regel toevoegen</button>';
   h += pakketprijsSectieHtml(f, "updateFactuurField");
 
-  h += '<div class="ow-mini-totals" style="background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:8px 10px;"><div class="row" style="color:#fff;"><span>Subtotaal</span><span>' + euro(t.totaalExcl) + '</span></div><div class="row" style="color:#fff;"><span>BTW</span><span>' + euro(t.totaalIncl - t.totaalExcl) + '</span></div><div class="row final" style="color:#fff;"><span>Totaal</span><span>' + euro(t.totaalIncl) + '</span></div></div>';
+  h += '<div class="ow-mini-totals" style="background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:8px 10px;"><div class="row" style="color:#fff;"><span>Subtotaal</span><span>' + euro(t.totaalExcl) + '</span></div><div class="row" style="color:#fff;"><span>BTW</span><span>' + euro(t.totaalIncl - t.totaalExcl) + '</span></div><div class="row final" style="color:#fff;"><span>Totaal</span><span>' + euro(t.totaalIncl) + '</span></div></div>' + btwOverzichtHtml(t);
   h += '</div>';
 
   h += '<div class="ow-step"><div class="ow-step-head"><span class="ow-step-num">' + (f.type==="creditnota"?"3":"4") + '</span><span class="ow-step-title">Overig</span></div>';
@@ -4497,7 +4308,7 @@ function renderFactuurDocument(f) {
   h += '</div>';
   h += '</div>';
   h += '</div>';
-  if (f.gekoppeldAan) { var orig = getFactuur(f.gekoppeldAan); if (orig) h += '<div style="padding:10px 8px 0;font-size:12px;color:var(--muted);">Betreft factuur ' + esc(orig.factuurnummer) + '</div>'; }
+  if (f.gekoppeldAan) { var orig = getFactuur(f.gekoppeldAan); if (orig) h += '<div style="padding:10px 34px 0;font-size:12px;color:var(--muted);">Betreft factuur ' + esc(orig.factuurnummer) + '</div>'; }
   h += '<div class="ow-body">';
   if (f.inleiding) h += '<p>' + esc(f.inleiding) + '</p>';
   if (f.werkzaamheden) h += '<h4 class="ow-section-title">Werkzaamheden</h4><p>' + esc(f.werkzaamheden) + '</p>';
@@ -4537,8 +4348,9 @@ function renderFactuurDocument(f) {
     h += '</div>';
   }
   if (b.voettekst) h += '<p style="font-size:11.5px;color:var(--muted);margin-top:20px;">' + esc(b.voettekst) + '</p>';
+  h += '<div class="ow-footer-note">' + esc(b.naam||"") + '</div>';
   var fVoorwaardenCount = algemeneVoorwaardenPaginaAantal(b);
-  h += paginaVoetnoot(1, 1 + fVoorwaardenCount, esc(b.naam||""));
+  h += paginaVoetnoot(1, 1 + fVoorwaardenCount);
   h += '</div>'; // ow-body
   h += '</div>'; // r-page-factuur
   h += algemeneVoorwaardenPagina(2, 1 + fVoorwaardenCount, b);
@@ -4557,7 +4369,8 @@ function renderFactuurView() {
   if (f.status === "verzonden") h += '<button class="btn-secondary" style="width:auto;" onclick="updateFactuurStatus(\'' + f.id + '\',\'betaald\')">Markeer betaald</button>';
   if (st === "vervallen") h += '<a class="btn-secondary" style="width:auto;display:inline-block;text-decoration:none;" href="' + herinneringMailtoLink(f) + '" onclick="markeerHerinneringVerstuurd(\'' + f.id + '\')">Stuur herinnering</a>';
   if (f.type === "factuur") h += '<button class="btn-secondary" style="width:auto;" onclick="maakCreditNota(\'' + f.id + '\')">Credit nota maken</button>';
-  h += '<button class="print-btn" id="pdf-btn-factuur" style="background:#0D9488;" onclick="window.print()">' + icon("printer") + ' Print / Opslaan als PDF</button>';
+  h += '<button class="print-btn" onclick="window.print()">' + icon("printer") + ' Print</button>';
+  h += '<button class="print-btn" id="pdf-btn-factuur" style="background:#0D9488;" onclick="downloadAlsPDF(\'factuur-volledig-document\', \'' + f.factuurnummer + '\', \'pdf-btn-factuur\')">' + icon("file") + ' Download PDF</button>';
   h += '<button class="del-x" onclick="removeFactuur(\'' + f.id + '\')">' + icon("trash") + '</button>';
   h += '</div></div>';
   h += renderFactuurDocument(f);
