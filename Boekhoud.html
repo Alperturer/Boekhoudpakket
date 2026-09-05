@@ -22,6 +22,11 @@
     --bg: #EFFAF8; --card: #FFFFFF; --border: #B9E4DE; --text: #0B2E2D; --muted: #4B7A73;
     --green: #16A34A; --red: #DC2626; --amber: #D97706;
   }
+  /* Zonder dit kan mobiel Safari/WebKit (dus ook Chrome op iPhone/iPad, die onder de motorkap
+     hetzelfde WebKit gebruikt) tekst op een smal scherm automatisch iets groter renderen dan de
+     opgegeven font-size ("text autosizing") -- dat zou de hoogtemeting voor de 1-pagina-verkleining
+     (verkleinTotEenPagina) laten afwijken van wat er werkelijk op het scherm/de PDF terechtkomt. */
+  html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; background: var(--bg); color: var(--text); font-size: 15px; }
   h1 { font-size: 26px; font-weight: 800; margin: 0 0 6px; letter-spacing:-0.01em; }
   h2 { font-size: 14.5px; font-weight: 800; margin: 0 0 14px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--navy); border-bottom: 2px solid var(--blue); padding-bottom: 10px; }
@@ -657,6 +662,11 @@ function standaardOfferteTekst(stijl, bedrijfsnaam) {
   return bibliotheek[stijl] || bibliotheek.zakelijk;
 }
 
+// Zichtbare app-versie in de zijbalk/mobiele header, zodat je in 1 oogopslag kunt zien of je
+// telefoon/browser de nieuwste versie van dit bestand heeft geladen (i.p.v. een oude, gecachte
+// kopie). Ophogen bij elke nieuwe levering van dit bestand.
+var APP_VERSIE = "2026-09-05.2";
+
 // ---------------------------------------------------------------------
 // PAGINA-INDELING: elke "echte pagina" (offerte-/factuurvoorblad of losse rapportpagina)
 // wordt gegarandeerd op precies 1 afdrukbare pagina laten passen door de tekst (en tabel-
@@ -691,6 +701,36 @@ function verkleinTotEenPagina(paginaEl) {
     paginaEl.style.minHeight = origineleMinHeight;
     paginaEl.style.removeProperty("--tekst-schaal");
   };
+}
+
+// Wacht tot de browser echt een frame heeft getekend voordat we een gemeten hoogte vertrouwen.
+function volgendeFrame() {
+  return new Promise(function(resolve){ requestAnimationFrame(function(){ requestAnimationFrame(resolve); }); });
+}
+
+// Robuuste versie van verkleinTotEenPagina(), specifiek voor de PDF-export hieronder. Verkleint
+// de pagina zoals normaal, maar meet daarna -- na een extra frame te hebben gewacht -- de ECHTE
+// hoogte nogmaals. Wijkt die te veel af (bijv. omdat een logo-afbeelding of lettertype op het
+// moment van de eerste meting nog niet volledig "geland" was -- dit bleek op een telefoon soms
+// een fractie trager te gaan dan op een laptop met een warme cache, met als gevolg dat pagina 1
+// op de telefoon soms helemaal niet verkleind werd terwijl dat op de laptop wel gebeurde), dan
+// wordt de verkleining herhaald met deze nieuwe, actuele hoogte als uitgangspunt. Zo kan een
+// tijdstip-verschil tussen meten en daadwerkelijk vastleggen nooit meer leiden tot een pagina die
+// alsnog niet past -- ongeacht de precieze reden waarom de eerste meting afweek.
+function verkleinTotEenPaginaBetrouwbaar(paginaEl, poging) {
+  poging = poging || 0;
+  return volgendeFrame().then(function(){
+    var herstel = verkleinTotEenPagina(paginaEl);
+    return volgendeFrame().then(function(){
+      var actueleHoogte = Math.max(paginaEl.scrollHeight, paginaEl.offsetHeight, paginaEl.getBoundingClientRect().height);
+      var opLeesbareMinimum = paginaEl.style.getPropertyValue("--tekst-schaal") === String(MIN_LEESBARE_SCHAAL);
+      if (actueleHoogte > DOEL_HOOGTE_PX * 1.03 && !opLeesbareMinimum && poging < 3) {
+        if (herstel) herstel();
+        return verkleinTotEenPaginaBetrouwbaar(paginaEl, poging + 1);
+      }
+      return { herstel: herstel, hoogte: actueleHoogte };
+    });
+  });
 }
 
 // Native browser-print (de "Print"-knoppen die window.print() aanroepen, én Ctrl+P / "Opslaan
@@ -771,8 +811,13 @@ function downloadAlsPDF(elementId, bestandsnaam, knopId) {
       var origineleMaxBreedteStijl = paginaEl.style.maxWidth;
       paginaEl.style.width = PAGINA_ONTWERP_BREEDTE_PX + "px";
       paginaEl.style.maxWidth = PAGINA_ONTWERP_BREEDTE_PX + "px";
-      var herstelFn = verkleinTotEenPagina(paginaEl);
-      var volledigeHoogte = Math.max(paginaEl.scrollHeight, paginaEl.offsetHeight, paginaEl.getBoundingClientRect().height);
+      // gebruikt de "betrouwbare" variant i.p.v. verkleinTotEenPagina() direct aan te roepen: die
+      // wacht een paar frames en meet de hoogte dan nogmaals, zodat een trage/late afbeelding of
+      // lettertype (vaker op een telefoon dan op een laptop met warme cache) niet meer kan zorgen
+      // dat de verkleining op een te vroege, te kleine meting gebaseerd wordt.
+      return verkleinTotEenPaginaBetrouwbaar(paginaEl).then(function(resultaat){
+      var herstelFn = resultaat.herstel;
+      var volledigeHoogte = resultaat.hoogte;
       return html2canvas(paginaEl, {
         scale: CANVAS_SCHAAL, backgroundColor: "#ffffff", width: PAGINA_ONTWERP_BREEDTE_PX, height: volledigeHoogte, windowWidth: PAGINA_ONTWERP_BREEDTE_PX, windowHeight: volledigeHoogte
       }).then(function(canvas){
@@ -800,6 +845,7 @@ function downloadAlsPDF(elementId, bestandsnaam, knopId) {
           pdf.addImage(stripCanvas.toDataURL("image/jpeg", JPEG_KWALITEIT), "JPEG", 0, 0, pageWidth, hoogteDezeStrookPx / pxPerMm, undefined, "FAST");
           eersteAfbeelding = false;
         }
+      });
       });
     });
   });
@@ -2887,6 +2933,7 @@ function render() {
     // Zijbalk (zichtbaar vanaf ~900px breed)
     html += '<nav class="sidebar no-print">';
     html += '<div class="sidebar-logo" onclick="setTab(\'dashboard\')"><span class="dot"></span> Boekhouding' + (state.cloudSaving ? ' <span style="font-size:9px;font-weight:600;opacity:0.7;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><path d="M18 10h-1.3A6 6 0 1 0 6 15h12a4 4 0 0 0 0-8Z"/></svg> opslaan...</span>' : '') + '</div>';
+    html += '<div style="padding:0 20px 8px;font-size:10px;color:#8FC9C2;letter-spacing:.02em;">versie ' + APP_VERSIE + '</div>';
     if (state.user) html += '<div style="padding:0 20px 14px;font-size:11px;color:#B7DFDA;">' + esc(state.user.email) + '<br/><span style="cursor:pointer;text-decoration:underline;" onclick="doLogout()">Uitloggen</span></div>';
     html += '<div class="sidebar-nav">';
     TABS.forEach(function(t){
@@ -2901,7 +2948,7 @@ function render() {
     }
 
     // Mobiele header + tabs (alleen zichtbaar op smal scherm, CSS regelt dit)
-    html += '<div class="mobile-header no-print"><div class="header-title" onclick="setTab(\'dashboard\')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><line x1="6" y1="20" x2="6" y2="12"/><line x1="12" y1="20" x2="12" y2="6"/><line x1="18" y1="20" x2="18" y2="15"/></svg> Boekhouding</div></div>';
+    html += '<div class="mobile-header no-print"><div class="header-title" onclick="setTab(\'dashboard\')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><line x1="6" y1="20" x2="6" y2="12"/><line x1="12" y1="20" x2="12" y2="6"/><line x1="18" y1="20" x2="18" y2="15"/></svg> Boekhouding</div><div style="font-size:9px;color:#9CA3AF;">v' + APP_VERSIE + '</div></div>';
     html += '<div class="tabs no-print">';
     TABS.forEach(function(t){
       if (!tabZichtbaar(t[0])) return;
