@@ -267,7 +267,15 @@
     .ow-form, .ow-floating, .ow-akkoord-block { display:none !important; }
     .ow-layout { display:block; margin:0; }
     .ow-preview { padding:0; background:#fff; }
-    #ow-print-area, #r-page-factuur, .r-page { border:none; box-shadow:none; max-width:100%; }
+    /* BELANGRIJK: max-width NIET op 100% zetten tijdens het printen. Native printen (bijv. via
+       Safari op iPhone/iPad: Delen > Print > Bewaar als PDF) gebruikt dit pad, en verkleinTotEenPagina()
+       rekent met een vaste ontwerpbreedte van 700px (zie #ow-print-area hierboven). Als de pagina
+       tijdens het printen breder mag worden dan 700px, klopt die berekening niet meer: elke pagina
+       kreeg dan een andere, willekeurige verkleining (vandaar wisselende lettergroottes) en de
+       pagina-hoogte klopte niet meer met de 1-pagina-aanname (vandaar pagina's die door elkaar liepen).
+       Door dezelfde 700px als op het scherm aan te houden, ziet elke PDF er -- laptop of telefoon --
+       hetzelfde uit. */
+    #ow-print-area, #r-page-factuur, .r-page { border:none; box-shadow:none; max-width:700px; }
   }
 </style>
 <script>
