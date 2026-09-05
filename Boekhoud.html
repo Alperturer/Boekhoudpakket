@@ -171,6 +171,12 @@
   .type-toggle button { flex:1; border:1px solid var(--border); background:#fff; border-radius:8px; padding:9px; font-size:12px; font-weight:700; color:var(--muted); cursor:pointer; }
   .type-toggle button.active { background:linear-gradient(to right, #0B2530, #0F6E6E); color:#fff; border-color:#0B2530; }
 
+  /* Zonder deze regel gebruikt de browser/het besturingssysteem zijn eigen standaard-printmarges
+     (vaak zo'n 1-1.5cm rondom) -- dan is er per pagina MINDER ruimte beschikbaar dan waar de
+     1-pagina-berekening (verkleinTotEenPagina/DOEL_HOOGTE_PX) vanuit gaat, en loopt zelfs precies
+     passende content nog over naar een (bijna) lege volgende pagina. Marge op 0: de content regelt
+     zijn eigen witruimte al zelf (padding binnen .r-page/.ow-body). */
+  @page { size: A4; margin: 0; }
   @media print {
     body { background:#fff; }
     .sidebar, .mobile-header, .tabs, .toolbar, .no-print { display:none !important; }
@@ -276,6 +282,13 @@
        Door dezelfde 700px als op het scherm aan te houden, ziet elke PDF er -- laptop of telefoon --
        hetzelfde uit. */
     #ow-print-area, #r-page-factuur, .r-page { border:none; box-shadow:none; max-width:700px; }
+    /* Vangnet voor als het "beforeprint"-script (dat normaal precies berekent hoeveel een pagina
+       moet verkleinen) niet op tijd/betrouwbaar afgaat -- gebeurt soms bij native printen op iOS
+       (Delen > Print). Zonder dit vangnet blijft de tekst dan op volle grootte staan en loopt de
+       pagina alsnog over. Dit is een vaste, altijd-veilige lichte verkleining; het script hierboven
+       overschrijft deze zodra het wel op tijd draait (dat geeft een preciezere, vaak kleinere
+       verkleining), dus op laptop/desktop verandert er niets. */
+    #ow-print-area, #r-page-factuur, .r-page { --tekst-schaal: 0.85; }
   }
 </style>
 <script>
