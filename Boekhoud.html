@@ -27,7 +27,10 @@
      opgegeven font-size ("text autosizing") -- dat zou de hoogtemeting voor de 1-pagina-verkleining
      (verkleinTotEenPagina) laten afwijken van wat er werkelijk op het scherm/de PDF terechtkomt. */
   html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
-  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; background: var(--bg); color: var(--text); font-size: 15px; }
+  /* tabular-nums: elk cijfer krijgt exact dezelfde breedte, zodat bedragen/getallen die onder
+     elkaar staan (bijv. in de besparingstabel of de producttabel) altijd strak op 1 rechte lijn
+     uitlijnen i.p.v. licht te "zigzaggen" -- standaard voor alle tekst, kost verder niets. */
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; background: var(--bg); color: var(--text); font-size: 15px; font-variant-numeric: tabular-nums; }
   h1 { font-size: 26px; font-weight: 800; margin: 0 0 6px; letter-spacing:-0.01em; }
   h2 { font-size: 14.5px; font-weight: 800; margin: 0 0 14px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--navy); border-bottom: 2px solid var(--blue); padding-bottom: 10px; }
   h3 { font-size: 13.5px; font-weight: 700; margin: 14px 0 8px; color: var(--navy); }
@@ -149,7 +152,13 @@
   /* Koppen (h3) en kernstatistieken binnen rapportpagina's even groot als de rest van het document */
   .r-page h3 { font-size:calc(15px * var(--tekst-schaal, 1)); }
   table.r-table td { padding:calc(7px * var(--tekst-schaal, 1)) 8px; border-bottom:1px solid #F1F5F9; }
-  table.r-table td.num { text-align:right; white-space:nowrap; }
+  /* Bedragen/getallen die onder elkaar staan kregen soms een "zigzaggend" uiterlijk in de PDF: bij
+     het vastleggen als foto (html2canvas) wordt tekst opnieuw, zelf uitgemeten en getekend, en dat
+     kan per regel een fractie afwijken bij een gewoon (proportioneel) lettertype, waar cijfers
+     onderling net niet allemaal precies even breed zijn. Een monospace-lettertype voor getallen
+     (elk teken exact even breed, ongeacht renderpad) plus tabular-nums als extra garantie lost dit
+     op: bedragen lijnen dan altijd strak op 1 rechte lijn uit.  */
+  table.r-table td.num { text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; }
   table.r-table th.num { text-align:right; white-space:nowrap; }
   table.r-table tr.total-row td { font-weight:800; border-top:2px solid var(--navy); border-bottom:none; }
   table.r-table tbody tr:hover { background:#F8FAFC; }
@@ -254,7 +263,7 @@
   table.ow-regels-table th:first-child { border-radius:6px 0 0 6px; }
   table.ow-regels-table th:last-child { border-radius:0 6px 6px 0; }
   table.ow-regels-table td { padding:calc(4.5px * var(--tekst-schaal, 1)) 10px; border-bottom:1px solid #F1F5F9; }
-  table.ow-regels-table td:not(:first-child) { white-space:nowrap; }
+  table.ow-regels-table td:not(:first-child) { white-space:nowrap; font-variant-numeric:tabular-nums; font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; }
   table.ow-regels-table th:not(:first-child) { white-space:nowrap; }
   /* Bij veel regels wordt de tabel automatisch compacter (kleinere regels/padding), zodat een
      offerte met veel producten toch op 1 pagina blijft passen -- zie ow-regelsTabelDichtheid(). */
@@ -263,6 +272,7 @@
   table.ow-regels-table.dicht td { padding:calc(2.5px * var(--tekst-schaal, 1)) 8px; }
   .ow-totals { display:flex; justify-content:flex-end; margin-top:calc(8px * var(--tekst-schaal, 1)); }
   .ow-totals-box { width:240px; font-size:calc(15px * var(--tekst-schaal, 1)); }
+  .ow-totals-row span:last-child, .ow-totals-final span:last-child { font-variant-numeric:tabular-nums; font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; }
   .ow-totals-row { display:flex; justify-content:space-between; padding:calc(2px * var(--tekst-schaal, 1)) 0; color:var(--muted); }
   .ow-totals-final { display:flex; justify-content:space-between; align-items:center; font-weight:800; margin-top:calc(8px * var(--tekst-schaal, 1)); padding:calc(10px * var(--tekst-schaal, 1)) 14px; border-radius:10px; background:linear-gradient(to right, #0B2530, #0F6E6E); color:#fff; }
   .ow-totals-final span:first-child { color:#8FD9CC; font-size:calc(12.5px * var(--tekst-schaal, 1)); text-transform:uppercase; letter-spacing:0.05em; font-weight:700; }
@@ -665,7 +675,7 @@ function standaardOfferteTekst(stijl, bedrijfsnaam) {
 // Zichtbare app-versie in de zijbalk/mobiele header, zodat je in 1 oogopslag kunt zien of je
 // telefoon/browser de nieuwste versie van dit bestand heeft geladen (i.p.v. een oude, gecachte
 // kopie). Ophogen bij elke nieuwe levering van dit bestand.
-var APP_VERSIE = "2026-09-05.2";
+var APP_VERSIE = "2026-09-05.3";
 
 // ---------------------------------------------------------------------
 // PAGINA-INDELING: elke "echte pagina" (offerte-/factuurvoorblad of losse rapportpagina)
