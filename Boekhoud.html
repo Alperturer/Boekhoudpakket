@@ -326,6 +326,7 @@ function EO_nieuwSysteem() {
   return {
     zonActief: true, aantalPanelen: "16", wpPerPaneel: "440", opwekfactor: "900", opwekfactorBron: "schatting",
     dakhelling: "35", dakOrientatie: "180",
+    bestaandeInstallatieActief: false, bestaandeInstallatieWp: "4000",
     efficiencyAfnamePct: "0.5", onderhoudJaarlijks: "0",
     batterijActief: false, batterijCapaciteit: "10", batterijCyclesPerJaar: "280",
     batterijBackupActief: false, batterijBruikbaarPct: "90", batterijBackupVermogen: "0.8",
@@ -465,8 +466,17 @@ function EO_svgBesparingChart(labels, brutoSerie, nettoSerie) {
 }
 
 function EO_berekenAlles(s) {
-  var kWp = (parseFloat(s.aantalPanelen)||0) * (parseFloat(s.wpPerPaneel)||0) / 1000;
-  var jaaropwek = s.zonActief ? kWp * (parseFloat(s.opwekfactor)||0) : 0;
+  var heeftOpwek = !!(s.zonActief || s.bestaandeInstallatieActief);
+  var kWp, jaaropwek;
+  if (s.zonActief) {
+    kWp = (parseFloat(s.aantalPanelen)||0) * (parseFloat(s.wpPerPaneel)||0) / 1000;
+    jaaropwek = kWp * (parseFloat(s.opwekfactor)||0);
+  } else if (s.bestaandeInstallatieActief) {
+    kWp = (parseFloat(s.bestaandeInstallatieWp)||0) / 1000;
+    jaaropwek = kWp * (parseFloat(s.opwekfactor)||0);
+  } else {
+    kWp = 0; jaaropwek = 0;
+  }
   var maandOpwek = EO_MAAND_VERDELING.map(function(p){ return jaaropwek * p; });
 
   var eigenVerbruikBasisPct = (parseFloat(s.eigenVerbruikPct)||0) / 100;
@@ -544,6 +554,19 @@ function EO_berekenAlles(s) {
 
   var terugverdientijd = totaleJaarlijkseBesparing > 0 ? investering / totaleJaarlijkseBesparing : null;
 
+  // Wat levert de batterij ZELF op, los van de rest van het systeem? Dit is de kern van het
+  // verkoopargument, vooral bij een klant die al zonnepanelen heeft: niet de totale opbrengst
+  // van zijn systeem, maar wat er verandert tussen wél en geen batterij.
+  var batterijMeerwaardeJaar = null, batterijTerugverdientijd = null;
+  if (s.batterijActief) {
+    var sZonderBatterij = {}; for (var _k in s) { sZonderBatterij[_k] = s[_k]; }
+    sZonderBatterij.batterijActief = false;
+    var rZonderBatterij = EO_berekenAlles(sZonderBatterij);
+    batterijMeerwaardeJaar = totaleJaarlijkseBesparing - rZonderBatterij.totaleJaarlijkseBesparing;
+    var investeringBatterijAlleen = parseFloat(s.investeringBatterij)||0;
+    batterijTerugverdientijd = batterijMeerwaardeJaar > 0 ? investeringBatterijAlleen / batterijMeerwaardeJaar : null;
+  }
+
   var stijging = 1 + (parseFloat(s.prijsstijgingPct)||0)/100;
   var jaren = [], cumulatiefBesparing = [], cumulatiefNetto = [];
   var cum = 0;
@@ -556,7 +579,9 @@ function EO_berekenAlles(s) {
   }
 
   return {
+    heeftOpwek: heeftOpwek,
     kWp: kWp, jaaropwek: jaaropwek, maandOpwek: maandOpwek,
+    batterijMeerwaardeJaar: batterijMeerwaardeJaar, batterijTerugverdientijd: batterijTerugverdientijd,
     eigenVerbruik: eigenVerbruikTotaal, teruglevering: teruglevering2, extraDoorBatterij: extraDoorBatterij, backupUren: backupUren,
     besparingEigenVerbruik: besparingEigenVerbruik, opbrengstTeruglevering: opbrengstTeruglevering, terugleverBoete: terugleverBoete,
     netoOpbrengstZon: netoOpbrengstZon, besparingWP: besparingWP, besparingAirco: besparingAirco,
@@ -1669,15 +1694,21 @@ function synchroniseerEnergieMetRegel(o, r) {
   if (!o.energie) { o.energie = EO_nieuwSysteem(); o.energie.zonActief = false; } // niet automatisch zon aanzetten als dat niet gekozen is
 
   if (p.categorie === "Zonnepanelen") {
-    o.energie.zonActief = true;
+    o.energie.zonActief = true; o.energie.bestaandeInstallatieActief = false;
     o.energie.wpPerPaneel = p.specWaarde;
     o.energie.aantalPanelen = String(parseFloat(r.aantal) || 0);
+    var prijsExclBtwZon = parseFloat(r.prijs) || 0;
+    if (prijsExclBtwZon > 0) o.energie.investeringZon = String(round2((parseFloat(r.aantal)||0) * prijsExclBtwZon));
   } else if (p.categorie === "Thuisbatterijen") {
     o.energie.batterijActief = true;
     o.energie.batterijCapaciteit = String((parseFloat(p.specWaarde)||0) * (parseFloat(r.aantal)||1));
+    var prijsExclBtwBatterij = parseFloat(r.prijs) || 0;
+    if (prijsExclBtwBatterij > 0) o.energie.investeringBatterij = String(round2((parseFloat(r.aantal)||0) * prijsExclBtwBatterij));
   } else if (p.categorie === "Warmtepompen") {
     o.energie.wpActief = true;
     o.energie.wpCOP = p.specWaarde;
+    var prijsExclBtwWP = parseFloat(r.prijs) || 0;
+    if (prijsExclBtwWP > 0) o.energie.investeringWP = String(round2((parseFloat(r.aantal)||0) * prijsExclBtwWP));
   } else if (p.categorie === "Airco's") {
     o.energie.aircoActief = true;
     if (!o.energie.aircoInstallaties) o.energie.aircoInstallaties = [];
@@ -1713,9 +1744,11 @@ function synchroniseerEnergieMetVrijeTekst(o, r) {
     if (parseFloat(wp) >= 100 && parseFloat(wp) <= 800) { // sanity-check: realistisch Wp-bereik
       if (!o.energieActief) o.energieActief = true;
       if (!o.energie) o.energie = EO_nieuwSysteem();
-      o.energie.zonActief = true;
+      o.energie.zonActief = true; o.energie.bestaandeInstallatieActief = false;
       o.energie.wpPerPaneel = wp;
       o.energie.aantalPanelen = String(aantal);
+      var prijsExclBtwZonTekst = parseFloat(r.prijs) || 0;
+      if (prijsExclBtwZonTekst > 0) o.energie.investeringZon = String(round2(aantal * prijsExclBtwZonTekst));
       return;
     }
   }
@@ -1738,6 +1771,8 @@ function synchroniseerEnergieMetVrijeTekst(o, r) {
       if (!o.energie) o.energie = EO_nieuwSysteem();
       o.energie.batterijActief = true;
       o.energie.batterijCapaciteit = String(parseFloat(kwhWaarde) * aantal);
+      var prijsExclBtwBatterijTekst = parseFloat(r.prijs) || 0;
+      if (prijsExclBtwBatterijTekst > 0) o.energie.investeringBatterij = String(round2(aantal * prijsExclBtwBatterijTekst));
       return;
     }
   }
@@ -1750,6 +1785,8 @@ function synchroniseerEnergieMetVrijeTekst(o, r) {
     if (!o.energie) o.energie = EO_nieuwSysteem();
     o.energie.wpActief = true;
     if (copMatch) o.energie.wpCOP = copMatch[1].replace(",", ".");
+    var prijsExclBtwWPTekst = parseFloat(r.prijs) || 0;
+    if (prijsExclBtwWPTekst > 0) o.energie.investeringWP = String(round2(aantal * prijsExclBtwWPTekst));
     return;
   }
 
@@ -1776,8 +1813,8 @@ function updateOfferteRegelField(id, regelId, key, val) {
   var o = getOfferte(id); var r = o.regels.find(function(x){return x.id===regelId;});
   if (r) {
     r[key] = val;
-    if (key === "aantal") synchroniseerEnergieMetRegel(o, r);
-    if (key === "omschrijving" || key === "aantal") synchroniseerEnergieMetVrijeTekst(o, r);
+    if (key === "aantal" || key === "prijs") synchroniseerEnergieMetRegel(o, r);
+    if (key === "omschrijving" || key === "aantal" || key === "prijs") synchroniseerEnergieMetVrijeTekst(o, r);
   }
   persistOffertes();
 }
@@ -3677,7 +3714,7 @@ function renderOfferteWerkblad() {
       h += '</div></div>';
     }
   }
-  var energiePaginaCount = (o.energieActief && o.energie && o.energie.zonActief) ? 4 : ((o.energieActief && o.energie && o.energie.batterijActief) ? 3 : 0);
+  var energiePaginaCount = (o.energieActief && o.energie && (o.energie.zonActief || o.energie.bestaandeInstallatieActief)) ? 4 : ((o.energieActief && o.energie && o.energie.batterijActief) ? 3 : 0);
   var legplanPaginaCount = o.legplanFoto ? 1 : 0;
   var datasheetsPaginaCount = datasheetsPaginaAantal(o.datasheets);
   var voorwaardenPaginaCount = algemeneVoorwaardenPaginaAantal();
@@ -3733,6 +3770,18 @@ function toggleEOAircoActief(offerteId, checked) {
   if (checked && o.energie.aircoInstallaties.length === 0) o.energie.aircoInstallaties = [EO_nieuweAircoInstallatie()];
   render();
 }
+function toggleZonActief(offerteId, checked) {
+  var o = getOfferte(offerteId); if (!o || !o.energie) return;
+  o.energie.zonActief = checked;
+  if (checked) o.energie.bestaandeInstallatieActief = false;
+  persistOffertes(); render();
+}
+function toggleBestaandeInstallatieActief(offerteId, checked) {
+  var o = getOfferte(offerteId); if (!o || !o.energie) return;
+  o.energie.bestaandeInstallatieActief = checked;
+  if (checked) o.energie.zonActief = false;
+  persistOffertes(); render();
+}
 
 function kiesPaneelProduct(offerteId, productId) {
   var o = getOfferte(offerteId); var pr = getProduct(productId);
@@ -3775,7 +3824,7 @@ function EO_renderConfig(o) {
 
   // Zonnepanelen
   h += '<div style="border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;background:#FAFCFA;">';
-  h += '<div class="toggle-row" style="margin-bottom:10px;"><input type="checkbox" ' + (s.zonActief?"checked":"") + ' onchange="eoVeldRender(\'' + oid + '\',\'zonActief\', this.checked)" style="width:18px;height:18px;" /><label style="font-weight:700;font-size:13px;color:#0A0A0A;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.2" y1="4.2" x2="5.6" y2="5.6"/><line x1="18.4" y1="18.4" x2="19.8" y2="19.8"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.2" y1="19.8" x2="5.6" y2="18.4"/><line x1="18.4" y1="5.6" x2="19.8" y2="4.2"/></svg> Zonnepanelen</label></div>';
+  h += '<div class="toggle-row" style="margin-bottom:10px;"><input type="checkbox" ' + (s.zonActief?"checked":"") + ' onchange="toggleZonActief(\'' + oid + '\', this.checked)" style="width:18px;height:18px;" /><label style="font-weight:700;font-size:13px;color:#0A0A0A;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.2" y1="4.2" x2="5.6" y2="5.6"/><line x1="18.4" y1="18.4" x2="19.8" y2="19.8"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.2" y1="19.8" x2="5.6" y2="18.4"/><line x1="18.4" y1="5.6" x2="19.8" y2="4.2"/></svg> Nieuwe zonnepanelen (in deze offerte)</label></div>';
   if (s.zonActief) {
     var zonProducten = state.producten.filter(function(pr){ return pr.categorie === "Zonnepanelen" && pr.specWaarde; });
     if (zonProducten.length > 0) {
@@ -3805,6 +3854,16 @@ function EO_renderConfig(o) {
     h += eoGeldField(oid,"onderhoudJaarlijks","Onderhoud/schoonmaak (&euro;/jr)",s.onderhoudJaarlijks);
     h += '</div>';
     h += eoImpactRegel('<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.2" y1="4.2" x2="5.6" y2="5.6"/><line x1="18.4" y1="18.4" x2="19.8" y2="19.8"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.2" y1="19.8" x2="5.6" y2="18.4"/><line x1="18.4" y1="5.6" x2="19.8" y2="4.2"/></svg> ' + nf(r.kWp,1) + " kWp &middot; " + nf(r.jaaropwek) + " kWh/jaar opwek &middot; netto opbrengst " + euro(r.netoOpbrengstZon) + "/jaar");
+  } else {
+    h += '<div class="toggle-row" style="margin-top:2px;"><input type="checkbox" ' + (s.bestaandeInstallatieActief?"checked":"") + ' onchange="toggleBestaandeInstallatieActief(\'' + oid + '\', this.checked)" style="width:18px;height:18px;" /><label style="font-weight:700;font-size:12.5px;color:#0A0A0A;">Klant heeft al zonnepanelen (niet onderdeel van deze offerte)</label></div>';
+    if (s.bestaandeInstallatieActief) {
+      h += '<p class="subtitle" style="margin-top:-6px;">Gebruik dit om te laten zien wat een batterij toevoegt aan de bestaande situatie van de klant &mdash; handig nu de salderingsregeling wordt afgeschaft.</p>';
+      h += '<div class="grid3">';
+      h += eoField(oid,"bestaandeInstallatieWp","Totaal vermogen bestaande installatie (Wp)",s.bestaandeInstallatieWp);
+      h += eoField(oid,"opwekfactor","Opwekfactor (kWh/kWp/jr)",s.opwekfactor);
+      h += '</div>';
+      h += eoImpactRegel('<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.2" y1="4.2" x2="5.6" y2="5.6"/><line x1="18.4" y1="18.4" x2="19.8" y2="19.8"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.2" y1="19.8" x2="5.6" y2="18.4"/><line x1="18.4" y1="5.6" x2="19.8" y2="4.2"/></svg> ' + nf(r.kWp,1) + " kWp bestaand &middot; naar schatting " + nf(r.jaaropwek) + " kWh/jaar opwek");
+    }
   }
   h += '</div>';
 
@@ -3823,7 +3882,10 @@ function EO_renderConfig(o) {
     h += eoField(oid,"batterijCapaciteit","Capaciteit (kWh)",s.batterijCapaciteit);
     h += eoField(oid,"batterijCyclesPerJaar","Volledige cycli per jaar",s.batterijCyclesPerJaar);
     h += '</div>';
-    if (s.zonActief) {
+    if (r.batterijMeerwaardeJaar != null) {
+      h += eoImpactRegel('<b>Waarom deze batterij?</b> T.o.v. de situatie zonder batterij levert-ie <b>' + euro(r.batterijMeerwaardeJaar) + '/jaar</b> extra op' + (r.batterijTerugverdientijd!=null ? " &middot; terugverdientijd " + nf(r.batterijTerugverdientijd,1) + " jaar" : "") + '.');
+    }
+    if (s.zonActief || s.bestaandeInstallatieActief) {
       var extraOpbrengstBatterij = r.extraDoorBatterij * ((parseFloat(s.stroomprijs)||0) - (parseFloat(s.terugleverprijs)||0));
       h += eoImpactRegel('<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><rect x="1" y="7" width="18" height="10" rx="2"/><line x1="23" y1="11" x2="23" y2="13"/><line x1="5" y1="10" x2="5" y2="14"/><line x1="9" y1="10" x2="9" y2="14"/></svg> Verschuift ' + nf(r.extraDoorBatterij) + " kWh/jaar &middot; extra opbrengst " + euro(extraOpbrengstBatterij) + "/jaar");
     } else {
@@ -3915,7 +3977,9 @@ function EO_renderConfig(o) {
   if (s.zonActief) h += eoGeldField(oid,"investeringZon","Investering zon (&euro;)",s.investeringZon);
   if (s.batterijActief) h += eoGeldField(oid,"investeringBatterij","Investering batterij (&euro;)",s.investeringBatterij);
   if (s.wpActief) h += eoGeldField(oid,"investeringWP","Investering warmtepomp (&euro;)",s.investeringWP);
-  h += '</div></div>';
+  h += '</div>';
+  if (s.zonActief || s.batterijActief || s.wpActief) h += '<p class="subtitle" style="margin-top:-4px;">Deze bedragen worden automatisch bijgewerkt op basis van aantal &times; prijs (excl. btw) van de bijbehorende regel(s) hierboven bij Producten/diensten. Je kunt ze hier nog handmatig overschrijven.</p>';
+  h += '</div>';
 
   h += '<div class="stats-row">';
   h += '<div class="stat-box hero"><div class="stat-num">' + euro(r.totaleJaarlijkseBesparing) + '</div><div class="stat-label">Jaarlijkse besparing</div></div>';
@@ -4106,19 +4170,25 @@ function EO_renderRapportPaginas(o, startPaginaNr, totaalPaginas, bedrijfOverrid
   var s = o.energie, r = EO_berekenAlles(s), bp = EO_berekening25Jaar(s);
   var pn = startPaginaNr || 2;
   var h = '';
-  var heeftZon = !!s.zonActief;
+  var heeftZon = !!s.zonActief; // nieuwe panelen worden in DEZE offerte verkocht
+  var heeftOpwek = !!r.heeftOpwek; // zon (nieuw of bestaand) is aanwezig voor de berekening
 
-  // Pagina: (met zon) maandelijkse opwek, of (zonder zon) batterij-besparing
-  h += '<div class="r-page">' + paginaLogoHeader(bedrijfOverride) + '<div class="r-h">' + (heeftZon ? "Verwachte opwek per maand" : "Uw batterijbesparing") + '</div>';
+  // Pagina: opwek/besparing per maand
+  var titelPagina1 = heeftZon ? "Verwachte opwek per maand" : (s.bestaandeInstallatieActief ? "Uw batterij bij uw huidige zonnepanelen" : "Uw batterijbesparing");
+  h += '<div class="r-page">' + paginaLogoHeader(bedrijfOverride) + '<div class="r-h">' + titelPagina1 + '</div>';
   h += '<div class="stats-row">';
   h += '<div class="stat-box hero"><div class="stat-num">' + euro(r.totaleJaarlijkseBesparing) + '</div><div class="stat-label">Totale jaarlijkse besparing</div></div>';
   h += '<div class="stat-box"><div class="stat-num">' + (r.terugverdientijd!=null?nf(r.terugverdientijd,1)+" jaar":"—") + '</div><div class="stat-label">Terugverdientijd</div></div>';
-  if (heeftZon) h += '<div class="stat-box"><div class="stat-num">' + nf(r.jaaropwek) + ' kWh</div><div class="stat-label">Jaarlijkse opwek (' + nf(r.kWp,1) + ' kWp)</div></div>';
+  if (heeftOpwek) h += '<div class="stat-box"><div class="stat-num">' + nf(r.jaaropwek) + ' kWh</div><div class="stat-label">Jaarlijkse opwek (' + nf(r.kWp,1) + ' kWp' + (s.bestaandeInstallatieActief?' bestaand':'') + ')</div></div>';
   else h += '<div class="stat-box"><div class="stat-num">' + esc(s.batterijCapaciteit) + ' kWh</div><div class="stat-label">Batterijcapaciteit</div></div>';
   h += '<div class="stat-box"><div class="stat-num">' + euro(r.investering) + '</div><div class="stat-label">Totale investering</div></div>';
   h += '</div>';
 
-  if (heeftZon) {
+  if (s.batterijActief && r.batterijMeerwaardeJaar != null) {
+    h += '<div style="margin-top:10px;padding:12px 14px;background:#E6F7F4;border-radius:10px;font-size:13px;font-weight:700;color:#0F6E6E;">' + icon("battery") + ' De batterij zelf levert <b>' + euro(r.batterijMeerwaardeJaar) + '/jaar</b> extra op t.o.v. de situatie zonder batterij' + (r.batterijTerugverdientijd!=null ? ' &mdash; terugverdiend in ' + nf(r.batterijTerugverdientijd,1) + ' jaar' : '') + '.</div>';
+  }
+
+  if (heeftOpwek) {
     h += EO_svgBarChart(EO_MAAND_NAMEN, r.maandOpwek.map(function(v){return Math.round(v);}), "#F59E0B", true);
     h += '<h3 style="margin-top:18px;">Eigen verbruik vs. teruglevering</h3>';
     h += '<div style="display:flex;align-items:center;gap:16px;margin-top:6px;">';
@@ -4145,7 +4215,7 @@ function EO_renderRapportPaginas(o, startPaginaNr, totaalPaginas, bedrijfOverrid
   // Pagina: financiële opbouw (alle componenten uitgesplitst)
   h += '<div class="r-page">' + paginaLogoHeader(bedrijfOverride) + '<div class="r-h">Financiële opbouw</div>';
   h += '<table class="r-table"><tbody>';
-  if (heeftZon) {
+  if (heeftOpwek) {
     h += '<tr><td>Besparing eigen verbruik (' + nf(r.eigenVerbruik) + ' kWh &times; ' + euro(s.stroomprijs) + ')</td><td class="num">' + euro(r.besparingEigenVerbruik) + '</td></tr>';
     h += '<tr><td>Opbrengst teruglevering (' + nf(r.teruglevering) + ' kWh &times; ' + euro(s.terugleverprijs) + ')</td><td class="num">' + euro(r.opbrengstTeruglevering) + '</td></tr>';
     if (r.terugleverBoete > 0) h += '<tr><td>Terugleverboete</td><td class="num" style="color:#DC2626;">&minus; ' + euro(r.terugleverBoete) + '</td></tr>';
@@ -4155,10 +4225,12 @@ function EO_renderRapportPaginas(o, startPaginaNr, totaalPaginas, bedrijfOverrid
   if (s.aircoActief) h += '<tr><td>Besparing airco (t.o.v. direct elektrisch verwarmen, ' + nf(r.elektriciteitAirco) + ' kWh verbruik)</td><td class="num">' + euro(r.besparingAirco) + '</td></tr>';
   if (s.onderhoudJaarlijks && parseFloat(s.onderhoudJaarlijks) > 0) h += '<tr><td>Onderhoud/schoonmaak</td><td class="num" style="color:#DC2626;">&minus; ' + euro(s.onderhoudJaarlijks) + '</td></tr>';
   h += '<tr style="font-weight:800;border-top:2px solid var(--border);"><td>Totale jaarlijkse besparing</td><td class="num">' + euro(r.totaleJaarlijkseBesparing) + '</td></tr>';
+  if (s.batterijActief && r.batterijMeerwaardeJaar != null) h += '<tr><td style="color:#0F6E6E;">&nbsp;&nbsp;&mdash; waarvan door de batterij (t.o.v. zonder batterij)</td><td class="num" style="color:#0F6E6E;">' + euro(r.batterijMeerwaardeJaar) + '</td></tr>';
   h += '</tbody></table>';
 
   h += '<h3 style="margin-top:18px;">Wat je investeert</h3><table class="r-table"><tbody>';
   if (heeftZon) h += '<tr><td>Zonnepanelen (' + nf(parseFloat(s.aantalPanelen)||0) + ' stuks, ' + nf(r.kWp,1) + ' kWp)</td><td class="num">' + euro(s.investeringZon) + '</td></tr>';
+  else if (s.bestaandeInstallatieActief) h += '<tr><td>Bestaande zonnepanelen (' + nf(r.kWp,1) + ' kWp, niet onderdeel van deze offerte)</td><td class="num">&euro; 0</td></tr>';
   if (s.batterijActief) h += '<tr><td>Thuisbatterij (' + esc(s.batterijCapaciteit) + ' kWh)</td><td class="num">' + euro(s.investeringBatterij) + '</td></tr>';
   if (s.wpActief) h += '<tr><td>Warmtepomp</td><td class="num">' + euro(s.investeringWP) + '</td></tr>';
   if (s.aircoActief) { var investAirco = (s.aircoInstallaties||[]).reduce(function(sum,i){return sum+(parseFloat(i.investering)||0);},0); h += '<tr><td>Airco (' + (s.aircoInstallaties||[]).length + ' installatie(s))</td><td class="num">' + euro(investAirco) + '</td></tr>'; }
@@ -4170,9 +4242,10 @@ function EO_renderRapportPaginas(o, startPaginaNr, totaalPaginas, bedrijfOverrid
   h += '<div class="r-page">' + paginaLogoHeader(bedrijfOverride) + '<div class="r-h">Uw besparing</div>';
   h += '<h3>Berekening</h3>';
   if (heeftZon) h += '<p style="font-size:12.5px;line-height:1.6;">Het eerste jaar ga je <b>' + nf(bp.jaaropwek1) + ' kWh</b> opwekken met je zonnepanelen. We gaan uit van een efficiency afname van <b>' + esc(s.efficiencyAfnamePct) + '</b> per jaar en een gemiddelde jaarlijkse energie-prijsindex van <b>' + esc(s.prijsstijgingPct) + '%</b>.</p>';
+  else if (s.bestaandeInstallatieActief) h += '<p style="font-size:12.5px;line-height:1.6;">Je bestaande zonnepanelen wekken naar schatting <b>' + nf(bp.jaaropwek1) + ' kWh</b> per jaar op. De batterij zorgt dat je daar meer van zelf gebruikt. We gaan uit van een gemiddelde jaarlijkse energie-prijsindex van <b>' + esc(s.prijsstijgingPct) + '%</b>.</p>';
   else h += '<p style="font-size:12.5px;line-height:1.6;">De jaarlijkse besparing van <b>' + euro(r.totaleJaarlijkseBesparing) + '</b> groeit mee met een gemiddelde jaarlijkse energie-prijsindex van <b>' + esc(s.prijsstijgingPct) + '%</b>.</p>';
   h += '<h3>Terugverdientijd</h3><p style="font-size:12.5px;line-height:1.6;">De indicatie van de terugverdientijd is ' + (bp.terugverdienJaar ? "minder dan <b>" + bp.terugverdienJaar + " jaar</b>" : "meer dan 25 jaar") + '.</p>';
-  if (heeftZon) {
+  if (heeftOpwek) {
     h += '<table class="r-table" style="font-size:10px;"><thead><tr><th>Jaar</th><th class="num">Productie kWh</th><th class="num">Energieprijs</th><th class="num">Besparing</th><th class="num">Rendement</th><th class="num">Cumulatief</th></tr></thead><tbody>';
     bp.rijen.forEach(function(row){
       h += '<tr><td>' + row.jaar + 'e</td><td class="num">' + nf(row.opwek) + '</td><td class="num">' + euro(row.prijs) + '</td><td class="num">' + euro(row.besparing) + '</td><td class="num">' + nf(row.rendementPct,1) + '%</td><td class="num">' + euro(row.cumulatief) + '</td></tr>';
@@ -4188,8 +4261,8 @@ function EO_renderRapportPaginas(o, startPaginaNr, totaalPaginas, bedrijfOverrid
   h += '</tbody></table>';
   h += paginaVoetnoot(pn++, totaalPaginas) + '</div>';
 
-  // Pagina: milieu-impact -- alleen zinvol bij eigen zonneproductie
-  if (heeftZon) {
+  // Pagina: milieu-impact -- alleen zinvol bij eigen zonneproductie (nieuw of bestaand)
+  if (heeftOpwek) {
     var co2PerKwh = 0.35; // kg CO2/kWh grijze stroom, indicatief gemiddelde (bron: Milieu Centraal)
     var co2PerBoomPerJaar = 22; // kg CO2/jaar opname per volwassen boom, gemiddelde van meerdere bronnen
     var co2BespaardPerJaar = r.jaaropwek * co2PerKwh;
@@ -5178,7 +5251,7 @@ function renderKlantOfferteView(o) {
   h += '</tbody></table>';
   h += '<div class="totals-box"><div class="totals-row grand"><span>Totaal incl. BTW</span><span>' + euro(t.totaalIncl) + '</span></div></div>';
   if (o.data.opmerking) h += '<p style="font-size:12.5px;color:#6b6659;margin-top:16px;">' + esc(o.data.opmerking) + '</p>';
-  var energiePaginaCountKlant = (o.data.energieActief && o.data.energie && o.data.energie.zonActief) ? 4 : ((o.data.energieActief && o.data.energie && o.data.energie.batterijActief) ? 3 : 0);
+  var energiePaginaCountKlant = (o.data.energieActief && o.data.energie && (o.data.energie.zonActief || o.data.energie.bestaandeInstallatieActief)) ? 4 : ((o.data.energieActief && o.data.energie && o.data.energie.batterijActief) ? 3 : 0);
   var legplanPaginaCountKlant = o.data.legplanFoto ? 1 : 0;
   var datasheetsPaginaCountKlant = datasheetsPaginaAantal(o.data.datasheets);
   var totaalPaginasKlant = 1 + energiePaginaCountKlant + legplanPaginaCountKlant + datasheetsPaginaCountKlant;
