@@ -11,26 +11,12 @@
 <script>if (window['pdfjs-dist/build/pdf']) { window.pdfjsLib = window['pdfjs-dist/build/pdf']; } if (window.pdfjsLib) { window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"; }</script>
 <style>
   * { box-sizing: border-box; }
-  @keyframes pdf-spin { to { transform: rotate(360deg); } }
-  .spinner-icoon { display:inline-block; width:13px; height:13px; margin-right:7px; vertical-align:-2px; border:2px solid rgba(255,255,255,0.35); border-top-color:#fff; border-radius:50%; animation: pdf-spin 0.7s linear infinite; }
-  .pdf-overlay { position:fixed; inset:0; background:rgba(11,37,48,0.55); backdrop-filter:blur(1.5px); z-index:9999; display:flex; align-items:center; justify-content:center; }
-  .pdf-overlay-kaart { background:#fff; border-radius:14px; padding:32px 40px; display:flex; flex-direction:column; align-items:center; gap:14px; box-shadow:0 10px 40px rgba(0,0,0,0.25); min-width:220px; }
-  .pdf-overlay-spinner { width:42px; height:42px; border:4px solid #E2E8F0; border-top-color:#0F6E6E; border-radius:50%; animation: pdf-spin 0.8s linear infinite; }
-  .pdf-overlay-tekst { font-size:13.5px; font-weight:700; color:var(--text); }
   :root {
     --navy: #0F766E; --navy-light: #14958A; --blue: #0D9488; --blue-light: #CCFBF1;
     --bg: #EFFAF8; --card: #FFFFFF; --border: #B9E4DE; --text: #0B2E2D; --muted: #4B7A73;
     --green: #16A34A; --red: #DC2626; --amber: #D97706;
   }
-  /* Zonder dit kan mobiel Safari/WebKit (dus ook Chrome op iPhone/iPad, die onder de motorkap
-     hetzelfde WebKit gebruikt) tekst op een smal scherm automatisch iets groter renderen dan de
-     opgegeven font-size ("text autosizing") -- dat zou de hoogtemeting voor de 1-pagina-verkleining
-     (verkleinTotEenPagina) laten afwijken van wat er werkelijk op het scherm/de PDF terechtkomt. */
-  html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
-  /* tabular-nums: elk cijfer krijgt exact dezelfde breedte, zodat bedragen/getallen die onder
-     elkaar staan (bijv. in de besparingstabel of de producttabel) altijd strak op 1 rechte lijn
-     uitlijnen i.p.v. licht te "zigzaggen" -- standaard voor alle tekst, kost verder niets. */
-  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; background: var(--bg); color: var(--text); font-size: 15px; font-variant-numeric: tabular-nums; }
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; background: var(--bg); color: var(--text); font-size: 15px; }
   h1 { font-size: 26px; font-weight: 800; margin: 0 0 6px; letter-spacing:-0.01em; }
   h2 { font-size: 14.5px; font-weight: 800; margin: 0 0 14px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--navy); border-bottom: 2px solid var(--blue); padding-bottom: 10px; }
   h3 { font-size: 13.5px; font-weight: 700; margin: 14px 0 8px; color: var(--navy); }
@@ -135,40 +121,19 @@
   .ow-form .ow-mini-totals { color:#fff; }
   .ow-form .ow-mini-totals .row.final { color:#fff; border-top-color:rgba(255,255,255,0.25); }
 
-  /* ---- Rapport-/print-pagina's: elke .r-page (en #ow-print-area / #r-page-factuur) staat voor
-     precies 1 afdrukbare A4-pagina (700 x 990px, dezelfde 210:297-verhouding). De --tekst-schaal
-     CSS-variabele (standaard 1) wordt vlak voor printen/PDF-export tijdelijk verkleind op de
-     pagina die niet past, zodat de VOLLEDIGE inhoud altijd op die ene pagina past en het
-     paginanummer onderaan altijd op dezelfde plek staat. Zie verkleinTotEenPagina() in de JS. */
-  .r-page { background:#fff; padding:22px 26px; margin:0 auto 14px; width:100%; max-width:700px; min-height:990px; box-sizing:border-box; position:relative; display:flex; flex-direction:column; }
-  .r-h { font-size:calc(16px * var(--tekst-schaal, 1)); font-weight:800; margin:0 0 10px; color:var(--navy); }
-  .r-brand { font-size:calc(11px * var(--tekst-schaal, 1)); color:var(--muted); letter-spacing:0.08em; text-transform:uppercase; font-weight:700; }
-  .r-title { font-size:calc(22px * var(--tekst-schaal, 1)); font-weight:800; margin-top:4px; }
-  .r-rule { border:none; border-top:2px solid var(--blue); margin:10px 0 14px; }
-  .r-kv { display:grid; grid-template-columns:140px 1fr; gap:3px 0; font-size:calc(15px * var(--tekst-schaal, 1)); }
+  .r-page { background:#fff; padding:28px; margin:0 auto 14px; width:100%; max-width:700px; min-height:990px; box-sizing:border-box; position:relative; }
+  .r-brand { font-size:11px; color:var(--muted); letter-spacing:0.08em; text-transform:uppercase; font-weight:700; }
+  .r-title { font-size:22px; font-weight:800; margin-top:4px; }
+  .r-rule { border:none; border-top:2px solid var(--blue); margin:12px 0 18px; }
+  .r-kv { display:grid; grid-template-columns:140px 1fr; gap:4px 0; font-size:12.5px; }
   .r-kv .k { color:var(--muted); }
-  table.r-table { width:100%; border-collapse:collapse; font-size:calc(15px * var(--tekst-schaal, 1)); margin-top:8px; }
-  table.r-table th { text-align:left; font-size:calc(12px * var(--tekst-schaal, 1)); color:var(--navy); background:var(--blue-light); border-bottom:2px solid var(--blue); padding:calc(6px * var(--tekst-schaal, 1)) 8px; text-transform:uppercase; letter-spacing:0.02em; }
-  /* Koppen (h3) en kernstatistieken binnen rapportpagina's even groot als de rest van het document */
-  .r-page h3 { font-size:calc(15px * var(--tekst-schaal, 1)); }
-  table.r-table td { padding:calc(7px * var(--tekst-schaal, 1)) 8px; border-bottom:1px solid #F1F5F9; }
-  /* Bedragen/getallen die onder elkaar staan kregen soms een "zigzaggend" uiterlijk in de PDF: bij
-     het vastleggen als foto (html2canvas) wordt tekst opnieuw, zelf uitgemeten en getekend, en dat
-     kan per regel een fractie afwijken bij een gewoon (proportioneel) lettertype, waar cijfers
-     onderling net niet allemaal precies even breed zijn. Een monospace-lettertype voor getallen
-     (elk teken exact even breed, ongeacht renderpad) plus tabular-nums als extra garantie lost dit
-     op: bedragen lijnen dan altijd strak op 1 rechte lijn uit.  */
-  table.r-table td.num { text-align:right; white-space:nowrap; font-variant-numeric:tabular-nums; font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; }
+  table.r-table { width:100%; border-collapse:collapse; font-size:13px; margin-top:10px; }
+  table.r-table th { text-align:left; font-size:10.5px; color:var(--navy); background:var(--blue-light); border-bottom:2px solid var(--blue); padding:8px 8px 8px 8px; text-transform:uppercase; letter-spacing:0.02em; }
+  table.r-table td { padding:10px 8px; border-bottom:1px solid #F1F5F9; }
+  table.r-table td.num { text-align:right; white-space:nowrap; }
   table.r-table th.num { text-align:right; white-space:nowrap; }
   table.r-table tr.total-row td { font-weight:800; border-top:2px solid var(--navy); border-bottom:none; }
   table.r-table tbody tr:hover { background:#F8FAFC; }
-  /* Extra compacte variant voor tabellen met veel rijen (bijv. het 25-jaars besparingsoverzicht) */
-  table.r-table.dicht th { padding:calc(4px * var(--tekst-schaal, 1)) 6px; }
-  table.r-table.dicht td { padding:calc(3px * var(--tekst-schaal, 1)) 6px; }
-  /* Compacter dan de standaard .stats-row/.stat-box, alleen binnen rapport-pagina's */
-  .r-page .stats-row { margin-bottom: 10px; }
-  .r-page .stat-box { padding:12px 14px; }
-  .r-page .stat-num { font-size:calc(26px * var(--tekst-schaal, 1)); }
 
   .toolbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; gap:8px; flex-wrap:wrap; }
   .print-btn { background:var(--navy); color:#fff; border:none; border-radius:8px; padding:9px 16px; font-size:13px; font-weight:700; cursor:pointer; }
@@ -185,24 +150,12 @@
   .type-toggle button { flex:1; border:1px solid var(--border); background:#fff; border-radius:8px; padding:9px; font-size:12px; font-weight:700; color:var(--muted); cursor:pointer; }
   .type-toggle button.active { background:linear-gradient(to right, #0B2530, #0F6E6E); color:#fff; border-color:#0B2530; }
 
-  /* Zonder deze regel gebruikt de browser/het besturingssysteem zijn eigen standaard-printmarges
-     (vaak zo'n 1-1.5cm rondom) -- dan is er per pagina MINDER ruimte beschikbaar dan waar de
-     1-pagina-berekening (verkleinTotEenPagina/DOEL_HOOGTE_PX) vanuit gaat, en loopt zelfs precies
-     passende content nog over naar een (bijna) lege volgende pagina. Marge op 0: de content regelt
-     zijn eigen witruimte al zelf (padding binnen .r-page/.ow-body). */
-  @page { size: A4; margin: 0; }
   @media print {
     body { background:#fff; }
     .sidebar, .mobile-header, .tabs, .toolbar, .no-print { display:none !important; }
     .app-shell { display:block; }
     .page { max-width:100%; padding:0; }
     .r-page { border:none; padding:0; }
-    /* Elke pagina (rapportpagina, offerte- of factuurvoorblad) altijd op zijn eigen afgedrukte
-       vel: zo lopen pagina's nooit meer door elkaar en staat het paginanummer onderaan altijd
-       op dezelfde plek. Wordt vlak voor het printen ook echt op 1 pagina laten passen door
-       verkleinTotEenPagina() (zie de "beforeprint"-listener in de JS). */
-    .r-page, #ow-print-area, #r-page-factuur { break-after: page; page-break-after: always; break-inside: avoid; page-break-inside: avoid; }
-    table.r-table tr, .no-split { break-inside: avoid; page-break-inside: avoid; }
   }
   /* ---- Offerte-werkblad: twee kolommen, briefpapier-stijl preview ---- */
   .ow-layout { display:flex; gap:0; margin: -28px -32px; min-height: calc(100vh - 60px); }
@@ -236,48 +189,42 @@
   .ow-mini-totals .row { display:flex; justify-content:space-between; padding:1px 0; }
   .ow-mini-totals .row.final { color:var(--text); font-weight:700; border-top:1px solid var(--border); margin-top:4px; padding-top:4px; }
 
-  #ow-print-area, #r-page-factuur { width:100%; max-width:700px; min-height:990px; margin:0 auto; background:#fff; box-sizing:border-box; position:relative; display:flex; flex-direction:column; }
+  #ow-print-area, #r-page-factuur { width:100%; max-width:700px; min-height:990px; margin:0 auto; background:#fff; box-sizing:border-box; position:relative; }
   .ow-stripe { height:6px; }
   .ow-letterhead { padding:18px 22px 14px; border-bottom:1px solid #EFF6F5; display:flex; justify-content:space-between; align-items:flex-start; }
-  .ow-wordmark { font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; font-size:calc(21px * var(--tekst-schaal, 1)); font-weight:800; letter-spacing:-0.01em; }
-  .verkoper-gegevens { margin-top:0; font-size:calc(12.5px * var(--tekst-schaal, 1)); line-height:1.6; color:var(--muted); }
-  .ow-tagline { font-size:calc(12.5px * var(--tekst-schaal, 1)); color:var(--muted); margin-top:2px; }
-  .ow-lh-right { text-align:right; font-size:calc(13.5px * var(--tekst-schaal, 1)); color:var(--muted); }
-  .doc-type-label { font-size:calc(12px * var(--tekst-schaal, 1)); font-weight:800; letter-spacing:0.06em; text-transform:uppercase; color:var(--muted); margin-bottom:2px; }
+  .ow-wordmark { font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; font-size:calc(19px * var(--tekst-schaal, 1)); font-weight:800; letter-spacing:-0.01em; }
+  .verkoper-gegevens { margin-top:0; font-size:calc(11px * var(--tekst-schaal, 1)); line-height:1.6; color:var(--muted); }
+  .ow-tagline { font-size:calc(11px * var(--tekst-schaal, 1)); color:var(--muted); margin-top:2px; }
+  .ow-lh-right { text-align:right; font-size:calc(12px * var(--tekst-schaal, 1)); color:var(--muted); }
+  .doc-type-label { font-size:calc(10.5px * var(--tekst-schaal, 1)); font-weight:800; letter-spacing:0.06em; text-transform:uppercase; color:var(--muted); margin-bottom:2px; }
   .ow-lh-right .num { font-family:ui-monospace,monospace; font-weight:700; color:var(--text); }
-  .ow-klant-block { padding:0 34px; margin-top:16px; font-size:calc(15px * var(--tekst-schaal, 1)); }
+  .ow-klant-block { padding:0 34px; margin-top:16px; font-size:calc(13px * var(--tekst-schaal, 1)); }
   .ow-klant-block .naam { font-weight:700; }
   .ow-klant-block .sub-line { color:var(--muted); }
-  .ow-body { padding:calc(16px * var(--tekst-schaal, 1)) 22px; font-size:calc(15px * var(--tekst-schaal, 1)); line-height:calc(1.42 - 0.1 * (1 - var(--tekst-schaal, 1))); color:#0A0A0A; display:flex; flex-direction:column; flex:1; }
-  .ow-body p { margin:0 0 calc(8px * var(--tekst-schaal, 1)); }
-  .ow-body h4.ow-section-title { margin:calc(11px * var(--tekst-schaal, 1)) 0 calc(4px * var(--tekst-schaal, 1)); }
+  .ow-body { padding:18px 22px; font-size:calc(12.5px * var(--tekst-schaal, 1)); line-height:1.42; color:#0A0A0A; }
+  .ow-body p { margin:0 0 8px; }
+  .ow-body h4.ow-section-title { margin:12px 0 5px; }
   #ow-print-area, #ow-print-area .ow-klant-block, #ow-print-area .ow-wordmark, #r-page-factuur, #r-page-factuur .ow-klant-block, #r-page-factuur .ow-wordmark { color:#0A0A0A; }
   /* Alle lopende tekst op de offerte/factuur zwart, behalve waar het echt wit moet blijven om leesbaar te zijn (gekleurde balken/vakken) */
   #ow-print-area, #ow-print-area *, #r-page-factuur, #r-page-factuur * { color:#0A0A0A; }
   #ow-print-area table.ow-regels-table th, #r-page-factuur table.ow-regels-table th,
   #ow-print-area .ow-totals-final, #ow-print-area .ow-totals-final *, #r-page-factuur .ow-totals-final, #r-page-factuur .ow-totals-final *,
   #ow-print-area .badge, #r-page-factuur .badge { color:#fff; }
-  .ow-section-title { font-size:calc(12.5px * var(--tekst-schaal, 1)); text-transform:uppercase; letter-spacing:0.06em; color:#9FB8B6; margin-top:calc(14px * var(--tekst-schaal, 1)); margin-bottom:calc(5px * var(--tekst-schaal, 1)); font-weight:700; }
-  table.ow-regels-table { width:100%; border-collapse:collapse; margin-top:calc(10px * var(--tekst-schaal, 1)); font-size:calc(15px * var(--tekst-schaal, 1)); }
-  table.ow-regels-table th { text-align:left; padding:calc(7px * var(--tekst-schaal, 1)) 10px; font-size:calc(12.5px * var(--tekst-schaal, 1)); color:#fff; font-weight:700; text-transform:uppercase; letter-spacing:0.03em; background:linear-gradient(to right, #0F6E6E, #2FA398); }
+  .ow-section-title { font-size:calc(11px * var(--tekst-schaal, 1)); text-transform:uppercase; letter-spacing:0.06em; color:#9FB8B6; margin-top:18px; margin-bottom:6px; font-weight:700; }
+  table.ow-regels-table { width:100%; border-collapse:collapse; margin-top:14px; font-size:calc(13px * var(--tekst-schaal, 1)); }
+  table.ow-regels-table th { text-align:left; padding:9px 10px; font-size:calc(11px * var(--tekst-schaal, 1)); color:#fff; font-weight:700; text-transform:uppercase; letter-spacing:0.03em; background:linear-gradient(to right, #0F6E6E, #2FA398); }
   table.ow-regels-table th:first-child { border-radius:6px 0 0 6px; }
   table.ow-regels-table th:last-child { border-radius:0 6px 6px 0; }
-  table.ow-regels-table td { padding:calc(4.5px * var(--tekst-schaal, 1)) 10px; border-bottom:1px solid #F1F5F9; }
-  table.ow-regels-table td:not(:first-child) { white-space:nowrap; font-variant-numeric:tabular-nums; font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; }
+  table.ow-regels-table td { padding:6px 10px; border-bottom:1px solid #F1F5F9; }
+  table.ow-regels-table td:not(:first-child) { white-space:nowrap; }
   table.ow-regels-table th:not(:first-child) { white-space:nowrap; }
-  /* Bij veel regels wordt de tabel automatisch compacter (kleinere regels/padding), zodat een
-     offerte met veel producten toch op 1 pagina blijft passen -- zie ow-regelsTabelDichtheid(). */
-  table.ow-regels-table.dicht { font-size:calc(12.5px * var(--tekst-schaal, 1)); }
-  table.ow-regels-table.dicht th { padding:calc(5px * var(--tekst-schaal, 1)) 8px; }
-  table.ow-regels-table.dicht td { padding:calc(2.5px * var(--tekst-schaal, 1)) 8px; }
-  .ow-totals { display:flex; justify-content:flex-end; margin-top:calc(8px * var(--tekst-schaal, 1)); }
-  .ow-totals-box { width:240px; font-size:calc(15px * var(--tekst-schaal, 1)); }
-  .ow-totals-row span:last-child, .ow-totals-final span:last-child { font-variant-numeric:tabular-nums; font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; }
-  .ow-totals-row { display:flex; justify-content:space-between; padding:calc(2px * var(--tekst-schaal, 1)) 0; color:var(--muted); }
-  .ow-totals-final { display:flex; justify-content:space-between; align-items:center; font-weight:800; margin-top:calc(8px * var(--tekst-schaal, 1)); padding:calc(10px * var(--tekst-schaal, 1)) 14px; border-radius:10px; background:linear-gradient(to right, #0B2530, #0F6E6E); color:#fff; }
-  .ow-totals-final span:first-child { color:#8FD9CC; font-size:calc(12.5px * var(--tekst-schaal, 1)); text-transform:uppercase; letter-spacing:0.05em; font-weight:700; }
-  .ow-totals-final span:last-child { font-size:calc(19px * var(--tekst-schaal, 1)); }
-  .ow-footer-note { margin-top:22px; font-size:calc(12.5px * var(--tekst-schaal, 1)); color:#9FB8B6; }
+  .ow-totals { display:flex; justify-content:flex-end; margin-top:10px; }
+  .ow-totals-box { width:240px; font-size:calc(13px * var(--tekst-schaal, 1)); }
+  .ow-totals-row { display:flex; justify-content:space-between; padding:2px 0; color:var(--muted); }
+  .ow-totals-final { display:flex; justify-content:space-between; align-items:center; font-weight:800; margin-top:10px; padding:12px 14px; border-radius:10px; background:linear-gradient(to right, #0B2530, #0F6E6E); color:#fff; }
+  .ow-totals-final span:first-child { color:#8FD9CC; font-size:calc(11px * var(--tekst-schaal, 1)); text-transform:uppercase; letter-spacing:0.05em; font-weight:700; }
+  .ow-totals-final span:last-child { font-size:calc(17px * var(--tekst-schaal, 1)); }
+  .ow-footer-note { margin-top:22px; font-size:calc(11px * var(--tekst-schaal, 1)); color:#9FB8B6; }
   .ow-akkoord-block { margin-top:22px; padding:16px; border:1px solid var(--border); border-radius:8px; background:#FAFFFE; }
   .ow-akkoord-actions { display:flex; gap:8px; }
   .ow-akkoord-actions button { flex:1; padding:9px; border-radius:6px; border:none; font-size:13px; font-weight:700; cursor:pointer; }
@@ -288,22 +235,7 @@
     .ow-form, .ow-floating, .ow-akkoord-block { display:none !important; }
     .ow-layout { display:block; margin:0; }
     .ow-preview { padding:0; background:#fff; }
-    /* BELANGRIJK: max-width NIET op 100% zetten tijdens het printen. Native printen (bijv. via
-       Safari op iPhone/iPad: Delen > Print > Bewaar als PDF) gebruikt dit pad, en verkleinTotEenPagina()
-       rekent met een vaste ontwerpbreedte van 700px (zie #ow-print-area hierboven). Als de pagina
-       tijdens het printen breder mag worden dan 700px, klopt die berekening niet meer: elke pagina
-       kreeg dan een andere, willekeurige verkleining (vandaar wisselende lettergroottes) en de
-       pagina-hoogte klopte niet meer met de 1-pagina-aanname (vandaar pagina's die door elkaar liepen).
-       Door dezelfde 700px als op het scherm aan te houden, ziet elke PDF er -- laptop of telefoon --
-       hetzelfde uit. */
-    #ow-print-area, #r-page-factuur, .r-page { border:none; box-shadow:none; max-width:700px; }
-    /* Vangnet voor als het "beforeprint"-script (dat normaal precies berekent hoeveel een pagina
-       moet verkleinen) niet op tijd/betrouwbaar afgaat -- gebeurt soms bij native printen op iOS
-       (Delen > Print). Zonder dit vangnet blijft de tekst dan op volle grootte staan en loopt de
-       pagina alsnog over. Dit is een vaste, altijd-veilige lichte verkleining; het script hierboven
-       overschrijft deze zodra het wel op tijd draait (dat geeft een preciezere, vaak kleinere
-       verkleining), dus op laptop/desktop verandert er niets. */
-    #ow-print-area, #r-page-factuur, .r-page { --tekst-schaal: 0.85; }
+    #ow-print-area, #r-page-factuur, .r-page { border:none; box-shadow:none; max-width:100%; }
   }
 </style>
 <script>
@@ -397,6 +329,8 @@ function EO_nieuwSysteem() {
     efficiencyAfnamePct: "0.5", onderhoudJaarlijks: "0",
     batterijActief: false, batterijCapaciteit: "10", batterijCyclesPerJaar: "280",
     batterijBackupActief: false, batterijBruikbaarPct: "90", batterijBackupVermogen: "0.8",
+    batterijArbitrageActief: false, batterijDalprijs: "0.15", batterijPiekprijs: "0.32",
+    batterijArbitrageCyclesPerJaar: "300", batterijRoundtripEfficiency: "90",
     wpActief: false, huidigGasverbruik: "1200", gasprijs: "1.45", wpCOP: "4.2", wpAandeelUitZon: "20",
     aircoActief: false, aircoInstallaties: [],
     stroomprijs: "0.35", terugleverprijs: "0.09", eigenVerbruikPct: "30",
@@ -438,7 +372,7 @@ function berekenPvgisOpwek(offerteId) {
 }
 var DAKORIENTATIE_LABELS = { "180":"Zuid", "225":"Zuidwest", "270":"West", "315":"Noordwest", "0":"Noord", "45":"Noordoost", "90":"Oost", "135":"Zuidoost" };
 function EO_svgBarChart(labels, values, kleur, toonWaarden) {
-  var w=600, h = toonWaarden ? 172 : 155, padL=36, padB=24, padT = toonWaarden ? 34 : 10;
+  var w=600, h = toonWaarden ? 236 : 210, padL=36, padB=24, padT = toonWaarden ? 34 : 10;
   var maxVal = Math.max(1, Math.max.apply(null, values));
   var som = values.reduce(function(a,b){return a+b;}, 0) || 1;
   var plotW=w-padL-10, plotH=h-padT-padB;
@@ -466,7 +400,7 @@ function EO_svgBarChart(labels, values, kleur, toonWaarden) {
   return svg;
 }
 function EO_svgBesparingChart(labels, brutoSerie, nettoSerie) {
-  var w=640, h=192, padL=52, padR=16, padB=32, padT=20;
+  var w=640, h=280, padL=52, padR=16, padB=32, padT=20;
   var alle = brutoSerie.concat(nettoSerie);
   var maxVal = Math.max(1, Math.max.apply(null, alle));
   var minVal = Math.min(0, Math.min.apply(null, alle));
@@ -552,6 +486,19 @@ function EO_berekenAlles(s) {
   }
   var eigenVerbruikTotaal = eigenVerbruikBasis + extraDoorBatterij;
 
+  var energieArbitrageJaar = 0, besparingArbitrage = 0, kostenLadenArbitrage = 0, opbrengstOntladenArbitrage = 0;
+  if (s.batterijActief && s.batterijArbitrageActief) {
+    var bruikbareCapArbitrage = (parseFloat(s.batterijCapaciteit)||0) * ((parseFloat(s.batterijBruikbaarPct)||0)/100);
+    var cycliArbitrage = parseFloat(s.batterijArbitrageCyclesPerJaar)||0;
+    energieArbitrageJaar = bruikbareCapArbitrage * cycliArbitrage; // kWh die per jaar via prijsarbitrage wordt ontladen
+    var efficiencyArbitrage = (parseFloat(s.batterijRoundtripEfficiency)||100)/100;
+    var dalprijsArbitrage = parseFloat(s.batterijDalprijs)||0;
+    var piekprijsArbitrage = parseFloat(s.batterijPiekprijs)||0;
+    kostenLadenArbitrage = efficiencyArbitrage > 0 ? (energieArbitrageJaar/efficiencyArbitrage) * dalprijsArbitrage : 0;
+    opbrengstOntladenArbitrage = energieArbitrageJaar * piekprijsArbitrage;
+    besparingArbitrage = opbrengstOntladenArbitrage - kostenLadenArbitrage;
+  }
+
   var stroomprijs = parseFloat(s.stroomprijs)||0;
   var terugleverprijs = parseFloat(s.terugleverprijs)||0;
   var besparingEigenVerbruik = eigenVerbruikTotaal * stroomprijs;
@@ -587,7 +534,7 @@ function EO_berekenAlles(s) {
     });
   }
 
-  var totaleJaarlijkseBesparing = netoOpbrengstZon + besparingWP + besparingAirco;
+  var totaleJaarlijkseBesparing = netoOpbrengstZon + besparingArbitrage + besparingWP + besparingAirco;
 
   var investering = 0;
   if (s.zonActief) investering += parseFloat(s.investeringZon)||0;
@@ -613,6 +560,8 @@ function EO_berekenAlles(s) {
     eigenVerbruik: eigenVerbruikTotaal, teruglevering: teruglevering2, extraDoorBatterij: extraDoorBatterij, backupUren: backupUren,
     besparingEigenVerbruik: besparingEigenVerbruik, opbrengstTeruglevering: opbrengstTeruglevering, terugleverBoete: terugleverBoete,
     netoOpbrengstZon: netoOpbrengstZon, besparingWP: besparingWP, besparingAirco: besparingAirco,
+    energieArbitrageJaar: energieArbitrageJaar, besparingArbitrage: besparingArbitrage,
+    kostenLadenArbitrage: kostenLadenArbitrage, opbrengstOntladenArbitrage: opbrengstOntladenArbitrage,
     elektriciteitWP: elektriciteitWP, elektriciteitAirco: elektriciteitAirco,
     totaleJaarlijkseBesparing: totaleJaarlijkseBesparing, investering: investering, terugverdientijd: terugverdientijd,
     jaren: jaren, cumulatiefBesparing: cumulatiefBesparing, cumulatiefNetto: cumulatiefNetto,
@@ -627,14 +576,20 @@ function EO_berekening25Jaar(s) {
   var onderhoud = parseFloat(s.onderhoudJaarlijks) || 0;
   var r = EO_berekenAlles(s);
   var investering = r.investering;
+  // Zon-opwek degradeert jaarlijks (paneelrendement neemt af); de rest van de besparing
+  // (batterij-arbitrage, warmtepomp, airco) heeft geen fysieke degradatie en groeit alleen mee
+  // met de energieprijsindex. Zo klopt de 25-jaarstabel ook voor een systeem zonder zon.
+  var zonAandeel1 = s.zonActief ? r.netoOpbrengstZon : 0;
+  var overigAandeel1 = r.totaleJaarlijkseBesparing - zonAandeel1;
 
   var rijen = [];
   var cumulatief = 0;
   var terugverdienJaar = null;
   for (var jaar = 1; jaar <= 25; jaar++) {
     var opwek = jaaropwek1 * Math.pow(1 - afnamePct, jaar - 1);
-    var prijs = basisPrijs * Math.pow(1 + prijsstijgingPct, jaar - 1);
-    var besparing = opwek * prijs;
+    var prijsIndex = Math.pow(1 + prijsstijgingPct, jaar - 1);
+    var prijs = basisPrijs * prijsIndex;
+    var besparing = (zonAandeel1 * Math.pow(1 - afnamePct, jaar - 1) + overigAandeel1) * prijsIndex;
     var investeringDitJaar = jaar === 1 ? investering : 0;
     var rendementPct = investering > 0 ? (besparing / investering) * 100 : 0;
     cumulatief += besparing - onderhoud - investeringDitJaar;
@@ -672,111 +627,6 @@ function standaardOfferteTekst(stijl, bedrijfsnaam) {
   return bibliotheek[stijl] || bibliotheek.zakelijk;
 }
 
-// Zichtbare app-versie in de zijbalk/mobiele header, zodat je in 1 oogopslag kunt zien of je
-// telefoon/browser de nieuwste versie van dit bestand heeft geladen (i.p.v. een oude, gecachte
-// kopie). Ophogen bij elke nieuwe levering van dit bestand.
-var APP_VERSIE = "2026-09-05.3";
-
-// ---------------------------------------------------------------------
-// PAGINA-INDELING: elke "echte pagina" (offerte-/factuurvoorblad of losse rapportpagina)
-// wordt gegarandeerd op precies 1 afdrukbare pagina laten passen door de tekst (en tabel-
-// celafstand) te verkleinen via de --tekst-schaal CSS-variabele, die overal in de pagina
-// doorwerkt (zie de calc(...* var(--tekst-schaal,1)) in de CSS hierboven). Dit voorkomt dat
-// pagina's te lang worden en over elkaar heen / door elkaar heen lopen, en zorgt dat het
-// paginanummer onderaan altijd op exact dezelfde plek staat. Gebruikt door zowel de PDF-export
-// hieronder als de "beforeprint"-listener (native browser-print / "Opslaan als PDF").
-// ---------------------------------------------------------------------
-var DOEL_HOOGTE_PX = 970; // de echte 1-pagina-hoogte bij ontwerpbreedte 700px is 990px (A4-verhouding) -- 970 laat veiligheidsmarge voor afwijkingen in lettertype-rendering tussen apparaten/browsers
-var MIN_LEESBARE_SCHAAL = 0.8; // tekst wordt NOOIT kleiner dan 80% -- moet altijd goed leesbaar blijven (vergelijkbaar met de kleine lettertjes op de besparingstabel)
-
-// Probeert de pagina op 1 vel te laten passen door de tekst iterief (en ECHT gemeten, niet
-// geschat) te verkleinen tot maximaal MIN_LEESBARE_SCHAAL. Past de pagina ook op die leesbare
-// minimumgrootte niet volledig (uitzonderlijk veel content), dan blijft de tekst gewoon op die
-// leesbare minimumgrootte staan -- de allerlaatste restjes lopen dan door naar een volgende
-// PDF-pagina (zie downloadAlsPDF) i.p.v. dat de tekst nog verder (onleesbaar) verkleind wordt.
-function verkleinTotEenPagina(paginaEl) {
-  if (paginaEl.style.height) return null; // heeft al een vaste hoogte (bijv. bijlage-afbeelding) -- past altijd al op 1 pagina
-  var origineleMinHeight = paginaEl.style.minHeight;
-  paginaEl.style.minHeight = "0px"; // even uitzetten om de ECHTE natuurlijke hoogte te meten
-  paginaEl.style.setProperty("--tekst-schaal", "1");
-  var schaal = 1;
-  for (var poging = 0; poging < 10; poging++) {
-    var huidigeHoogte = paginaEl.scrollHeight;
-    if (huidigeHoogte <= DOEL_HOOGTE_PX || schaal <= MIN_LEESBARE_SCHAAL) break;
-    schaal = Math.max(schaal * (DOEL_HOOGTE_PX / huidigeHoogte) * 0.97, MIN_LEESBARE_SCHAAL);
-    paginaEl.style.setProperty("--tekst-schaal", String(schaal));
-  }
-  paginaEl.style.minHeight = DOEL_HOOGTE_PX + "px"; // weer aanzetten zodat korte pagina's het vel vullen
-  return function herstel() {
-    paginaEl.style.minHeight = origineleMinHeight;
-    paginaEl.style.removeProperty("--tekst-schaal");
-  };
-}
-
-// Wacht tot de browser echt een frame heeft getekend voordat we een gemeten hoogte vertrouwen.
-function volgendeFrame() {
-  return new Promise(function(resolve){ requestAnimationFrame(function(){ requestAnimationFrame(resolve); }); });
-}
-
-// Robuuste versie van verkleinTotEenPagina(), specifiek voor de PDF-export hieronder. Verkleint
-// de pagina zoals normaal, maar meet daarna -- na een extra frame te hebben gewacht -- de ECHTE
-// hoogte nogmaals. Wijkt die te veel af (bijv. omdat een logo-afbeelding of lettertype op het
-// moment van de eerste meting nog niet volledig "geland" was -- dit bleek op een telefoon soms
-// een fractie trager te gaan dan op een laptop met een warme cache, met als gevolg dat pagina 1
-// op de telefoon soms helemaal niet verkleind werd terwijl dat op de laptop wel gebeurde), dan
-// wordt de verkleining herhaald met deze nieuwe, actuele hoogte als uitgangspunt. Zo kan een
-// tijdstip-verschil tussen meten en daadwerkelijk vastleggen nooit meer leiden tot een pagina die
-// alsnog niet past -- ongeacht de precieze reden waarom de eerste meting afweek.
-function verkleinTotEenPaginaBetrouwbaar(paginaEl, poging) {
-  poging = poging || 0;
-  return volgendeFrame().then(function(){
-    var herstel = verkleinTotEenPagina(paginaEl);
-    return volgendeFrame().then(function(){
-      var actueleHoogte = Math.max(paginaEl.scrollHeight, paginaEl.offsetHeight, paginaEl.getBoundingClientRect().height);
-      var opLeesbareMinimum = paginaEl.style.getPropertyValue("--tekst-schaal") === String(MIN_LEESBARE_SCHAAL);
-      if (actueleHoogte > DOEL_HOOGTE_PX * 1.03 && !opLeesbareMinimum && poging < 3) {
-        if (herstel) herstel();
-        return verkleinTotEenPaginaBetrouwbaar(paginaEl, poging + 1);
-      }
-      return { herstel: herstel, hoogte: actueleHoogte };
-    });
-  });
-}
-
-// Native browser-print (de "Print"-knoppen die window.print() aanroepen, én Ctrl+P / "Opslaan
-// als PDF" vanuit de browser zelf) laat elke pagina via dezelfde functie op 1 vel passen, zodat
-// ook dat pad nooit meer pagina's door elkaar laat lopen of het paginanummer laat verspringen.
-var _printHerstelFns = [];
-window.addEventListener("beforeprint", function(){
-  var paginaElementen = Array.prototype.slice.call(document.querySelectorAll('#ow-print-area, #r-page-factuur, .r-page'));
-  _printHerstelFns = paginaElementen.map(verkleinTotEenPagina).filter(Boolean);
-});
-window.addEventListener("afterprint", function(){
-  _printHerstelFns.forEach(function(fn){ fn(); });
-  _printHerstelFns = [];
-});
-
-// ---------------------------------------------------------------------
-// Volledig-scherm overlay met draaiende cirkel tijdens PDF-export -- verbergt het gerender
-// (pagina's die tijdelijk verkleinen/weer herstellen) achter een simpel "bezig"-schermpje i.p.v.
-// dat live te laten zien.
-// ---------------------------------------------------------------------
-function toonPdfOverlay(tekst) {
-  var overlay = document.getElementById("pdf-overlay");
-  if (!overlay) {
-    overlay = document.createElement("div");
-    overlay.id = "pdf-overlay";
-    overlay.className = "pdf-overlay";
-    overlay.innerHTML = '<div class="pdf-overlay-kaart"><div class="pdf-overlay-spinner"></div><div class="pdf-overlay-tekst" id="pdf-overlay-tekst"></div></div>';
-    document.body.appendChild(overlay);
-  }
-  document.getElementById("pdf-overlay-tekst").textContent = tekst;
-}
-function verbergPdfOverlay() {
-  var overlay = document.getElementById("pdf-overlay");
-  if (overlay) overlay.remove();
-}
-
 // ---------------------------------------------------------------------
 // ECHTE PDF-BESTANDSEXPORT (jsPDF + html2canvas)
 // ---------------------------------------------------------------------
@@ -784,91 +634,112 @@ function downloadAlsPDF(elementId, bestandsnaam, knopId) {
   var el = document.getElementById(elementId);
   if (!el || !window.html2canvas || !window.jspdf) { toonToast("PDF-export kon niet laden. Check je verbinding."); return; }
   var btn = knopId ? document.getElementById(knopId) : null;
-  var origHtml = btn ? btn.innerHTML : "";
-  function toonVoortgang(tekst) {
-    if (btn) btn.innerHTML = '<span class="spinner-icoon"></span>' + tekst;
-    toonPdfOverlay(tekst);
-  }
-  if (btn) { toonVoortgang("PDF wordt gegenereerd..."); btn.disabled = true; }
+  var origTekst = btn ? btn.innerText : "";
+  if (btn) { btn.innerText = "Bezig..."; btn.disabled = true; }
 
-  // Elke echte pagina (het voorblad + elke losse r-page) apart vastleggen en gegarandeerd op
-  // precies 1 PDF-pagina plaatsen -- zo begint elke pagina altijd netjes bovenaan een nieuwe
-  // PDF-pagina en staat het paginanummer onderaan altijd op dezelfde plek.
+  // Elke echte pagina (het voorblad + elke losse r-page) apart vastleggen i.p.v. één lange
+  // schermafbeelding blind in stukken van 297mm te knippen -- dat gaf afgekapte, door elkaar
+  // lopende pagina's. Zo begint elke pagina altijd netjes bovenaan een nieuwe PDF-pagina.
   var paginaElementen = Array.prototype.slice.call(el.querySelectorAll('#ow-print-area, #r-page-factuur, .r-page'));
   if (paginaElementen.length === 0) paginaElementen = [el];
 
   var jsPDF = window.jspdf.jsPDF;
-  // compress:true comprimeert de PDF-structuur zelf; het echte werk voor het bestandsformaat
-  // gebeurt hieronder door JPEG i.p.v. PNG te gebruiken voor elke paginafoto (PNG is bij
-  // kleurverlopen/foto's vele malen groter en gaf PDF's van tientallen MB's).
-  var pdf = new jsPDF({ orientation: "p", unit: "mm", format: "a4", compress: true });
+  var pdf = new jsPDF("p", "mm", "a4");
   var pageWidth = 210, pageHeight = 297;
-  var CANVAS_SCHAAL = 3; // scherpte van de vastgelegde foto -- print-kwaliteit, ook op iPhone/iPad
-  var JPEG_KWALITEIT = 0.95;
-  var PAGINA_ONTWERP_BREEDTE_PX = 700; // vaste ontwerpbreedte van elke pagina (zie .r-page/#ow-print-area/#r-page-factuur max-width)
+  var DOEL_HOOGTE_PX = 950; // iets kleiner dan de min-height (990px), als veiligheidsmarge zodat het gegarandeerd past
+
+  function verkleinTotEenPagina(paginaEl) {
+    // De hoofdpagina (offerte/factuur zelf) mag NOOIT over 2 pagina's lopen: past de inhoud niet vanzelf,
+    // dan verkleinen we de tekst (via de --tekst-schaal CSS-variabele, die overal in de pagina doorwerkt)
+    // net zoveel als nodig totdat alles op deze ene pagina past.
+    var origineleMinHeight = paginaEl.style.minHeight;
+    paginaEl.style.minHeight = "0px"; // even uitzetten om de ECHTE natuurlijke hoogte te meten
+    paginaEl.style.setProperty("--tekst-schaal", "1");
+    var schaal = 1;
+    for (var poging = 0; poging < 8; poging++) {
+      var huidigeHoogte = paginaEl.scrollHeight;
+      if (huidigeHoogte <= DOEL_HOOGTE_PX || schaal <= 0.55) break;
+      schaal = schaal * (DOEL_HOOGTE_PX / huidigeHoogte) * 0.94;
+      schaal = Math.max(schaal, 0.55);
+      paginaEl.style.setProperty("--tekst-schaal", String(schaal));
+    }
+    paginaEl.style.minHeight = DOEL_HOOGTE_PX + "px"; // weer aanzetten zodat korte offertes de pagina vullen
+    return function herstel() {
+      paginaEl.style.minHeight = origineleMinHeight;
+      paginaEl.style.removeProperty("--tekst-schaal");
+    };
+  }
 
   var eersteAfbeelding = true;
-  var totaalPaginas = paginaElementen.length;
   var keten = Promise.resolve();
-  paginaElementen.forEach(function(paginaEl, index){
+  paginaElementen.forEach(function(paginaEl){
     keten = keten.then(function(){
-      toonVoortgang("Pagina " + (index + 1) + " van " + totaalPaginas + "...");
-      // Leg altijd op de vaste ontwerpbreedte vast, ongeacht het werkelijke schermformaat waarop
-      // wordt gegenereerd (bijv. een telefoon/iPhone met een veel smaller scherm). Zonder dit werd
-      // op een smal scherm een kleine/lage-resolutie foto gemaakt die daarna werd uitgerekt over de
-      // volle paginabreedte in de PDF -- dat gaf een wazig, onscherp resultaat.
-      var origineleBreedteStijl = paginaEl.style.width;
-      var origineleMaxBreedteStijl = paginaEl.style.maxWidth;
-      paginaEl.style.width = PAGINA_ONTWERP_BREEDTE_PX + "px";
-      paginaEl.style.maxWidth = PAGINA_ONTWERP_BREEDTE_PX + "px";
-      // gebruikt de "betrouwbare" variant i.p.v. verkleinTotEenPagina() direct aan te roepen: die
-      // wacht een paar frames en meet de hoogte dan nogmaals, zodat een trage/late afbeelding of
-      // lettertype (vaker op een telefoon dan op een laptop met warme cache) niet meer kan zorgen
-      // dat de verkleining op een te vroege, te kleine meting gebaseerd wordt.
-      return verkleinTotEenPaginaBetrouwbaar(paginaEl).then(function(resultaat){
-      var herstelFn = resultaat.herstel;
-      var volledigeHoogte = resultaat.hoogte;
+      var isHoofdpagina = paginaEl.id === "ow-print-area" || paginaEl.id === "r-page-factuur";
+      var herstelFn = isHoofdpagina ? verkleinTotEenPagina(paginaEl) : null;
+      var volledigeHoogte = Math.max(paginaEl.scrollHeight, paginaEl.offsetHeight, paginaEl.getBoundingClientRect().height);
+      var volledigeBreedte = Math.max(paginaEl.scrollWidth, paginaEl.offsetWidth, paginaEl.getBoundingClientRect().width);
+      var nietKnippenZones = [];
       return html2canvas(paginaEl, {
-        scale: CANVAS_SCHAAL, backgroundColor: "#ffffff", width: PAGINA_ONTWERP_BREEDTE_PX, height: volledigeHoogte, windowWidth: PAGINA_ONTWERP_BREEDTE_PX, windowHeight: volledigeHoogte
+        scale: 2, backgroundColor: "#ffffff", width: volledigeBreedte, height: volledigeHoogte, windowWidth: volledigeBreedte, windowHeight: volledigeHoogte,
+        onclone: function(clonedDoc, clonedEl) {
+          // Meet de niet-knippen-blokken (tabel, totalen, kwaliteitsblok...) op exact hetzelfde
+          // gekloonde element dat html2canvas zelf gaat fotograferen -- dat voorkomt verschillen
+          // tussen wat we meten en wat er daadwerkelijk wordt vastgelegd.
+          var basisTop = clonedEl.getBoundingClientRect().top;
+          nietKnippenZones = Array.prototype.map.call(clonedEl.querySelectorAll(".no-split"), function(el){
+            var r = el.getBoundingClientRect();
+            return { top: r.top - basisTop, bottom: r.bottom - basisTop };
+          });
+        }
       }).then(function(canvas){
         if (herstelFn) herstelFn(); // lettergrootte weer normaal zetten, klaar met fotograferen
-        paginaEl.style.width = origineleBreedteStijl;
-        paginaEl.style.maxWidth = origineleMaxBreedteStijl;
         var pxPerMm = canvas.width / pageWidth;
-        // Past de foto niet op 1 PDF-pagina (bijv. omdat verkleinTotEenPagina bewust NIET
-        // verkleind heeft om tekst leesbaar te houden), snijd 'm dan in nette stroken van
-        // precies 1 A4-hoogte en verdeel over meerdere PDF-pagina's -- i.p.v. de afbeelding
-        // samen te persen (wat de tekst juist weer klein/vervormd zou maken).
-        var strookHoogtePx = Math.max(1, Math.round(pageHeight * pxPerMm));
-        var aantalStroken = Math.max(1, Math.ceil(canvas.height / strookHoogtePx));
-        for (var s = 0; s < aantalStroken; s++) {
-          var vanafPx = s * strookHoogtePx;
-          var hoogteDezeStrookPx = Math.min(strookHoogtePx, canvas.height - vanafPx);
-          var stripCanvas = document.createElement("canvas");
-          stripCanvas.width = canvas.width;
-          stripCanvas.height = hoogteDezeStrookPx;
-          var ctx = stripCanvas.getContext("2d");
-          ctx.fillStyle = "#ffffff";
-          ctx.fillRect(0, 0, stripCanvas.width, stripCanvas.height);
-          ctx.drawImage(canvas, 0, vanafPx, canvas.width, hoogteDezeStrookPx, 0, 0, canvas.width, hoogteDezeStrookPx);
+        if (isHoofdpagina) {
+          // Deze pagina is al gegarandeerd verkleind tot hij op 1 pagina past -- gewoon in zijn geheel plaatsen.
+          var hoofdHoogteMm = canvas.height / pxPerMm;
           if (!eersteAfbeelding) pdf.addPage();
-          pdf.addImage(stripCanvas.toDataURL("image/jpeg", JPEG_KWALITEIT), "JPEG", 0, 0, pageWidth, hoogteDezeStrookPx / pxPerMm, undefined, "FAST");
+          pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, pageWidth, Math.min(hoofdHoogteMm, pageHeight));
           eersteAfbeelding = false;
+          return;
         }
-      });
+        var pxPerCssPx = 2; // zelfde waarde als de "scale" hierboven
+        var pageHeightPx = pageHeight * pxPerMm;
+        var totaalHoogtePx = canvas.height;
+        var geplaatstPx = 0;
+        var veiligeMarge = 4 * pxPerCssPx; // kleine buffer, zodat we altijd ruim vóór het blok knippen
+        while (geplaatstPx < totaalHoogtePx) {
+          var voorgesteldeGrensPx = Math.min(geplaatstPx + pageHeightPx, totaalHoogtePx);
+          nietKnippenZones.forEach(function(zone){
+            var zoneTopPx = zone.top * pxPerCssPx, zoneBottomPx = zone.bottom * pxPerCssPx;
+            if (zoneTopPx < voorgesteldeGrensPx && zoneBottomPx > voorgesteldeGrensPx && zoneTopPx > geplaatstPx) {
+              voorgesteldeGrensPx = Math.max(geplaatstPx + 1, zoneTopPx - veiligeMarge);
+            }
+          });
+          var sliceHoogtePx = Math.max(1, voorgesteldeGrensPx - geplaatstPx);
+          var sliceCanvas = document.createElement("canvas");
+          sliceCanvas.width = canvas.width;
+          sliceCanvas.height = sliceHoogtePx;
+          var ctx = sliceCanvas.getContext("2d");
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
+          ctx.drawImage(canvas, 0, geplaatstPx, canvas.width, sliceHoogtePx, 0, 0, canvas.width, sliceHoogtePx);
+          var sliceData = sliceCanvas.toDataURL("image/png");
+          var sliceHoogteMm = sliceHoogtePx / pxPerMm;
+          if (!eersteAfbeelding) pdf.addPage();
+          pdf.addImage(sliceData, "PNG", 0, 0, pageWidth, sliceHoogteMm);
+          eersteAfbeelding = false;
+          geplaatstPx += sliceHoogtePx;
+        }
       });
     });
   });
 
   keten.then(function(){
-    toonVoortgang("PDF opslaan...");
     pdf.save(bestandsnaam + ".pdf");
-    if (btn) { btn.innerHTML = origHtml; btn.disabled = false; }
-    verbergPdfOverlay();
+    if (btn) { btn.innerText = origTekst; btn.disabled = false; }
   }).catch(function(){
     toonToast("PDF-export mislukt. Probeer opnieuw.");
-    if (btn) { btn.innerHTML = origHtml; btn.disabled = false; }
-    verbergPdfOverlay();
+    if (btn) { btn.innerText = origTekst; btn.disabled = false; }
   });
 }
 var PRODUCT_CATEGORIEEN = ["Zonnepanelen", "Omvormers", "Thuisbatterijen", "Warmtepompen", "Airco's", "Meterkasten", "Elektrotechnisch materiaal", "Kabel", "Onderconstructie", "Arbeid", "Overig"];
@@ -995,8 +866,8 @@ function btwOverzichtHtml(t) {
 function btwOverzichtPrintHtml(t) {
   var tarieven = Object.keys(t.subtotalen || {});
   if (tarieven.length < 2) return ""; // pas tonen als er meerdere tarieven door elkaar lopen
-  var h = '<div class="no-split" style="margin-top:calc(8px * var(--tekst-schaal, 1));padding:calc(7px * var(--tekst-schaal, 1)) 12px;background:#F7FEFC;border:1px solid var(--border);border-radius:8px;font-size:calc(11.5px * var(--tekst-schaal, 1));max-width:240px;margin-left:auto;">';
-  h += '<div style="font-weight:700;color:var(--navy);margin-bottom:3px;">Verdeling per btw-tarief</div>';
+  var h = '<div class="no-split" style="margin-top:10px;padding:10px 12px;background:#F7FEFC;border:1px solid var(--border);border-radius:8px;font-size:11.5px;max-width:240px;margin-left:auto;">';
+  h += '<div style="font-weight:700;color:var(--navy);margin-bottom:4px;">Verdeling per btw-tarief</div>';
   tarieven.sort(function(a,b){ return a-b; }).forEach(function(tarief){
     var kleur = btwKleur(parseInt(tarief));
     h += '<div style="display:flex;justify-content:space-between;padding:2px 0;"><span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:' + kleur.bg + ';border:1px solid ' + kleur.tekst + ';margin-right:5px;"></span>' + tarief + '% btw</span><span>' + euro(t.subtotalen[tarief]) + '</span></div>';
@@ -2047,11 +1918,8 @@ function converteerPdfNaarAfbeeldingen(dataUrl, callback) {
         var canvas = document.createElement("canvas");
         canvas.width = viewport.width; canvas.height = viewport.height;
         var ctx = canvas.getContext("2d");
-        ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, canvas.width, canvas.height); // JPEG kent geen transparantie
         page.render({ canvasContext: ctx, viewport: viewport }).promise.then(function(){
-          // JPEG i.p.v. PNG: bij gescande/foto-achtige pagina's (algemene voorwaarden, datasheets)
-          // scheelt dit vaak een factor 10-20 in bestandsgrootte, zonder zichtbaar kwaliteitsverlies.
-          afbeeldingen.push(canvas.toDataURL("image/jpeg", 0.85));
+          afbeeldingen.push(canvas.toDataURL("image/png"));
           volgendePagina(nr+1);
         });
       });
@@ -2943,7 +2811,6 @@ function render() {
     // Zijbalk (zichtbaar vanaf ~900px breed)
     html += '<nav class="sidebar no-print">';
     html += '<div class="sidebar-logo" onclick="setTab(\'dashboard\')"><span class="dot"></span> Boekhouding' + (state.cloudSaving ? ' <span style="font-size:9px;font-weight:600;opacity:0.7;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><path d="M18 10h-1.3A6 6 0 1 0 6 15h12a4 4 0 0 0 0-8Z"/></svg> opslaan...</span>' : '') + '</div>';
-    html += '<div style="padding:0 20px 8px;font-size:10px;color:#8FC9C2;letter-spacing:.02em;">versie ' + APP_VERSIE + '</div>';
     if (state.user) html += '<div style="padding:0 20px 14px;font-size:11px;color:#B7DFDA;">' + esc(state.user.email) + '<br/><span style="cursor:pointer;text-decoration:underline;" onclick="doLogout()">Uitloggen</span></div>';
     html += '<div class="sidebar-nav">';
     TABS.forEach(function(t){
@@ -2958,7 +2825,7 @@ function render() {
     }
 
     // Mobiele header + tabs (alleen zichtbaar op smal scherm, CSS regelt dit)
-    html += '<div class="mobile-header no-print"><div class="header-title" onclick="setTab(\'dashboard\')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><line x1="6" y1="20" x2="6" y2="12"/><line x1="12" y1="20" x2="12" y2="6"/><line x1="18" y1="20" x2="18" y2="15"/></svg> Boekhouding</div><div style="font-size:9px;color:#9CA3AF;">v' + APP_VERSIE + '</div></div>';
+    html += '<div class="mobile-header no-print"><div class="header-title" onclick="setTab(\'dashboard\')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><line x1="6" y1="20" x2="6" y2="12"/><line x1="12" y1="20" x2="12" y2="6"/><line x1="18" y1="20" x2="18" y2="15"/></svg> Boekhouding</div></div>';
     html += '<div class="tabs no-print">';
     TABS.forEach(function(t){
       if (!tabZichtbaar(t[0])) return;
@@ -3745,13 +3612,12 @@ function renderOfferteWerkblad() {
   h += '<div style="display:flex;align-items:flex-start;justify-content:flex-start;gap:12px;">';
   if (b.logoData) h += '<img src="' + b.logoData + '" style="height:' + (b.logoHoogte||70) + 'px;max-width:340px;object-fit:contain;object-position:left top;display:block;margin:0;" />';
   h += '</div>';
-  h += '<div class="ow-wordmark" style="margin-top:14px;margin-bottom:0;font-size:calc(18px * var(--tekst-schaal, 1));line-height:1.6;">' + esc(b.naam || "Jouw bedrijf") + '</div>';
+  h += '<div class="ow-wordmark" style="margin-top:14px;margin-bottom:0;font-size:16px;line-height:1.6;">' + esc(b.naam || "Jouw bedrijf") + '</div>';
   h += verkoperGegevensHtml(b);
   h += '</div>';
   h += '<div class="ow-lh-right"><div class="doc-type-label">Offerte</div><div class="num">' + esc(o.offertenummer) + (o.status!=="concept" ? ' <span class="badge badge-' + o.status + '" style="margin-left:4px;">' + statusLabel(o.status) + '</span>' : '') + '</div><div>' + esc(o.datum) + (o.geldigTot ? '<br/>Geldig tot ' + esc(o.geldigTot) : '') + '</div>';
   h += '<div class="ow-klant-block" style="padding:0;margin-top:14px;text-align:right;"><div class="naam">' + esc(o.klantNaam || "Klantnaam") + '</div>' + (o.klantContactpersoon ? '<div class="sub-line">T.a.v. ' + esc(o.klantContactpersoon) + '</div>' : '');
   if (o.klantAdres) h += '<div class="sub-line">' + esc(o.klantAdres) + '</div>';
-  if (o.klantPostcode || o.klantPlaats) h += '<div class="sub-line">' + esc([o.klantPostcode,o.klantPlaats].filter(Boolean).join(" ")) + '</div>';
   if (o.klantEmail) h += '<div class="sub-line">' + esc(o.klantEmail) + '</div>';
   if (o.klantNummer) h += '<div class="sub-line">Klantnummer: ' + esc(o.klantNummer) + '</div>';
   h += '</div>';
@@ -3766,7 +3632,7 @@ function renderOfferteWerkblad() {
     if (o.inleiding) h += '<p>' + esc(o.inleiding) + '</p>';
     if (o.werkzaamheden) h += '<h4 class="ow-section-title">Werkzaamheden</h4><p>' + esc(o.werkzaamheden) + '</p>';
   }
-  h += '<div class="no-split" style="width:100%;box-sizing:border-box;"><table class="ow-regels-table' + (o.regels.length > 8 ? " dicht" : "") + '"><thead><tr><th>Omschrijving</th><th style="text-align:right;">Aantal</th><th style="text-align:right;">Prijs</th><th style="text-align:right;">Totaal</th></tr></thead><tbody>';
+  h += '<div class="no-split" style="width:100%;box-sizing:border-box;"><table class="ow-regels-table"><thead><tr><th>Omschrijving</th><th style="text-align:right;">Aantal</th><th style="text-align:right;">Prijs</th><th style="text-align:right;">Totaal</th></tr></thead><tbody>';
   o.regels.forEach(function(r){
     var lijn = (parseFloat(r.aantal)||0)*(parseFloat(r.prijs)||0);
     var omschrijvingCel = r.productFoto ? '<div style="display:flex;align-items:center;gap:8px;"><img src="' + r.productFoto + '" style="width:38px;height:38px;object-fit:cover;border-radius:4px;flex-shrink:0;" />' + esc(r.omschrijving||"—") + '</div>' : esc(r.omschrijving||"—");
@@ -3783,7 +3649,7 @@ function renderOfferteWerkblad() {
   if (o.opmerking) h += '<h4 class="ow-section-title">Toelichting</h4><p>' + esc(o.opmerking) + '</p>';
   if (o.afsluiting) h += '<p style="margin-top:16px;">' + esc(o.afsluiting) + '</p>';
   if (b.isInstallQErkend || b.isVCAGecertificeerd || b.certificeringNotities) {
-    h += '<div class="no-split" style="margin-top:calc(14px * var(--tekst-schaal, 1));padding:calc(9px * var(--tekst-schaal, 1)) 14px;background:#F7FEFC;border:1px solid var(--border);border-radius:8px;font-size:calc(11.5px * var(--tekst-schaal, 1));line-height:1.55;color:var(--muted);text-align:left;">';
+    h += '<div class="no-split" style="margin-top:18px;padding:12px 14px;background:#F7FEFC;border:1px solid var(--border);border-radius:8px;font-size:11.5px;line-height:1.6;color:var(--muted);text-align:left;">';
     h += '<b style="color:var(--navy);">Kwaliteit &amp; zekerheid</b><br/>';
     var puntjes = [];
     if (b.isInstallQErkend) puntjes.push(icon("checkCircle") + ' <b>' + esc(b.naam||"Ons bedrijf") + '</b> is een <b>InstallQ-erkend installatiebedrijf</b>, wat betekent dat onze installaties voldoen aan de landelijk erkende kwaliteits- en veiligheidsnormen voor duurzame energie-installaties.');
@@ -3811,7 +3677,7 @@ function renderOfferteWerkblad() {
       h += '</div></div>';
     }
   }
-  var energiePaginaCount = EO_paginaAantal(o);
+  var energiePaginaCount = (o.energieActief && o.energie && o.energie.zonActief) ? 4 : ((o.energieActief && o.energie && o.energie.batterijActief) ? 3 : 0);
   var legplanPaginaCount = o.legplanFoto ? 1 : 0;
   var datasheetsPaginaCount = datasheetsPaginaAantal(o.datasheets);
   var voorwaardenPaginaCount = algemeneVoorwaardenPaginaAantal();
@@ -3957,8 +3823,25 @@ function EO_renderConfig(o) {
     h += eoField(oid,"batterijCapaciteit","Capaciteit (kWh)",s.batterijCapaciteit);
     h += eoField(oid,"batterijCyclesPerJaar","Volledige cycli per jaar",s.batterijCyclesPerJaar);
     h += '</div>';
-    var extraOpbrengstBatterij = r.extraDoorBatterij * ((parseFloat(s.stroomprijs)||0) - (parseFloat(s.terugleverprijs)||0));
-    h += eoImpactRegel('<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><rect x="1" y="7" width="18" height="10" rx="2"/><line x1="23" y1="11" x2="23" y2="13"/><line x1="5" y1="10" x2="5" y2="14"/><line x1="9" y1="10" x2="9" y2="14"/></svg> Verschuift ' + nf(r.extraDoorBatterij) + " kWh/jaar &middot; extra opbrengst " + euro(extraOpbrengstBatterij) + "/jaar");
+    if (s.zonActief) {
+      var extraOpbrengstBatterij = r.extraDoorBatterij * ((parseFloat(s.stroomprijs)||0) - (parseFloat(s.terugleverprijs)||0));
+      h += eoImpactRegel('<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><rect x="1" y="7" width="18" height="10" rx="2"/><line x1="23" y1="11" x2="23" y2="13"/><line x1="5" y1="10" x2="5" y2="14"/><line x1="9" y1="10" x2="9" y2="14"/></svg> Verschuift ' + nf(r.extraDoorBatterij) + " kWh/jaar &middot; extra opbrengst " + euro(extraOpbrengstBatterij) + "/jaar");
+    } else {
+      h += '<p class="subtitle" style="margin-top:-8px;">Geen zonnepanelen? Gebruik hieronder prijsarbitrage en/of noodstroom als verkoopargument voor de batterij.</p>';
+    }
+    h += '<div class="toggle-row" style="margin-top:10px;"><input type="checkbox" ' + (s.batterijArbitrageActief?"checked":"") + ' onchange="eoVeldRender(\'' + oid + '\',\'batterijArbitrageActief\', this.checked)" style="width:18px;height:18px;" /><label style="font-weight:700;font-size:12.5px;color:#0A0A0A;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><path d="M12 1v6m0 6v10M4.2 4.2l4.2 4.2m7.2 7.2l4.2 4.2M1 12h6m10 0h6M4.2 19.8l4.2-4.2m7.2-7.2l4.2-4.2"/></svg> Prijsarbitrage (dynamisch energiecontract)</label></div>';
+    if (s.batterijArbitrageActief) {
+      h += '<p class="subtitle" style="margin-top:-6px;">Batterij laadt op goedkope uren en ontlaadt op dure uren &mdash; werkt ook zonder zonnepanelen.</p>';
+      h += '<div class="grid3">';
+      h += eoGeldField(oid,"batterijDalprijs","Dal-tarief inkoop (&euro;/kWh)",s.batterijDalprijs);
+      h += eoGeldField(oid,"batterijPiekprijs","Piek-tarief besparing (&euro;/kWh)",s.batterijPiekprijs);
+      h += eoField(oid,"batterijArbitrageCyclesPerJaar","Cycli per jaar",s.batterijArbitrageCyclesPerJaar);
+      h += '</div><div class="grid2">';
+      h += eoField(oid,"batterijBruikbaarPct","Bruikbare capaciteit (%)",s.batterijBruikbaarPct);
+      h += eoField(oid,"batterijRoundtripEfficiency","Round-trip efficiëntie (%)",s.batterijRoundtripEfficiency);
+      h += '</div>';
+      h += eoImpactRegel('<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><path d="M12 1v6m0 6v10M4.2 4.2l4.2 4.2m7.2 7.2l4.2 4.2M1 12h6m10 0h6M4.2 19.8l4.2-4.2m7.2-7.2l4.2-4.2"/></svg> Verschuift ' + nf(r.energieArbitrageJaar) + " kWh/jaar &middot; extra opbrengst " + euro(r.besparingArbitrage) + "/jaar");
+    }
     h += '<div class="toggle-row" style="margin-top:10px;"><input type="checkbox" ' + (s.batterijBackupActief?"checked":"") + ' onchange="eoVeldRender(\'' + oid + '\',\'batterijBackupActief\', this.checked)" style="width:18px;height:18px;" /><label style="font-weight:700;font-size:12.5px;color:#0A0A0A;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><polygon points="13 2 3 14 11 14 10 22 21 10 13 10 13 2"/></svg> Noodstroom bij stroomuitval</label></div>';
     if (s.batterijBackupActief) {
       h += '<div class="grid2">';
@@ -4106,14 +3989,14 @@ function renderDatasheetsSectie(datasheets, startPaginaNr, totaalPaginas, bedrij
     if (d.data && d.data.indexOf("image") !== -1 && (!d.paginaAfbeeldingen || d.paginaAfbeeldingen.length === 0)) {
       h += '<div class="r-page" style="padding:0;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;height:990px;">';
       h += '<img src="' + d.data + '" style="width:100%;height:100%;object-fit:contain;display:block;" />';
-      h += '<div style="position:absolute;bottom:14px;right:14px;font-size:10px;color:#94A3B8;background:rgba(255,255,255,0.85);padding:2px 8px;border-radius:4px;">Pagina ' + pn + ' van ' + totaalPaginas + '</div>';
+      h += '<div style="position:absolute;bottom:10px;right:14px;font-size:10px;color:#94A3B8;background:rgba(255,255,255,0.85);padding:2px 8px;border-radius:4px;">Pagina ' + pn + ' van ' + totaalPaginas + '</div>';
       h += '</div>';
       pn++;
     } else if (d.paginaAfbeeldingen && d.paginaAfbeeldingen.length > 0) {
       d.paginaAfbeeldingen.forEach(function(pagUrl){
         h += '<div class="r-page" style="padding:0;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;height:990px;">';
         h += '<img src="' + pagUrl + '" style="width:100%;height:100%;object-fit:contain;display:block;" />';
-        h += '<div style="position:absolute;bottom:14px;right:14px;font-size:10px;color:#94A3B8;background:rgba(255,255,255,0.85);padding:2px 8px;border-radius:4px;">Pagina ' + pn + ' van ' + totaalPaginas + '</div>';
+        h += '<div style="position:absolute;bottom:10px;right:14px;font-size:10px;color:#94A3B8;background:rgba(255,255,255,0.85);padding:2px 8px;border-radius:4px;">Pagina ' + pn + ' van ' + totaalPaginas + '</div>';
         h += '</div>';
         pn++;
       });
@@ -4133,10 +4016,7 @@ function paginaLogoHeader(bedrijfOverride) {
 }
 function paginaVoetnoot(nr, totaal) {
   if (!nr || !totaal) return "";
-  // margin-top:auto binnen de flex-column pagina (.r-page / .ow-body) duwt dit altijd naar de
-  // onderkant van de pagina, rechts uitgelijnd -- en als de inhoud toch een keer te lang is,
-  // schuift dit gewoon direct onder de inhoud mee i.p.v. eroverheen (was met position:absolute).
-  return '<div style="margin-top:auto;flex-shrink:0;text-align:right;font-size:10px;color:#94A3B8;padding-top:8px;border-top:1px solid #F1F5F9;">Pagina ' + nr + ' van ' + totaal + '</div>';
+  return '<div style="position:absolute;left:0;right:0;bottom:14px;text-align:center;font-size:10px;color:#94A3B8;padding-top:8px;border-top:1px solid #F1F5F9;">Pagina ' + nr + ' van ' + totaal + '</div>';
 }
 function algemeneVoorwaardenPagina(paginaNr, totaalPaginas, bedrijfOverride) {
   var b = bedrijfOverride || state.bedrijf;
@@ -4150,7 +4030,7 @@ function algemeneVoorwaardenPagina(paginaNr, totaalPaginas, bedrijfOverride) {
     return h;
   }
   if (!b.algemeneVoorwaarden) return "";
-  return '<div class="r-page">' + paginaLogoHeader(bedrijfOverride) + '<div class="r-h">Algemene voorwaarden</div><p style="font-size:calc(12px * var(--tekst-schaal, 1));line-height:1.5;white-space:pre-wrap;">' + esc(b.algemeneVoorwaarden) + '</p>' + paginaVoetnoot(paginaNr, totaalPaginas) + '</div>';
+  return '<div class="r-page">' + paginaLogoHeader(bedrijfOverride) + '<div class="r-h">Algemene voorwaarden</div><p style="font-size:12px;line-height:1.6;white-space:pre-wrap;">' + esc(b.algemeneVoorwaarden) + '</p>' + paginaVoetnoot(paginaNr, totaalPaginas) + '</div>';
 }
 function algemeneVoorwaardenPaginaAantal(bedrijfOverride) {
   var b = bedrijfOverride || state.bedrijf;
@@ -4221,124 +4101,113 @@ function legplanPagina(o, paginaNr, totaalPaginas, bedrijfOverride) {
   h += '</div>';
   return h;
 }
-// Het 25-jaars besparingsoverzicht heeft altijd 25 rijen en past niet compact op 1 pagina.
-// Die rijen worden daarom over zoveel pagina's verdeeld als nodig (met een nette kopregel op
-// elke pagina), zodat er nooit een rij middendoor wordt geknipt en pagina's nooit door elkaar
-// heen lopen. EO_besparingPaginaAantal() en EO_paginaAantal() moeten precies hetzelfde aantal
-// pagina's berekenen als hier daadwerkelijk wordt gegenereerd, zodat "Pagina X van Y" altijd klopt.
-var EO_BESPARING_RIJEN_PAGINA1 = 25; // met de compacte "dicht"-tabel past de volledige 25-jaars tabel + uitleg op 1 pagina
-var EO_BESPARING_RIJEN_VERVOLG = 25; // veiligheidsnet: alleen als er ooit meer rijen komen, splitst dit netjes over extra pagina's
-function EO_besparingPaginaAantal(totaalRijen) {
-  if (totaalRijen <= EO_BESPARING_RIJEN_PAGINA1) return 1;
-  return 1 + Math.ceil((totaalRijen - EO_BESPARING_RIJEN_PAGINA1) / EO_BESPARING_RIJEN_VERVOLG);
-}
-function EO_paginaAantal(o) {
-  if (!o || !o.energieActief || !o.energie || !o.energie.zonActief) return 0;
-  var bp = EO_berekening25Jaar(o.energie);
-  // 1 pagina opwek + 1 pagina financiële opbouw & milieu-impact (samengevoegd, past ruim samen op
-  // 1 pagina) + besparingstabel (1 of meer)
-  return 2 + EO_besparingPaginaAantal(bp.rijen.length);
-}
 function EO_renderRapportPaginas(o, startPaginaNr, totaalPaginas, bedrijfOverride) {
-  if (!o.energieActief || !o.energie || !o.energie.zonActief) return "";
+  if (!o.energieActief || !o.energie || (!o.energie.zonActief && !o.energie.batterijActief)) return "";
   var s = o.energie, r = EO_berekenAlles(s), bp = EO_berekening25Jaar(s);
   var pn = startPaginaNr || 2;
   var h = '';
+  var heeftZon = !!s.zonActief;
 
-  // Pagina: maandelijkse opwek + eigen verbruik vs. teruglevering
-  h += '<div class="r-page">' + paginaLogoHeader(bedrijfOverride) + '<div class="r-h">Verwachte opwek per maand</div>';
+  // Pagina: (met zon) maandelijkse opwek, of (zonder zon) batterij-besparing
+  h += '<div class="r-page">' + paginaLogoHeader(bedrijfOverride) + '<div class="r-h">' + (heeftZon ? "Verwachte opwek per maand" : "Uw batterijbesparing") + '</div>';
   h += '<div class="stats-row">';
   h += '<div class="stat-box hero"><div class="stat-num">' + euro(r.totaleJaarlijkseBesparing) + '</div><div class="stat-label">Totale jaarlijkse besparing</div></div>';
   h += '<div class="stat-box"><div class="stat-num">' + (r.terugverdientijd!=null?nf(r.terugverdientijd,1)+" jaar":"—") + '</div><div class="stat-label">Terugverdientijd</div></div>';
-  h += '<div class="stat-box"><div class="stat-num">' + nf(r.jaaropwek) + ' kWh</div><div class="stat-label">Jaarlijkse opwek (' + nf(r.kWp,1) + ' kWp)</div></div>';
+  if (heeftZon) h += '<div class="stat-box"><div class="stat-num">' + nf(r.jaaropwek) + ' kWh</div><div class="stat-label">Jaarlijkse opwek (' + nf(r.kWp,1) + ' kWp)</div></div>';
+  else h += '<div class="stat-box"><div class="stat-num">' + esc(s.batterijCapaciteit) + ' kWh</div><div class="stat-label">Batterijcapaciteit</div></div>';
   h += '<div class="stat-box"><div class="stat-num">' + euro(r.investering) + '</div><div class="stat-label">Totale investering</div></div>';
   h += '</div>';
-  h += EO_svgBarChart(EO_MAAND_NAMEN, r.maandOpwek.map(function(v){return Math.round(v);}), "#F59E0B", true);
 
-  h += '<h3 style="margin-top:12px;">Eigen verbruik vs. teruglevering</h3>';
-  h += '<div style="display:flex;align-items:center;gap:16px;margin-top:6px;">';
-  h += svgDonutChart([{label:"Eigen verbruik", value:r.eigenVerbruik},{label:"Teruglevering", value:r.teruglevering}], ["#0D9488","#F59E0B"]);
-  h += '<div style="display:flex;flex-direction:column;gap:6px;font-size:12px;">';
-  h += '<span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#0D9488;margin-right:6px;"></span>Eigen verbruik: ' + nf(r.eigenVerbruik) + ' kWh</span>';
-  h += '<span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#F59E0B;margin-right:6px;"></span>Teruglevering: ' + nf(r.teruglevering) + ' kWh</span>';
-  if (r.extraDoorBatterij > 0) h += '<span>' + icon("battery") + ' Waarvan ' + nf(r.extraDoorBatterij) + ' kWh dankzij batterij</span>';
-  if (r.backupUren != null) h += '<span style="color:var(--navy);font-weight:800;">' + icon("zap") + ' ' + nf(r.backupUren,1) + ' uur noodstroom bij stroomuitval</span>';
-  h += '</div></div>';
+  if (heeftZon) {
+    h += EO_svgBarChart(EO_MAAND_NAMEN, r.maandOpwek.map(function(v){return Math.round(v);}), "#F59E0B", true);
+    h += '<h3 style="margin-top:18px;">Eigen verbruik vs. teruglevering</h3>';
+    h += '<div style="display:flex;align-items:center;gap:16px;margin-top:6px;">';
+    h += svgDonutChart([{label:"Eigen verbruik", value:r.eigenVerbruik},{label:"Teruglevering", value:r.teruglevering}], ["#0D9488","#F59E0B"]);
+    h += '<div style="display:flex;flex-direction:column;gap:6px;font-size:12px;">';
+    h += '<span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#0D9488;margin-right:6px;"></span>Eigen verbruik: ' + nf(r.eigenVerbruik) + ' kWh</span>';
+    h += '<span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#F59E0B;margin-right:6px;"></span>Teruglevering: ' + nf(r.teruglevering) + ' kWh</span>';
+    if (r.extraDoorBatterij > 0) h += '<span>' + icon("battery") + ' Waarvan ' + nf(r.extraDoorBatterij) + ' kWh dankzij batterij</span>';
+    if (r.backupUren != null) h += '<span style="color:var(--navy);font-weight:800;">' + icon("zap") + ' ' + nf(r.backupUren,1) + ' uur noodstroom bij stroomuitval</span>';
+    h += '</div></div>';
+  } else {
+    h += '<h3 style="margin-top:0;">Waar komt de besparing vandaan?</h3>';
+    h += '<div style="display:flex;flex-direction:column;gap:8px;font-size:12.5px;">';
+    if (s.batterijArbitrageActief) h += '<span>' + icon("battery") + ' Prijsarbitrage: laden op goedkope uren, ontladen op dure uren &mdash; verschuift ' + nf(r.energieArbitrageJaar) + ' kWh/jaar &middot; ' + euro(r.besparingArbitrage) + '/jaar</span>';
+    if (r.backupUren != null) h += '<span style="color:var(--navy);font-weight:800;">' + icon("zap") + ' ' + nf(r.backupUren,1) + ' uur noodstroom bij stroomuitval</span>';
+    if (!s.batterijArbitrageActief && r.backupUren == null) h += '<span>Vul prijsarbitrage en/of noodstroom in om de besparing te tonen.</span>';
+    h += '</div>';
+  }
 
-  h += '<h3 style="margin-top:12px;">Besparing over 10 jaar</h3>';
+  h += '<h3 style="margin-top:18px;">Besparing over 10 jaar</h3>';
   h += EO_svgBesparingChart(r.jaren, r.cumulatiefBesparing, r.cumulatiefNetto);
   h += paginaVoetnoot(pn++, totaalPaginas) + '</div>';
 
   // Pagina: financiële opbouw (alle componenten uitgesplitst)
   h += '<div class="r-page">' + paginaLogoHeader(bedrijfOverride) + '<div class="r-h">Financiële opbouw</div>';
   h += '<table class="r-table"><tbody>';
-  if (s.zonActief) {
+  if (heeftZon) {
     h += '<tr><td>Besparing eigen verbruik (' + nf(r.eigenVerbruik) + ' kWh &times; ' + euro(s.stroomprijs) + ')</td><td class="num">' + euro(r.besparingEigenVerbruik) + '</td></tr>';
     h += '<tr><td>Opbrengst teruglevering (' + nf(r.teruglevering) + ' kWh &times; ' + euro(s.terugleverprijs) + ')</td><td class="num">' + euro(r.opbrengstTeruglevering) + '</td></tr>';
     if (r.terugleverBoete > 0) h += '<tr><td>Terugleverboete</td><td class="num" style="color:#DC2626;">&minus; ' + euro(r.terugleverBoete) + '</td></tr>';
   }
+  if (s.batterijActief && s.batterijArbitrageActief) h += '<tr><td>Batterij prijsarbitrage (' + nf(r.energieArbitrageJaar) + ' kWh &times; verschil piek/dal-tarief)</td><td class="num">' + euro(r.besparingArbitrage) + '</td></tr>';
   if (s.wpActief) h += '<tr><td>Besparing warmtepomp (t.o.v. gas, ' + nf(r.elektriciteitWP) + ' kWh verbruik)</td><td class="num">' + euro(r.besparingWP) + '</td></tr>';
   if (s.aircoActief) h += '<tr><td>Besparing airco (t.o.v. direct elektrisch verwarmen, ' + nf(r.elektriciteitAirco) + ' kWh verbruik)</td><td class="num">' + euro(r.besparingAirco) + '</td></tr>';
   if (s.onderhoudJaarlijks && parseFloat(s.onderhoudJaarlijks) > 0) h += '<tr><td>Onderhoud/schoonmaak</td><td class="num" style="color:#DC2626;">&minus; ' + euro(s.onderhoudJaarlijks) + '</td></tr>';
   h += '<tr style="font-weight:800;border-top:2px solid var(--border);"><td>Totale jaarlijkse besparing</td><td class="num">' + euro(r.totaleJaarlijkseBesparing) + '</td></tr>';
   h += '</tbody></table>';
 
-  h += '<h3 style="margin-top:12px;">Wat je investeert</h3><table class="r-table"><tbody>';
-  if (s.zonActief) h += '<tr><td>Zonnepanelen (' + nf(parseFloat(s.aantalPanelen)||0) + ' stuks, ' + nf(r.kWp,1) + ' kWp)</td><td class="num">' + euro(s.investeringZon) + '</td></tr>';
+  h += '<h3 style="margin-top:18px;">Wat je investeert</h3><table class="r-table"><tbody>';
+  if (heeftZon) h += '<tr><td>Zonnepanelen (' + nf(parseFloat(s.aantalPanelen)||0) + ' stuks, ' + nf(r.kWp,1) + ' kWp)</td><td class="num">' + euro(s.investeringZon) + '</td></tr>';
   if (s.batterijActief) h += '<tr><td>Thuisbatterij (' + esc(s.batterijCapaciteit) + ' kWh)</td><td class="num">' + euro(s.investeringBatterij) + '</td></tr>';
   if (s.wpActief) h += '<tr><td>Warmtepomp</td><td class="num">' + euro(s.investeringWP) + '</td></tr>';
   if (s.aircoActief) { var investAirco = (s.aircoInstallaties||[]).reduce(function(sum,i){return sum+(parseFloat(i.investering)||0);},0); h += '<tr><td>Airco (' + (s.aircoInstallaties||[]).length + ' installatie(s))</td><td class="num">' + euro(investAirco) + '</td></tr>'; }
   h += '<tr style="font-weight:800;border-top:2px solid var(--border);"><td>Totale investering</td><td class="num">' + euro(r.investering) + '</td></tr>';
   h += '</tbody></table>';
-
-  // Milieu-impact staat op dezelfde pagina als de financiële opbouw -- samen is dit ruim genoeg
-  // voor 1 vel en het scheelt een bijna lege pagina.
-  var co2PerKwh = 0.35; // kg CO2/kWh grijze stroom, indicatief gemiddelde (bron: Milieu Centraal)
-  var co2PerBoomPerJaar = 22; // kg CO2/jaar opname per volwassen boom, gemiddelde van meerdere bronnen
-  var co2BespaardPerJaar = r.jaaropwek * co2PerKwh;
-  var bomenPerJaar = Math.round(co2BespaardPerJaar / co2PerBoomPerJaar);
-  var co2Bespaard25Jaar = bp.rijen.reduce(function(sum,row){ return sum + row.opwek * co2PerKwh; }, 0);
-  var bomen25Jaar = Math.round(co2Bespaard25Jaar / co2PerBoomPerJaar);
-  var rendementJaar1 = r.investering > 0 ? (r.totaleJaarlijkseBesparing / r.investering) * 100 : 0;
-
-  h += '<h3 style="margin-top:14px;">Wat betekent dit voor het milieu?</h3>';
-  h += '<div class="stats-row">';
-  h += '<div class="stat-box hero"><div class="stat-num">' + nf(bomenPerJaar) + '</div><div class="stat-label">Bomen per jaar bespaard</div></div>';
-  h += '<div class="stat-box"><div class="stat-num">' + nf(Math.round(co2BespaardPerJaar)) + ' kg</div><div class="stat-label">CO<sub>2</sub> bespaard per jaar</div></div>';
-  h += '<div class="stat-box"><div class="stat-num">' + nf(bomen25Jaar) + '</div><div class="stat-label">Bomen-equivalent over 25 jaar</div></div>';
-  h += '<div class="stat-box"><div class="stat-num">' + nf(rendementJaar1,1) + '%</div><div class="stat-label">Rendement op investering (jaar 1)</div></div>';
-  h += '</div>';
-  h += '<p style="font-size:11.5px;line-height:1.6;color:var(--muted);">Met ' + nf(r.jaaropwek) + ' kWh aan zelf opgewekte zonnestroom per jaar voorkom je dat er evenveel elektriciteit uit het (deels fossiele) net hoeft te komen. Op basis van gangbare, door Milieu Centraal gehanteerde gemiddelden (circa 0,35 kg CO<sub>2</sub> per kWh grijze stroom, en circa 22 kg CO<sub>2</sub>-opname per jaar door een volwassen boom) staat dat gelijk aan het jaarlijkse werk van ongeveer <b>' + nf(bomenPerJaar) + ' volwassen bomen</b>. Dit is een indicatieve, op gangbare kentallen gebaseerde vergelijking &mdash; de werkelijke CO<sub>2</sub>-uitstoot van grijze stroom en de CO<sub>2</sub>-opname van bomen variëren in de praktijk.</p>';
-
   h += paginaVoetnoot(pn++, totaalPaginas) + '</div>';
 
-  // Pagina('s): "Uw besparing" 25-jaars overzicht -- verdeeld over meerdere pagina's, zie de
-  // toelichting bij EO_BESPARING_RIJEN_PAGINA1/VERVOLG hierboven.
-  function EO_besparingTabelHtml(rijenChunk, isLaatsteChunk) {
-    var t = '<table class="r-table dicht" style="font-size:10px;"><thead><tr><th>Jaar</th><th class="num">Productie kWh</th><th class="num">Energieprijs</th><th class="num">Besparing</th><th class="num">Rendement</th><th class="num">Cumulatief</th></tr></thead><tbody>';
-    rijenChunk.forEach(function(row){
-      t += '<tr><td>' + row.jaar + 'e</td><td class="num">' + nf(row.opwek) + '</td><td class="num">' + euro(row.prijs) + '</td><td class="num">' + euro(row.besparing) + '</td><td class="num">' + nf(row.rendementPct,1) + '%</td><td class="num">' + euro(row.cumulatief) + '</td></tr>';
-    });
-    if (isLaatsteChunk) t += '<tr style="font-weight:800;"><td colspan="5">Totaal winst na 25 jaar</td><td class="num">' + euro(bp.totaalWinst25) + '</td></tr>';
-    t += '</tbody></table>';
-    return t;
-  }
-  var besparingRijenPagina1 = bp.rijen.slice(0, EO_BESPARING_RIJEN_PAGINA1);
-  var besparingRestRijen = bp.rijen.slice(EO_BESPARING_RIJEN_PAGINA1);
-  var besparingVervolgChunks = [];
-  for (var bvi = 0; bvi < besparingRestRijen.length; bvi += EO_BESPARING_RIJEN_VERVOLG) {
-    besparingVervolgChunks.push(besparingRestRijen.slice(bvi, bvi + EO_BESPARING_RIJEN_VERVOLG));
-  }
+  // Pagina: "Uw besparing" 25-jaars overzicht
   h += '<div class="r-page">' + paginaLogoHeader(bedrijfOverride) + '<div class="r-h">Uw besparing</div>';
-  h += '<h3 style="margin-top:0;">Berekening</h3><p style="font-size:12px;line-height:1.5;">Het eerste jaar ga je <b>' + nf(bp.jaaropwek1) + ' kWh</b> opwekken met je zonnepanelen. We gaan uit van een efficiency afname van <b>' + esc(s.efficiencyAfnamePct) + '</b> per jaar en een gemiddelde jaarlijkse energie-prijsindex van <b>' + esc(s.prijsstijgingPct) + '%</b>.</p>';
-  h += '<h3>Terugverdientijd</h3><p style="font-size:12px;line-height:1.5;">De indicatie van de terugverdientijd is ' + (bp.terugverdienJaar ? "minder dan <b>" + bp.terugverdienJaar + " jaar</b>" : "meer dan 25 jaar") + '.</p>';
-  h += EO_besparingTabelHtml(besparingRijenPagina1, besparingVervolgChunks.length === 0);
+  h += '<h3>Berekening</h3>';
+  if (heeftZon) h += '<p style="font-size:12.5px;line-height:1.6;">Het eerste jaar ga je <b>' + nf(bp.jaaropwek1) + ' kWh</b> opwekken met je zonnepanelen. We gaan uit van een efficiency afname van <b>' + esc(s.efficiencyAfnamePct) + '</b> per jaar en een gemiddelde jaarlijkse energie-prijsindex van <b>' + esc(s.prijsstijgingPct) + '%</b>.</p>';
+  else h += '<p style="font-size:12.5px;line-height:1.6;">De jaarlijkse besparing van <b>' + euro(r.totaleJaarlijkseBesparing) + '</b> groeit mee met een gemiddelde jaarlijkse energie-prijsindex van <b>' + esc(s.prijsstijgingPct) + '%</b>.</p>';
+  h += '<h3>Terugverdientijd</h3><p style="font-size:12.5px;line-height:1.6;">De indicatie van de terugverdientijd is ' + (bp.terugverdienJaar ? "minder dan <b>" + bp.terugverdienJaar + " jaar</b>" : "meer dan 25 jaar") + '.</p>';
+  if (heeftZon) {
+    h += '<table class="r-table" style="font-size:10px;"><thead><tr><th>Jaar</th><th class="num">Productie kWh</th><th class="num">Energieprijs</th><th class="num">Besparing</th><th class="num">Rendement</th><th class="num">Cumulatief</th></tr></thead><tbody>';
+    bp.rijen.forEach(function(row){
+      h += '<tr><td>' + row.jaar + 'e</td><td class="num">' + nf(row.opwek) + '</td><td class="num">' + euro(row.prijs) + '</td><td class="num">' + euro(row.besparing) + '</td><td class="num">' + nf(row.rendementPct,1) + '%</td><td class="num">' + euro(row.cumulatief) + '</td></tr>';
+    });
+    h += '<tr style="font-weight:800;"><td colspan="5">Totaal winst na 25 jaar</td><td class="num">' + euro(bp.totaalWinst25) + '</td></tr>';
+  } else {
+    h += '<table class="r-table" style="font-size:10px;"><thead><tr><th>Jaar</th><th class="num">Besparing</th><th class="num">Rendement</th><th class="num">Cumulatief</th></tr></thead><tbody>';
+    bp.rijen.forEach(function(row){
+      h += '<tr><td>' + row.jaar + 'e</td><td class="num">' + euro(row.besparing) + '</td><td class="num">' + nf(row.rendementPct,1) + '%</td><td class="num">' + euro(row.cumulatief) + '</td></tr>';
+    });
+    h += '<tr style="font-weight:800;"><td colspan="2">Totaal winst na 25 jaar</td><td class="num">' + euro(bp.totaalWinst25) + '</td></tr>';
+  }
+  h += '</tbody></table>';
   h += paginaVoetnoot(pn++, totaalPaginas) + '</div>';
-  besparingVervolgChunks.forEach(function(chunk, idx){
-    h += '<div class="r-page">' + paginaLogoHeader(bedrijfOverride) + '<div class="r-h">Uw besparing <span style="font-weight:400;color:var(--muted);font-size:12px;">(vervolg)</span></div>';
-    h += EO_besparingTabelHtml(chunk, idx === besparingVervolgChunks.length - 1);
+
+  // Pagina: milieu-impact -- alleen zinvol bij eigen zonneproductie
+  if (heeftZon) {
+    var co2PerKwh = 0.35; // kg CO2/kWh grijze stroom, indicatief gemiddelde (bron: Milieu Centraal)
+    var co2PerBoomPerJaar = 22; // kg CO2/jaar opname per volwassen boom, gemiddelde van meerdere bronnen
+    var co2BespaardPerJaar = r.jaaropwek * co2PerKwh;
+    var bomenPerJaar = Math.round(co2BespaardPerJaar / co2PerBoomPerJaar);
+    var co2Bespaard25Jaar = bp.rijen.reduce(function(sum,row){ return sum + row.opwek * co2PerKwh; }, 0);
+    var bomen25Jaar = Math.round(co2Bespaard25Jaar / co2PerBoomPerJaar);
+    var rendementJaar1 = r.investering > 0 ? (r.totaleJaarlijkseBesparing / r.investering) * 100 : 0;
+
+    h += '<div class="r-page">' + paginaLogoHeader(bedrijfOverride) + '<div class="r-h">Wat betekent dit voor het milieu?</div>';
+    h += '<div class="stats-row">';
+    h += '<div class="stat-box hero"><div class="stat-num">' + nf(bomenPerJaar) + '</div><div class="stat-label">Bomen per jaar bespaard</div></div>';
+    h += '<div class="stat-box"><div class="stat-num">' + nf(Math.round(co2BespaardPerJaar)) + ' kg</div><div class="stat-label">CO&sub2; bespaard per jaar</div></div>';
+    h += '<div class="stat-box"><div class="stat-num">' + nf(bomen25Jaar) + '</div><div class="stat-label">Bomen-equivalent over 25 jaar</div></div>';
+    h += '<div class="stat-box"><div class="stat-num">' + nf(rendementJaar1,1) + '%</div><div class="stat-label">Rendement op investering (jaar 1)</div></div>';
+    h += '</div>';
+    h += '<p style="font-size:11.5px;line-height:1.7;color:var(--muted);">Met ' + nf(r.jaaropwek) + ' kWh aan zelf opgewekte zonnestroom per jaar voorkom je dat er evenveel elektriciteit uit het (deels fossiele) net hoeft te komen. Op basis van gangbare, door Milieu Centraal gehanteerde gemiddelden (circa 0,35 kg CO&sub2; per kWh grijze stroom, en circa 22 kg CO&sub2;-opname per jaar door een volwassen boom) staat dat gelijk aan het jaarlijkse werk van ongeveer <b>' + nf(bomenPerJaar) + ' volwassen bomen</b>. Dit is een indicatieve, op gangbare kentallen gebaseerde vergelijking &mdash; de werkelijke CO&sub2;-uitstoot van grijze stroom en de CO&sub2;-opname van bomen variëren in de praktijk.</p>';
     h += paginaVoetnoot(pn++, totaalPaginas) + '</div>';
-  });
+  }
 
   return h;
 }
@@ -4505,7 +4374,7 @@ function renderFactuurDocument(f) {
   h += '<div style="display:flex;align-items:flex-start;justify-content:flex-start;gap:12px;">';
   if (b.logoData) h += '<img src="' + b.logoData + '" style="height:' + (b.logoHoogte||70) + 'px;max-width:340px;object-fit:contain;object-position:left top;display:block;margin:0;" />';
   h += '</div>';
-  h += '<div class="ow-wordmark" style="margin-top:14px;margin-bottom:0;font-size:calc(18px * var(--tekst-schaal, 1));line-height:1.6;">' + esc(b.naam || "Jouw bedrijf") + '</div>';
+  h += '<div class="ow-wordmark" style="margin-top:14px;margin-bottom:0;font-size:16px;line-height:1.6;">' + esc(b.naam || "Jouw bedrijf") + '</div>';
   h += verkoperGegevensHtml(b);
   h += '</div>';
   h += '<div class="ow-lh-right"><div class="doc-type-label">' + (isCredit ? "Creditnota" : "Factuur") + '</div><div class="num">' + esc(f.factuurnummer) + (st!=="concept" ? ' <span class="badge badge-' + st + '" style="margin-left:4px;">' + statusLabel(st) + '</span>' : '') + '</div><div>' + esc(f.datum) + (f.vervaldatum ? '<br/>Vervaldatum ' + esc(f.vervaldatum) + (f.betalingstermijn ? ' (' + esc(f.betalingstermijn) + ' dgn)' : '') : '') + '</div>';
@@ -4521,7 +4390,7 @@ function renderFactuurDocument(f) {
   if (f.inleiding) h += '<p>' + esc(f.inleiding) + '</p>';
   if (f.werkzaamheden) h += '<h4 class="ow-section-title">Werkzaamheden</h4><p>' + esc(f.werkzaamheden) + '</p>';
 
-  h += '<div class="no-split" style="width:100%;box-sizing:border-box;"><table class="ow-regels-table' + (f.regels.length > 8 ? " dicht" : "") + '"><thead><tr><th>Omschrijving</th><th style="text-align:right;">Aantal</th><th style="text-align:right;">Prijs</th><th style="text-align:right;">BTW</th><th style="text-align:right;">Totaal</th></tr></thead><tbody>';
+  h += '<div class="no-split" style="width:100%;box-sizing:border-box;"><table class="ow-regels-table"><thead><tr><th>Omschrijving</th><th style="text-align:right;">Aantal</th><th style="text-align:right;">Prijs</th><th style="text-align:right;">BTW</th><th style="text-align:right;">Totaal</th></tr></thead><tbody>';
   f.regels.forEach(function(r){
     var lijn = (parseFloat(r.aantal)||0)*(parseFloat(r.prijs)||0);
     var omschrijvingCel = r.productFoto ? '<div style="display:flex;align-items:center;gap:8px;"><img src="' + r.productFoto + '" style="width:38px;height:38px;object-fit:cover;border-radius:4px;flex-shrink:0;" />' + esc(r.omschrijving||"—") + '</div>' : esc(r.omschrijving||"—");
@@ -4547,7 +4416,7 @@ function renderFactuurDocument(f) {
   if (f.opmerking) h += '<h4 class="ow-section-title">Toelichting</h4><p>' + esc(f.opmerking) + '</p>';
   if (f.afsluiting) h += '<p style="margin-top:16px;">' + esc(f.afsluiting) + '</p>';
   if (b.isInstallQErkend || b.isVCAGecertificeerd || b.certificeringNotities) {
-    h += '<div class="no-split" style="margin-top:calc(14px * var(--tekst-schaal, 1));padding:calc(9px * var(--tekst-schaal, 1)) 14px;background:#F7FEFC;border:1px solid var(--border);border-radius:8px;font-size:calc(11.5px * var(--tekst-schaal, 1));line-height:1.55;color:var(--muted);text-align:left;">';
+    h += '<div class="no-split" style="margin-top:18px;padding:12px 14px;background:#F7FEFC;border:1px solid var(--border);border-radius:8px;font-size:11.5px;line-height:1.6;color:var(--muted);text-align:left;">';
     h += '<b style="color:var(--navy);">Kwaliteit &amp; zekerheid</b><br/>';
     var puntjesF = [];
     if (b.isInstallQErkend) puntjesF.push(icon("checkCircle") + ' <b>' + esc(b.naam||"Ons bedrijf") + '</b> is een <b>InstallQ-erkend installatiebedrijf</b>, wat betekent dat onze installaties voldoen aan de landelijk erkende kwaliteits- en veiligheidsnormen voor duurzame energie-installaties.');
@@ -5309,7 +5178,7 @@ function renderKlantOfferteView(o) {
   h += '</tbody></table>';
   h += '<div class="totals-box"><div class="totals-row grand"><span>Totaal incl. BTW</span><span>' + euro(t.totaalIncl) + '</span></div></div>';
   if (o.data.opmerking) h += '<p style="font-size:12.5px;color:#6b6659;margin-top:16px;">' + esc(o.data.opmerking) + '</p>';
-  var energiePaginaCountKlant = EO_paginaAantal(o.data);
+  var energiePaginaCountKlant = (o.data.energieActief && o.data.energie && o.data.energie.zonActief) ? 4 : ((o.data.energieActief && o.data.energie && o.data.energie.batterijActief) ? 3 : 0);
   var legplanPaginaCountKlant = o.data.legplanFoto ? 1 : 0;
   var datasheetsPaginaCountKlant = datasheetsPaginaAantal(o.data.datasheets);
   var totaalPaginasKlant = 1 + energiePaginaCountKlant + legplanPaginaCountKlant + datasheetsPaginaCountKlant;
