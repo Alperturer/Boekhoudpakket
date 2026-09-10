@@ -134,6 +134,8 @@
   table.r-table th.num { text-align:right; white-space:nowrap; }
   table.r-table tr.total-row td { font-weight:800; border-top:2px solid var(--navy); border-bottom:none; }
   table.r-table tbody tr:hover { background:#F8FAFC; }
+  table.r-table-compact th { padding:4px 6px; font-size:9px; }
+  table.r-table-compact td { padding:2.5px 6px; }
 
   .toolbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; gap:8px; flex-wrap:wrap; }
   .print-btn { background:var(--navy); color:#fff; border:none; border-radius:8px; padding:9px 16px; font-size:13px; font-weight:700; cursor:pointer; }
@@ -695,12 +697,37 @@ function downloadAlsPDF(elementId, bestandsnaam, knopId) {
     };
   }
 
+  function verkleinRapportPaginaTotEenPagina(paginaEl) {
+    // Zelfde probleem als hierboven, maar de rapportpagina's (financiële opbouw, uw besparing,
+    // milieu-impact...) gebruiken geen --tekst-schaal in hun opmaak (veel losse inline stijlen).
+    // In plaats van elke stijl aan te passen, krimpen we de hele pagina met CSS "zoom" -- dat
+    // schaalt alles (tekst, tabellen, grafieken) evenredig mee en telt ook mee in scrollHeight,
+    // zodat dezelfde meet-en-verklein-lus hier ook werkt.
+    var origineleMinHeight = paginaEl.style.minHeight;
+    var origineleZoom = paginaEl.style.zoom;
+    paginaEl.style.minHeight = "0px";
+    paginaEl.style.zoom = "1";
+    var schaal = 1;
+    for (var poging = 0; poging < 8; poging++) {
+      var huidigeHoogte = paginaEl.scrollHeight;
+      if (huidigeHoogte <= DOEL_HOOGTE_PX || schaal <= 0.6) break;
+      schaal = schaal * (DOEL_HOOGTE_PX / huidigeHoogte) * 0.96;
+      schaal = Math.max(schaal, 0.6);
+      paginaEl.style.zoom = String(schaal);
+    }
+    paginaEl.style.minHeight = DOEL_HOOGTE_PX + "px";
+    return function herstel() {
+      paginaEl.style.minHeight = origineleMinHeight;
+      paginaEl.style.zoom = origineleZoom;
+    };
+  }
+
   var eersteAfbeelding = true;
   var keten = Promise.resolve();
   paginaElementen.forEach(function(paginaEl){
     keten = keten.then(function(){
       var isHoofdpagina = paginaEl.id === "ow-print-area" || paginaEl.id === "r-page-factuur";
-      var herstelFn = isHoofdpagina ? verkleinTotEenPagina(paginaEl) : null;
+      var herstelFn = isHoofdpagina ? verkleinTotEenPagina(paginaEl) : verkleinRapportPaginaTotEenPagina(paginaEl);
       var volledigeHoogte = Math.max(paginaEl.scrollHeight, paginaEl.offsetHeight, paginaEl.getBoundingClientRect().height);
       var volledigeBreedte = Math.max(paginaEl.scrollWidth, paginaEl.offsetWidth, paginaEl.getBoundingClientRect().width);
       var nietKnippenZones = [];
@@ -3747,7 +3774,8 @@ function renderOfferteWerkblad() {
     }
   }
   var energiePaginaCount = (o.energieActief && o.energie && (o.energie.zonActief || o.energie.bestaandeInstallatieActief)) ? 4 : ((o.energieActief && o.energie && o.energie.batterijActief) ? 3 : 0);
-  var legplanPaginaCount = o.legplanFoto ? 1 : 0;
+  var legplanSamenMetMilieu = !!(o.legplanFoto && energiePaginaCount === 4);
+  var legplanPaginaCount = (o.legplanFoto && !legplanSamenMetMilieu) ? 1 : 0;
   var datasheetsPaginaCount = datasheetsPaginaAantal(o.datasheets);
   var voorwaardenPaginaCount = algemeneVoorwaardenPaginaAantal();
   var totaalPaginasOfferte = 1 + energiePaginaCount + legplanPaginaCount + datasheetsPaginaCount + voorwaardenPaginaCount;
@@ -3755,7 +3783,7 @@ function renderOfferteWerkblad() {
   h += '</div>'; // ow-body
   h += '</div>'; // ow-print-area
   h += EO_renderRapportPaginas(o, 2, totaalPaginasOfferte, state.bedrijf);
-  h += legplanPagina(o, 1 + energiePaginaCount + 1, totaalPaginasOfferte, state.bedrijf);
+  if (!legplanSamenMetMilieu) h += legplanPagina(o, 1 + energiePaginaCount + 1, totaalPaginasOfferte, state.bedrijf);
   h += renderDatasheetsSectie(o.datasheets, 1 + energiePaginaCount + legplanPaginaCount + 1, totaalPaginasOfferte, state.bedrijf);
   h += algemeneVoorwaardenPagina(1 + energiePaginaCount + legplanPaginaCount + datasheetsPaginaCount + 1, totaalPaginasOfferte, state.bedrijf);
   h += '</div>'; // offerte-volledig-document
@@ -4240,11 +4268,9 @@ function EO_renderRapportPaginas(o, startPaginaNr, totaalPaginas, bedrijfOverrid
     h += '</div>';
   }
 
-  h += '<h3 style="margin-top:18px;">Besparing over 10 jaar</h3>';
-  h += EO_svgBesparingChart(r.jaren, r.cumulatiefBesparing, r.cumulatiefNetto);
   h += paginaVoetnoot(pn++, totaalPaginas) + '</div>';
 
-  // Pagina: financiële opbouw (alle componenten uitgesplitst)
+  // Pagina: financiële opbouw + besparing over 10 jaar (samen op 1 pagina)
   h += '<div class="r-page">' + paginaLogoHeader(bedrijfOverride) + '<div class="r-h">Financiële opbouw</div>';
   h += '<table class="r-table"><tbody>';
   if (heeftOpwek) {
@@ -4268,23 +4294,25 @@ function EO_renderRapportPaginas(o, startPaginaNr, totaalPaginas, bedrijfOverrid
   if (s.aircoActief) { var investAirco = (s.aircoInstallaties||[]).reduce(function(sum,i){return sum+(parseFloat(i.investering)||0);},0); h += '<tr><td>Airco (' + (s.aircoInstallaties||[]).length + ' installatie(s))</td><td class="num">' + euro(investAirco) + '</td></tr>'; }
   h += '<tr style="font-weight:800;border-top:2px solid var(--border);"><td>Totale investering</td><td class="num">' + euro(r.investering) + '</td></tr>';
   h += '</tbody></table>';
+  h += '<h3 style="margin-top:16px;">Besparing over 10 jaar</h3>';
+  h += EO_svgBesparingChart(r.jaren, r.cumulatiefBesparing, r.cumulatiefNetto);
   h += paginaVoetnoot(pn++, totaalPaginas) + '</div>';
 
   // Pagina: "Uw besparing" 25-jaars overzicht
   h += '<div class="r-page">' + paginaLogoHeader(bedrijfOverride) + '<div class="r-h">Uw besparing</div>';
-  h += '<h3>Berekening</h3>';
-  if (heeftZon) h += '<p style="font-size:12.5px;line-height:1.6;">Het eerste jaar ga je <b>' + nf(bp.jaaropwek1) + ' kWh</b> opwekken met je zonnepanelen. We gaan uit van een efficiency afname van <b>' + esc(s.efficiencyAfnamePct) + '</b> per jaar en een gemiddelde jaarlijkse energie-prijsindex van <b>' + esc(s.prijsstijgingPct) + '%</b>.</p>';
-  else if (s.bestaandeInstallatieActief) h += '<p style="font-size:12.5px;line-height:1.6;">Je bestaande zonnepanelen wekken naar schatting <b>' + nf(bp.jaaropwek1) + ' kWh</b> per jaar op. De batterij zorgt dat je daar meer van zelf gebruikt. We gaan uit van een gemiddelde jaarlijkse energie-prijsindex van <b>' + esc(s.prijsstijgingPct) + '%</b>.</p>';
-  else h += '<p style="font-size:12.5px;line-height:1.6;">De jaarlijkse besparing van <b>' + euro(r.totaleJaarlijkseBesparing) + '</b> groeit mee met een gemiddelde jaarlijkse energie-prijsindex van <b>' + esc(s.prijsstijgingPct) + '%</b>.</p>';
-  h += '<h3>Terugverdientijd</h3><p style="font-size:12.5px;line-height:1.6;">De indicatie van de terugverdientijd is ' + (bp.terugverdienJaar ? "minder dan <b>" + bp.terugverdienJaar + " jaar</b>" : "meer dan 25 jaar") + '.</p>';
+  h += '<h3 style="margin-bottom:4px;">Berekening</h3>';
+  if (heeftZon) h += '<p style="font-size:11.5px;line-height:1.45;margin:0 0 8px;">Het eerste jaar ga je <b>' + nf(bp.jaaropwek1) + ' kWh</b> opwekken met je zonnepanelen. We gaan uit van een efficiency afname van <b>' + esc(s.efficiencyAfnamePct) + '</b> per jaar en een gemiddelde jaarlijkse energie-prijsindex van <b>' + esc(s.prijsstijgingPct) + '%</b>.</p>';
+  else if (s.bestaandeInstallatieActief) h += '<p style="font-size:11.5px;line-height:1.45;margin:0 0 8px;">Je bestaande zonnepanelen wekken naar schatting <b>' + nf(bp.jaaropwek1) + ' kWh</b> per jaar op. De batterij zorgt dat je daar meer van zelf gebruikt. We gaan uit van een gemiddelde jaarlijkse energie-prijsindex van <b>' + esc(s.prijsstijgingPct) + '%</b>.</p>';
+  else h += '<p style="font-size:11.5px;line-height:1.45;margin:0 0 8px;">De jaarlijkse besparing van <b>' + euro(r.totaleJaarlijkseBesparing) + '</b> groeit mee met een gemiddelde jaarlijkse energie-prijsindex van <b>' + esc(s.prijsstijgingPct) + '%</b>.</p>';
+  h += '<h3 style="margin:0 0 4px;">Terugverdientijd</h3><p style="font-size:11.5px;line-height:1.45;margin:0 0 6px;">De indicatie van de terugverdientijd is ' + (bp.terugverdienJaar ? "minder dan <b>" + bp.terugverdienJaar + " jaar</b>" : "meer dan 25 jaar") + '.</p>';
   if (heeftOpwek) {
-    h += '<table class="r-table" style="font-size:10px;"><thead><tr><th>Jaar</th><th class="num">Productie kWh</th><th class="num">Energieprijs</th><th class="num">Besparing</th><th class="num">Rendement</th><th class="num">Cumulatief</th></tr></thead><tbody>';
+    h += '<table class="r-table r-table-compact"><thead><tr><th>Jaar</th><th class="num">Productie kWh</th><th class="num">Energieprijs</th><th class="num">Besparing</th><th class="num">Rendement</th><th class="num">Cumulatief</th></tr></thead><tbody>';
     bp.rijen.forEach(function(row){
       h += '<tr><td>' + row.jaar + 'e</td><td class="num">' + nf(row.opwek) + '</td><td class="num">' + euro(row.prijs) + '</td><td class="num">' + euro(row.besparing) + '</td><td class="num">' + nf(row.rendementPct,1) + '%</td><td class="num">' + euro(row.cumulatief) + '</td></tr>';
     });
     h += '<tr style="font-weight:800;"><td colspan="5">Totaal winst na 25 jaar</td><td class="num">' + euro(bp.totaalWinst25) + '</td></tr>';
   } else {
-    h += '<table class="r-table" style="font-size:10px;"><thead><tr><th>Jaar</th><th class="num">Besparing</th><th class="num">Rendement</th><th class="num">Cumulatief</th></tr></thead><tbody>';
+    h += '<table class="r-table r-table-compact"><thead><tr><th>Jaar</th><th class="num">Besparing</th><th class="num">Rendement</th><th class="num">Cumulatief</th></tr></thead><tbody>';
     bp.rijen.forEach(function(row){
       h += '<tr><td>' + row.jaar + 'e</td><td class="num">' + euro(row.besparing) + '</td><td class="num">' + nf(row.rendementPct,1) + '%</td><td class="num">' + euro(row.cumulatief) + '</td></tr>';
     });
@@ -4310,7 +4338,16 @@ function EO_renderRapportPaginas(o, startPaginaNr, totaalPaginas, bedrijfOverrid
     h += '<div class="stat-box"><div class="stat-num">' + nf(bomen25Jaar) + '</div><div class="stat-label">Bomen-equivalent over 25 jaar</div></div>';
     h += '<div class="stat-box"><div class="stat-num">' + nf(rendementJaar1,1) + '%</div><div class="stat-label">Rendement op investering (jaar 1)</div></div>';
     h += '</div>';
-    h += '<p style="font-size:11.5px;line-height:1.7;color:var(--muted);">Met ' + nf(r.jaaropwek) + ' kWh aan zelf opgewekte zonnestroom per jaar voorkom je dat er evenveel elektriciteit uit het (deels fossiele) net hoeft te komen. Op basis van gangbare, door Milieu Centraal gehanteerde gemiddelden (circa 0,35 kg CO&sub2; per kWh grijze stroom, en circa 22 kg CO&sub2;-opname per jaar door een volwassen boom) staat dat gelijk aan het jaarlijkse werk van ongeveer <b>' + nf(bomenPerJaar) + ' volwassen bomen</b>. Dit is een indicatieve, op gangbare kentallen gebaseerde vergelijking &mdash; de werkelijke CO&sub2;-uitstoot van grijze stroom en de CO&sub2;-opname van bomen variëren in de praktijk.</p>';
+    h += '<p style="font-size:11px;line-height:1.55;color:var(--muted);margin-bottom:' + (o.legplanFoto ? '4px' : '0') + ';">Met ' + nf(r.jaaropwek) + ' kWh aan zelf opgewekte zonnestroom per jaar voorkom je dat er evenveel elektriciteit uit het (deels fossiele) net hoeft te komen. Op basis van gangbare, door Milieu Centraal gehanteerde gemiddelden (circa 0,35 kg CO&sub2; per kWh grijze stroom, en circa 22 kg CO&sub2;-opname per jaar door een volwassen boom) staat dat gelijk aan het jaarlijkse werk van ongeveer <b>' + nf(bomenPerJaar) + ' volwassen bomen</b>. Dit is een indicatieve, op gangbare kentallen gebaseerde vergelijking &mdash; de werkelijke CO&sub2;-uitstoot van grijze stroom en de CO&sub2;-opname van bomen variëren in de praktijk.</p>';
+    if (o.legplanFoto) {
+      h += '<h3 style="margin:10px 0 6px;">Uw legplan</h3>';
+      h += legplanOverlayHtml(o, o.id, false);
+      h += '<div style="text-align:center;margin-top:8px;">';
+      h += kompasRoosSvg(60);
+      if (o.legplanBijschrift) h += '<div style="font-size:12px;font-weight:700;margin-top:4px;">' + esc(o.legplanBijschrift) + '</div>';
+      if (o.legplanPanelen && o.legplanPanelen.length) h += '<div style="font-size:11px;color:#666;margin-top:2px;">' + o.legplanPanelen.length + ' zonnepanelen (' + esc(o.legplanPaneelBreedte) + ' x ' + esc(o.legplanPaneelHoogte) + ' m per paneel)</div>';
+      h += '</div>';
+    }
     h += paginaVoetnoot(pn++, totaalPaginas) + '</div>';
   }
 
@@ -5284,13 +5321,14 @@ function renderKlantOfferteView(o) {
   h += '<div class="totals-box"><div class="totals-row grand"><span>Totaal incl. BTW</span><span>' + euro(t.totaalIncl) + '</span></div></div>';
   if (o.data.opmerking) h += '<p style="font-size:12.5px;color:#6b6659;margin-top:16px;">' + esc(o.data.opmerking) + '</p>';
   var energiePaginaCountKlant = (o.data.energieActief && o.data.energie && (o.data.energie.zonActief || o.data.energie.bestaandeInstallatieActief)) ? 4 : ((o.data.energieActief && o.data.energie && o.data.energie.batterijActief) ? 3 : 0);
-  var legplanPaginaCountKlant = o.data.legplanFoto ? 1 : 0;
+  var legplanSamenMetMilieuKlant = !!(o.data.legplanFoto && energiePaginaCountKlant === 4);
+  var legplanPaginaCountKlant = (o.data.legplanFoto && !legplanSamenMetMilieuKlant) ? 1 : 0;
   var datasheetsPaginaCountKlant = datasheetsPaginaAantal(o.data.datasheets);
   var totaalPaginasKlant = 1 + energiePaginaCountKlant + legplanPaginaCountKlant + datasheetsPaginaCountKlant;
   h += paginaVoetnoot(1, totaalPaginasKlant);
   h += '</div>';
   h += EO_renderRapportPaginas(o.data, 2, totaalPaginasKlant, b);
-  h += legplanPagina(o.data, 1 + energiePaginaCountKlant + 1, totaalPaginasKlant, b);
+  if (!legplanSamenMetMilieuKlant) h += legplanPagina(o.data, 1 + energiePaginaCountKlant + 1, totaalPaginasKlant, b);
   h += renderDatasheetsSectie(o.data.datasheets, 1 + energiePaginaCountKlant + legplanPaginaCountKlant + 1, totaalPaginasKlant, b);
 
   h += '<div id="klant-actie-view">';
