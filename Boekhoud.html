@@ -751,7 +751,7 @@ function downloadAlsPDF(elementId, bestandsnaam, knopId) {
           // Deze pagina is al gegarandeerd verkleind tot hij op 1 pagina past -- gewoon in zijn geheel plaatsen.
           var hoofdHoogteMm = canvas.height / pxPerMm;
           if (!eersteAfbeelding) pdf.addPage();
-          pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, pageWidth, Math.min(hoofdHoogteMm, pageHeight));
+          pdf.addImage(canvas.toDataURL("image/jpeg", 0.92), "JPEG", 0, 0, pageWidth, Math.min(hoofdHoogteMm, pageHeight));
           eersteAfbeelding = false;
           return;
         }
@@ -776,10 +776,10 @@ function downloadAlsPDF(elementId, bestandsnaam, knopId) {
           ctx.fillStyle = "#ffffff";
           ctx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
           ctx.drawImage(canvas, 0, geplaatstPx, canvas.width, sliceHoogtePx, 0, 0, canvas.width, sliceHoogtePx);
-          var sliceData = sliceCanvas.toDataURL("image/png");
+          var sliceData = sliceCanvas.toDataURL("image/jpeg", 0.92);
           var sliceHoogteMm = sliceHoogtePx / pxPerMm;
           if (!eersteAfbeelding) pdf.addPage();
-          pdf.addImage(sliceData, "PNG", 0, 0, pageWidth, sliceHoogteMm);
+          pdf.addImage(sliceData, "JPEG", 0, 0, pageWidth, sliceHoogteMm);
           eersteAfbeelding = false;
           geplaatstPx += sliceHoogtePx;
         }
@@ -2021,9 +2021,11 @@ function converteerPdfNaarAfbeeldingen(dataUrl, callback) {
         var canvas = document.createElement("canvas");
         canvas.width = viewport.width; canvas.height = viewport.height;
         var ctx = canvas.getContext("2d");
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height); // witte ondergrond, anders wordt eventuele transparantie straks zwart in JPEG
         page.render({ canvasContext: ctx, viewport: viewport }).promise.then(function(){
           var eindCanvas = bijsnijdenWitrand(canvas);
-          afbeeldingen.push(eindCanvas.toDataURL("image/png"));
+          afbeeldingen.push(eindCanvas.toDataURL("image/jpeg", 0.92));
           volgendePagina(nr+1);
         });
       });
