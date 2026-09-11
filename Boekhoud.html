@@ -1008,9 +1008,10 @@ function updateProductNaamMetHerkenning(id, naam) {
   var p = getProduct(id);
   if (!p) return;
   p.naam = naam;
+  propageerProductWijzigingNaarOffertes(id, "omschrijving");
   var herkend = herkenProductSpec(naam, p.categorie);
   if (herkend && !p.specWaarde) { p.specWaarde = String(herkend); toonToast("Wattpiek herkend: " + herkend + " Wp"); render(); }
-  else { persistProducten(); }
+  else { persistProducten(); render(); }
 }
 function newSchouw() {
   return {
@@ -1860,8 +1861,39 @@ function kiesKlantVoorOfferte(offerteId, klantId) {
 // ---------------------------------------------------------------------
 function nieuwProduct() { var p = newProduct(); state.producten.unshift(p); persistProducten(); state.huidigProductId = p.id; setTab("product-form"); toonToast("Nieuw product aangemaakt"); }
 function getProduct(id) { return state.producten.find(function(p){return p.id===id;}); }
-function updateProductField(id, key, val) { var p = getProduct(id); if (p) p[key] = val; persistProducten(); }
-function updateProduct(id, patch) { var p = getProduct(id); if (p) Object.assign(p, patch); persistProducten(); render(); }
+function propageerProductWijzigingNaarOffertes(productId, wat) {
+  // Regels in offertes onthouden hun eigen omschrijving/btw als momentopname op het moment dat het
+  // product gekozen werd. Zonder deze functie moest je het product opnieuw kiezen in de offerte om
+  // een correctie (bijv. BTW-tarief voor een zakelijke klant, of een aangepaste omschrijving) door te
+  // voeren. Nu passen we bestaande regels die dit product gebruiken direct mee aan.
+  var p = getProduct(productId);
+  if (!p) return;
+  var gewijzigd = false;
+  state.offertes.forEach(function(o){
+    (o.regels||[]).forEach(function(r){
+      if (r.productId !== productId) return;
+      if (wat === "btw") { r.btw = p.btw; gewijzigd = true; }
+      else { r.omschrijving = p.naam + (p.omschrijving ? " — " + p.omschrijving : ""); gewijzigd = true; }
+    });
+  });
+  if (gewijzigd) persistOffertes();
+}
+function updateProductField(id, key, val) {
+  var p = getProduct(id); if (!p) return;
+  p[key] = val;
+  persistProducten();
+  if (key === "omschrijving" || key === "naam") propageerProductWijzigingNaarOffertes(id, "omschrijving");
+  if (key === "btw") propageerProductWijzigingNaarOffertes(id, "btw");
+  render();
+}
+function updateProduct(id, patch) {
+  var p = getProduct(id); if (!p) return;
+  Object.assign(p, patch);
+  persistProducten();
+  if (Object.prototype.hasOwnProperty.call(patch, "btw")) propageerProductWijzigingNaarOffertes(id, "btw");
+  if (Object.prototype.hasOwnProperty.call(patch, "naam") || Object.prototype.hasOwnProperty.call(patch, "omschrijving")) propageerProductWijzigingNaarOffertes(id, "omschrijving");
+  render();
+}
 function bewerkProduct(id) { state.huidigProductId = id; setTab("product-form"); }
 function removeProduct(id) { vraagBevestiging("Dit product uit de catalogus verwijderen?", function(){ state.producten = state.producten.filter(function(p){return p.id!==id;}); persistProducten(); render(); setTab("producten"); }); }
 function uploadProductFoto(id, files) {
@@ -3622,6 +3654,7 @@ function renderOfferteWerkblad() {
   h += '</div></div>';
 
   h += '<div class="ow-step"><div class="ow-step-head"><span class="ow-step-num">3</span><span class="ow-step-title">Regels</span></div>';
+  if (o.pakketprijsActief) h += '<p class="subtitle" style="margin-top:-4px;color:#FDE68A;">Let op: bij "verkopen als pakket" (hieronder) bepaalt de BTW van de pakketprijs het totaal — de BTW per regel hieronder wordt dan genegeerd.</p>';
   o.regels.forEach(function(r){
     h += productKiezer("kiesProductVoorOfferteRegel('" + o.id + "','" + r.id + "', this.value)");
     h += '<div class="ow-regel">';
