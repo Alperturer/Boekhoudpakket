@@ -330,13 +330,14 @@ function EO_nieuwSysteem() {
     dakhelling: "35", dakOrientatie: "180",
     bestaandeInstallatieActief: false, bestaandeInstallatieWp: "4000",
     efficiencyAfnamePct: "0.5", onderhoudJaarlijks: "0",
-    batterijActief: false, batterijCapaciteit: "10", batterijCyclesPerJaar: "280",
+    batterijActief: false, batterijCapaciteit: "10",
+    batterijWinterAandeelPct: "15", batterijZomerTerugleverPct: "70", avondInkoopTarief: "0.35",
     batterijBackupActief: false, batterijBruikbaarPct: "90", batterijBackupVermogen: "0.8",
     batterijArbitrageActief: false, batterijDalprijs: "0.15", batterijPiekprijs: "0.32",
     batterijArbitrageCyclesPerJaar: "300", batterijRoundtripEfficiency: "90",
     wpActief: false, huidigGasverbruik: "1200", gasprijs: "1.45", wpCOP: "4.2", wpAandeelUitZon: "20",
     aircoActief: false, aircoInstallaties: [],
-    stroomprijs: "0.35", terugleverprijs: "0.09", eigenVerbruikPct: "30",
+    stroomprijs: "0.35", terugleverprijs: "0.09",
     terugleverGrensGratis: "0", terugleverBoetePerKwh: "0.10",
     prijsstijgingPct: "4",
     investeringZon: "6500", investeringBatterij: "5500", investeringWP: "8500", investeringAirco: "2800",
@@ -481,14 +482,27 @@ function EO_berekenAlles(s) {
   }
   var maandOpwek = EO_MAAND_VERDELING.map(function(p){ return jaaropwek * p; });
 
-  var eigenVerbruikBasisPct = (parseFloat(s.eigenVerbruikPct)||0) / 100;
-  var eigenVerbruikBasis = jaaropwek * eigenVerbruikBasisPct;
-  var teruglevering = jaaropwek - eigenVerbruikBasis;
+  // Seizoensmodel voor de batterij-businesscase: in de winter (nov+dec+jan+feb) is de opwek laag
+  // t.o.v. het eigen verbruik, dus die stroom wordt vrijwel volledig direct zelf gebruikt. In de
+  // overige 8 maanden (240 dagen) is er wél een overschot, waarvan een deel wordt teruggeleverd.
+  // De batterij vangt dat overschot elke zomerdag op -- tot de eigen (bruikbare) capaciteit -- en
+  // zorgt dat je dat 's avonds zelf gebruikt in plaats van duur te moeten bijkopen.
+  var ZOMER_DAGEN = 8 * 30; // 8 maanden buiten nov/dec/jan/feb
+  var winterAandeelPct = (parseFloat(s.batterijWinterAandeelPct)||0) / 100;
+  var winterProductie = jaaropwek * winterAandeelPct;
+  var zomerProductie = jaaropwek * (1 - winterAandeelPct);
+  var zomerTerugleverPct = (parseFloat(s.batterijZomerTerugleverPct)||0) / 100;
+  var zomerTerugleveringBasis = zomerProductie * zomerTerugleverPct; // zonder batterij teruggeleverd, alleen in de zomerperiode
+  var zomerEigenVerbruikDirect = zomerProductie - zomerTerugleveringBasis;
+  var eigenVerbruikBasis = winterProductie + zomerEigenVerbruikDirect; // = 0 als er geen opwek is
+  var teruglevering = zomerTerugleveringBasis; // = 0 als er geen opwek is
 
-  var extraDoorBatterij = 0;
+  var extraDoorBatterij = 0, dagelijkseZomerTeruglevering = 0, dagelijkseVerschuivingBatterij = 0;
   if (s.batterijActief) {
-    var batterijPotentieel = (parseFloat(s.batterijCapaciteit)||0) * (parseFloat(s.batterijCyclesPerJaar)||0);
-    extraDoorBatterij = Math.min(batterijPotentieel, teruglevering);
+    var bruikbareCapaciteitBatterij = (parseFloat(s.batterijCapaciteit)||0) * ((parseFloat(s.batterijBruikbaarPct)||0)/100);
+    dagelijkseZomerTeruglevering = ZOMER_DAGEN > 0 ? teruglevering / ZOMER_DAGEN : 0;
+    dagelijkseVerschuivingBatterij = Math.min(dagelijkseZomerTeruglevering, bruikbareCapaciteitBatterij);
+    extraDoorBatterij = dagelijkseVerschuivingBatterij * ZOMER_DAGEN;
   }
   var backupUren = null;
   if (s.batterijActief && s.batterijBackupActief) {
@@ -512,8 +526,14 @@ function EO_berekenAlles(s) {
   }
 
   var stroomprijs = parseFloat(s.stroomprijs)||0;
+  var avondInkoopTarief = parseFloat(s.avondInkoopTarief) || stroomprijs;
   var terugleverprijs = parseFloat(s.terugleverprijs)||0;
-  var besparingEigenVerbruik = eigenVerbruikTotaal * stroomprijs;
+  // Het rechtstreekse dagverbruik levert het normale dagtarief op; het deel dat de batterij 's avonds
+  // beschikbaar maakt, is precies het bedrag dat je anders tegen het (vaak hogere) avondtarief had
+  // moeten bijkopen -- dat is de kern van de businesscase.
+  var besparingEigenVerbruikBasis = eigenVerbruikBasis * stroomprijs;
+  var besparingDoorBatterijVerschuiving = extraDoorBatterij * avondInkoopTarief;
+  var besparingEigenVerbruik = besparingEigenVerbruikBasis + besparingDoorBatterijVerschuiving;
   var teruglevering2 = jaaropwek - eigenVerbruikTotaal;
   var opbrengstTeruglevering = teruglevering2 * terugleverprijs;
   var grensGratis = parseFloat(s.terugleverGrensGratis)||0;
@@ -588,6 +608,9 @@ function EO_berekenAlles(s) {
     besparingEigenVerbruik: besparingEigenVerbruik, opbrengstTeruglevering: opbrengstTeruglevering, terugleverBoete: terugleverBoete,
     netoOpbrengstZon: netoOpbrengstZon, besparingWP: besparingWP, besparingAirco: besparingAirco,
     energieArbitrageJaar: energieArbitrageJaar, besparingArbitrage: besparingArbitrage,
+    winterProductie: winterProductie, zomerProductie: zomerProductie, zomerTerugleveringBasis: zomerTerugleveringBasis,
+    dagelijkseZomerTeruglevering: dagelijkseZomerTeruglevering, dagelijkseVerschuivingBatterij: dagelijkseVerschuivingBatterij,
+    avondInkoopTarief: avondInkoopTarief, besparingDoorBatterijVerschuiving: besparingDoorBatterijVerschuiving,
     kostenLadenArbitrage: kostenLadenArbitrage, opbrengstOntladenArbitrage: opbrengstOntladenArbitrage,
     elektriciteitWP: elektriciteitWP, elektriciteitAirco: elektriciteitAirco,
     totaleJaarlijkseBesparing: totaleJaarlijkseBesparing, investering: investering, terugverdientijd: terugverdientijd,
@@ -4015,14 +4038,22 @@ function EO_renderConfig(o) {
     }
     h += '<div class="grid2">';
     h += eoField(oid,"batterijCapaciteit","Capaciteit (kWh)",s.batterijCapaciteit);
-    h += eoField(oid,"batterijCyclesPerJaar","Volledige cycli per jaar",s.batterijCyclesPerJaar);
+    h += eoField(oid,"batterijBruikbaarPct","Bruikbare capaciteit (%)",s.batterijBruikbaarPct);
     h += '</div>';
+    if (s.zonActief || s.bestaandeInstallatieActief) {
+      h += '<p class="subtitle" style="margin-top:-6px;">Seizoensmodel: in nov/dec/jan/feb wordt de opwek vrijwel volledig direct zelf verbruikt. In de overige 8 maanden (240 dagen) is er een overschot waarvan een deel teruggeleverd wordt &mdash; de batterij vangt dat overschot elke dag op tot zijn eigen capaciteit.</p>';
+      h += '<div class="grid3">';
+      h += eoField(oid,"batterijWinterAandeelPct","Aandeel opwek in winter (%, nov-feb)",s.batterijWinterAandeelPct);
+      h += eoField(oid,"batterijZomerTerugleverPct","Teruglever-% in de zomerperiode",s.batterijZomerTerugleverPct);
+      h += eoGeldField(oid,"avondInkoopTarief","Avond-inkooptarief (&euro;/kWh)",s.avondInkoopTarief);
+      h += '</div>';
+      h += '<p class="subtitle" style="margin-top:-8px;">Dit avondtarief is expres los instelbaar van het gewone stroomtarief hierboven &mdash; zo laat je precies zien wat de klant \'s avonds bijkoopt zonder batterij, en wat hij daarmee bespaart.</p>';
+    }
     if (r.batterijMeerwaardeJaar != null) {
       h += eoImpactRegel('<b>Waarom deze batterij?</b> T.o.v. de situatie zonder batterij levert-ie <b>' + euro(r.batterijMeerwaardeJaar) + '/jaar</b> extra op' + (r.batterijTerugverdientijd!=null ? " &middot; terugverdientijd " + nf(r.batterijTerugverdientijd,1) + " jaar" : "") + '.');
     }
     if (s.zonActief || s.bestaandeInstallatieActief) {
-      var extraOpbrengstBatterij = r.extraDoorBatterij * ((parseFloat(s.stroomprijs)||0) - (parseFloat(s.terugleverprijs)||0));
-      h += eoImpactRegel('<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><rect x="1" y="7" width="18" height="10" rx="2"/><line x1="23" y1="11" x2="23" y2="13"/><line x1="5" y1="10" x2="5" y2="14"/><line x1="9" y1="10" x2="9" y2="14"/></svg> Verschuift ' + nf(r.extraDoorBatterij) + " kWh/jaar &middot; extra opbrengst " + euro(extraOpbrengstBatterij) + "/jaar");
+      h += eoImpactRegel('<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><rect x="1" y="7" width="18" height="10" rx="2"/><line x1="23" y1="11" x2="23" y2="13"/><line x1="5" y1="10" x2="5" y2="14"/><line x1="9" y1="10" x2="9" y2="14"/></svg> Vangt ' + nf(r.dagelijkseVerschuivingBatterij,1) + " kWh/dag op in de zomerperiode &middot; " + nf(r.extraDoorBatterij) + " kWh/jaar &middot; extra opbrengst " + euro(r.besparingDoorBatterijVerschuiving) + "/jaar (avondtarief min terugleververgoeding)");
     } else {
       h += '<p class="subtitle" style="margin-top:-8px;">Geen zonnepanelen? Gebruik hieronder prijsarbitrage en/of noodstroom als verkoopargument voor de batterij.</p>';
     }
@@ -4105,7 +4136,6 @@ function EO_renderConfig(o) {
   h += '<h3 style="margin-top:0;">Energieprijzen &amp; investering</h3><div class="grid3">';
   h += eoGeldField(oid,"stroomprijs","Stroomprijs (&euro;/kWh)",s.stroomprijs);
   h += eoGeldField(oid,"terugleverprijs","Terugleverprijs (&euro;/kWh)",s.terugleverprijs);
-  h += eoField(oid,"eigenVerbruikPct","Eigen verbruik zonder batterij (%)",s.eigenVerbruikPct);
   h += eoField(oid,"terugleverGrensGratis","Teruglevering kosteloos tot (kWh/jr)",s.terugleverGrensGratis);
   h += eoGeldField(oid,"terugleverBoetePerKwh","Terugleverboete (&euro;/kWh)",s.terugleverBoetePerKwh);
   h += '</div><div class="grid3">';
