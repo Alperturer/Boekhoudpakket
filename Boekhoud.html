@@ -121,7 +121,7 @@
   .ow-form .ow-mini-totals { color:#fff; }
   .ow-form .ow-mini-totals .row.final { color:#fff; border-top-color:rgba(255,255,255,0.25); }
 
-  .r-page { background:#fff; padding:28px; margin:0 auto 14px; width:100%; max-width:700px; min-height:990px; box-sizing:border-box; position:relative; }
+  .r-page { background:#fff; padding:28px; margin:0 auto 14px; width:100%; max-width:700px; min-height:990px; box-sizing:border-box; position:relative; overflow-x:hidden; }
   .r-brand { font-size:11px; color:var(--muted); letter-spacing:0.08em; text-transform:uppercase; font-weight:700; }
   .r-title { font-size:22px; font-weight:800; margin-top:4px; }
   .r-rule { border:none; border-top:2px solid var(--blue); margin:12px 0 18px; }
@@ -189,19 +189,19 @@
   .ow-mini-totals .row { display:flex; justify-content:space-between; padding:1px 0; }
   .ow-mini-totals .row.final { color:var(--text); font-weight:700; border-top:1px solid var(--border); margin-top:4px; padding-top:4px; }
 
-  #ow-print-area, #r-page-factuur { width:100%; max-width:700px; min-height:990px; margin:0 auto; background:#fff; box-sizing:border-box; position:relative; }
+  #ow-print-area, #r-page-factuur { width:100%; max-width:700px; min-height:990px; margin:0 auto; background:#fff; box-sizing:border-box; position:relative; overflow-x:hidden; }
   .ow-stripe { height:6px; }
   .ow-letterhead { padding:18px 22px 14px; border-bottom:1px solid #EFF6F5; display:flex; justify-content:space-between; align-items:flex-start; }
   .ow-wordmark { font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; font-size:calc(19px * var(--tekst-schaal, 1)); font-weight:800; letter-spacing:-0.01em; }
   .verkoper-gegevens { margin-top:0; font-size:calc(11px * var(--tekst-schaal, 1)); line-height:1.6; color:var(--muted); }
   .ow-tagline { font-size:calc(11px * var(--tekst-schaal, 1)); color:var(--muted); margin-top:2px; }
-  .ow-lh-right { text-align:right; font-size:calc(12px * var(--tekst-schaal, 1)); color:var(--muted); }
+  .ow-lh-right { text-align:right; font-size:calc(12px * var(--tekst-schaal, 1)); color:var(--muted); overflow-wrap:break-word; word-break:break-word; max-width:260px; }
   .doc-type-label { font-size:calc(10.5px * var(--tekst-schaal, 1)); font-weight:800; letter-spacing:0.06em; text-transform:uppercase; color:var(--muted); margin-bottom:2px; }
   .ow-lh-right .num { font-family:ui-monospace,monospace; font-weight:700; color:var(--text); }
   .ow-klant-block { padding:0 34px; margin-top:16px; font-size:calc(13px * var(--tekst-schaal, 1)); }
   .ow-klant-block .naam { font-weight:700; }
   .ow-klant-block .sub-line { color:var(--muted); }
-  .ow-body { padding:18px 22px; font-size:calc(12.5px * var(--tekst-schaal, 1)); line-height:1.42; color:#0A0A0A; }
+  .ow-body { padding:18px 22px; font-size:calc(12.5px * var(--tekst-schaal, 1)); line-height:1.42; color:#0A0A0A; overflow-wrap:break-word; word-break:break-word; }
   .ow-body p { margin:0 0 8px; }
   .ow-body h4.ow-section-title { margin:12px 0 5px; }
   #ow-print-area, #ow-print-area .ow-klant-block, #ow-print-area .ow-wordmark, #r-page-factuur, #r-page-factuur .ow-klant-block, #r-page-factuur .ow-wordmark { color:#0A0A0A; }
@@ -654,10 +654,12 @@ function downloadAlsPDF(elementId, bestandsnaam, knopId) {
       var isHoofdpagina = paginaEl.id === "ow-print-area" || paginaEl.id === "r-page-factuur";
       var herstelFn = isHoofdpagina ? verkleinTotEenPagina(paginaEl) : null;
       var volledigeHoogte = Math.max(paginaEl.scrollHeight, paginaEl.offsetHeight, paginaEl.getBoundingClientRect().height);
-      var volledigeBreedte = Math.max(paginaEl.scrollWidth, paginaEl.offsetWidth, paginaEl.getBoundingClientRect().width);
+      // Bewust ALLEEN de eigen opgemaakte breedte gebruiken (nooit scrollWidth) -- anders kan een lange, niet-afbrekende
+      // tekst (bijv. een lang e-mailadres) de "foto" breder maken dan de pagina zelf, met scheve witruimte tot gevolg.
+      var volledigeBreedte = paginaEl.getBoundingClientRect().width || paginaEl.offsetWidth;
       var nietKnippenZones = [];
       return html2canvas(paginaEl, {
-        scale: 2, backgroundColor: "#ffffff", width: volledigeBreedte, height: volledigeHoogte, windowWidth: volledigeBreedte, windowHeight: volledigeHoogte,
+        scale: 1.6, backgroundColor: "#ffffff", width: volledigeBreedte, height: volledigeHoogte, windowWidth: volledigeBreedte, windowHeight: volledigeHoogte,
         onclone: function(clonedDoc, clonedEl) {
           // Meet de niet-knippen-blokken (tabel, totalen, kwaliteitsblok...) op exact hetzelfde
           // gekloonde element dat html2canvas zelf gaat fotograferen -- dat voorkomt verschillen
@@ -675,11 +677,11 @@ function downloadAlsPDF(elementId, bestandsnaam, knopId) {
           // Deze pagina is al gegarandeerd verkleind tot hij op 1 pagina past -- gewoon in zijn geheel plaatsen.
           var hoofdHoogteMm = canvas.height / pxPerMm;
           if (!eersteAfbeelding) pdf.addPage();
-          pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, pageWidth, Math.min(hoofdHoogteMm, pageHeight));
+          pdf.addImage(canvas.toDataURL("image/jpeg", 0.8), "JPEG", 0, 0, pageWidth, Math.min(hoofdHoogteMm, pageHeight));
           eersteAfbeelding = false;
           return;
         }
-        var pxPerCssPx = 2; // zelfde waarde als de "scale" hierboven
+        var pxPerCssPx = 1.6; // zelfde waarde als de "scale" hierboven
         var pageHeightPx = pageHeight * pxPerMm;
         var totaalHoogtePx = canvas.height;
         var geplaatstPx = 0;
@@ -700,10 +702,10 @@ function downloadAlsPDF(elementId, bestandsnaam, knopId) {
           ctx.fillStyle = "#ffffff";
           ctx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
           ctx.drawImage(canvas, 0, geplaatstPx, canvas.width, sliceHoogtePx, 0, 0, canvas.width, sliceHoogtePx);
-          var sliceData = sliceCanvas.toDataURL("image/png");
+          var sliceData = sliceCanvas.toDataURL("image/jpeg", 0.8);
           var sliceHoogteMm = sliceHoogtePx / pxPerMm;
           if (!eersteAfbeelding) pdf.addPage();
-          pdf.addImage(sliceData, "PNG", 0, 0, pageWidth, sliceHoogteMm);
+          pdf.addImage(sliceData, "JPEG", 0, 0, pageWidth, sliceHoogteMm);
           eersteAfbeelding = false;
           geplaatstPx += sliceHoogtePx;
         }
@@ -860,8 +862,24 @@ function filesToDataUrls(files, callback) {
   var remaining = files.length;
   if (remaining === 0) { callback(results); return; }
   Array.prototype.forEach.call(files, function(f, idx){
+    var isAfbeelding = f.type && f.type.indexOf("image/") === 0;
     var reader = new FileReader();
-    reader.onload = function(e) { results[idx] = e.target.result; remaining--; if (remaining === 0) callback(results); };
+    reader.onload = function(e) {
+      if (!isAfbeelding) { results[idx] = e.target.result; remaining--; if (remaining === 0) callback(results); return; }
+      // Elke geüploade afbeelding automatisch omzetten naar gecomprimeerde JPEG (kleinere bestanden, ook in de PDF-export).
+      var img = new Image();
+      img.onload = function(){
+        var canvas = document.createElement("canvas");
+        canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+        var ctx = canvas.getContext("2d");
+        ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, canvas.width, canvas.height); // voorkomt zwarte achtergrond bij transparante PNG's
+        ctx.drawImage(img, 0, 0);
+        results[idx] = canvas.toDataURL("image/jpeg", 0.85);
+        remaining--; if (remaining === 0) callback(results);
+      };
+      img.onerror = function(){ results[idx] = e.target.result; remaining--; if (remaining === 0) callback(results); };
+      img.src = e.target.result;
+    };
     reader.onerror = function() { remaining--; if (remaining === 0) callback(results); };
     reader.readAsDataURL(f);
   });
@@ -1896,7 +1914,7 @@ function converteerPdfNaarAfbeeldingen(dataUrl, callback) {
         canvas.width = viewport.width; canvas.height = viewport.height;
         var ctx = canvas.getContext("2d");
         page.render({ canvasContext: ctx, viewport: viewport }).promise.then(function(){
-          afbeeldingen.push(canvas.toDataURL("image/png"));
+          afbeeldingen.push(canvas.toDataURL("image/jpeg", 0.82));
           volgendePagina(nr+1);
         });
       });
