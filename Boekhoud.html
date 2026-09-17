@@ -657,9 +657,18 @@ function downloadAlsPDF(elementId, bestandsnaam, knopId) {
       // Bewust ALLEEN de eigen opgemaakte breedte gebruiken (nooit scrollWidth) -- anders kan een lange, niet-afbrekende
       // tekst (bijv. een lang e-mailadres) de "foto" breder maken dan de pagina zelf, met scheve witruimte tot gevolg.
       var volledigeBreedte = paginaEl.getBoundingClientRect().width || paginaEl.offsetWidth;
+      // BELANGRIJK: windowWidth/windowHeight NIET gelijk zetten aan de eigen (smalle) breedte van het
+      // offerte-blok zelf. Dat ligt onder de mobiele CSS-breakpoint (900px) van .ow-layout, waardoor
+      // html2canvas de pagina intern in mobiele weergave opbouwt (andere marges/volgorde). Het gefotografeerde
+      // blok valt daardoor smaller uit dan de opgegeven canvasbreedte, en dat verschil bleef als lege witruimte
+      // rechts op de pagina staan -- die vervolgens over de volle paginabreedte werd uitgerekt ("niet gecentreerd").
+      // Door hier de echte vensterbreedte/-hoogte van de browser te gebruiken, blijft de normale (brede) desktop-
+      // layout intact tijdens het fotograferen, precies zoals op het scherm te zien is.
+      var vensterBreedte = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0, 1400);
+      var vensterHoogte = Math.max(window.innerHeight || 0, volledigeHoogte);
       var nietKnippenZones = [];
       return html2canvas(paginaEl, {
-        scale: 1.6, backgroundColor: "#ffffff", width: volledigeBreedte, height: volledigeHoogte, windowWidth: volledigeBreedte, windowHeight: volledigeHoogte,
+        scale: 1.6, backgroundColor: "#ffffff", width: volledigeBreedte, height: volledigeHoogte, windowWidth: vensterBreedte, windowHeight: vensterHoogte,
         onclone: function(clonedDoc, clonedEl) {
           // Meet de niet-knippen-blokken (tabel, totalen, kwaliteitsblok...) op exact hetzelfde
           // gekloonde element dat html2canvas zelf gaat fotograferen -- dat voorkomt verschillen
