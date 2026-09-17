@@ -3468,6 +3468,8 @@ function renderOfferteWerkblad() {
   h += ofield(o.id,"klantContactpersoon","Naam eigenaar/contactpersoon",o.klantContactpersoon);
   h += contactpersoonKiezerHtml(o.klantId, o.id, "updateOfferteField");
   h += adresVeldMetSuggesties("offerte-adres-"+o.id, "Adres", o.klantAdres, "updateOfferteField('"+o.id+"','klantAdres',this.value);", "offerteAdresGekozen", o.id, "");
+  h += ofield(o.id,"klantPostcode","Postcode",o.klantPostcode);
+  h += ofield(o.id,"klantPlaats","Plaats",o.klantPlaats);
   h += ofield(o.id,"klantEmail","E-mail",o.klantEmail);
   h += ofield(o.id,"klantTelefoon","Telefoon",o.klantTelefoon);
   h += ofield(o.id,"klantNummer","Klantnummer",o.klantNummer);
@@ -3622,6 +3624,7 @@ function renderOfferteWerkblad() {
   h += '<div class="ow-lh-right"><div class="doc-type-label">Offerte</div><div class="num">' + esc(o.offertenummer) + (o.status!=="concept" ? ' <span class="badge badge-' + o.status + '" style="margin-left:4px;">' + statusLabel(o.status) + '</span>' : '') + '</div><div>' + esc(o.datum) + (o.geldigTot ? '<br/>Geldig tot ' + esc(o.geldigTot) : '') + '</div>';
   h += '<div class="ow-klant-block" style="padding:0;margin-top:14px;text-align:right;"><div class="naam">' + esc(o.klantNaam || "Klantnaam") + '</div>' + (o.klantContactpersoon ? '<div class="sub-line">T.a.v. ' + esc(o.klantContactpersoon) + '</div>' : '');
   if (o.klantAdres) h += '<div class="sub-line">' + esc(o.klantAdres) + '</div>';
+  if (o.klantPostcode || o.klantPlaats) h += '<div class="sub-line">' + esc([o.klantPostcode,o.klantPlaats].filter(Boolean).join(" ")) + '</div>';
   if (o.klantEmail) h += '<div class="sub-line">' + esc(o.klantEmail) + '</div>';
   if (o.klantNummer) h += '<div class="sub-line">Klantnummer: ' + esc(o.klantNummer) + '</div>';
   h += '</div>';
