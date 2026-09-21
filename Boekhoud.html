@@ -1409,6 +1409,13 @@ function laadAlleOrgTabellen(callback) {
     ["org_sjablonen","sjablonen"], ["org_registraties","registraties"], ["org_schouwen","schouwen"], ["org_instellingen","bedrijf"]
   ];
   var over = taken.length;
+  var klaargemeld = false;
+  function meldKlaarAlsLaatste() { over--; if (over === 0) meldKlaar(); }
+  function meldKlaar() { if (klaargemeld) return; klaargemeld = true; callback(); }
+  // Veiligheidsnet: als er ooit weer een databasehapering is (zie de herstarts die dit probleem
+  // veroorzaakten), mag dat NOOIT meer het inlogscherm voor altijd laten hangen -- na 8 seconden
+  // gaan we hoe dan ook door, met de tabellen die al wel binnen zijn en anders de lokale data.
+  setTimeout(meldKlaar, 8000);
   taken.forEach(function(t){
     supabaseClient.from(t[0]).select("data").eq("organisatie_id", org).maybeSingle().then(function(res){
       if (res.data && res.data.data) {
@@ -1419,13 +1426,29 @@ function laadAlleOrgTabellen(callback) {
         var lokaleWaarde = (t[1] === "bedrijf") ? state.bedrijf : state[t[1]];
         slaOpInCloudSectie(t[0], lokaleWaarde);
       }
-      over--; if (over === 0) callback();
-    }).catch(function(){ over--; if (over === 0) callback(); });
+      meldKlaarAlsLaatste();
+    }).catch(function(){ meldKlaarAlsLaatste(); });
   });
 }
 function laadUitCloud(callback) {
   if (!supabaseClient || !state.user) { callback(); return; }
-  ensureOrganisatie(function(){ laadAlleOrgTabellen(function(){ laadLicentie(callback); }); });
+  ensureOrganisatie(function(){
+    // BELANGRIJK: de licentiecontrole gebeurt nu PARALLEL aan het laden van de bedrijfsgegevens,
+    // met een harde timeout van 4 seconden. Eerder liep dit NA elkaar (eerst alle org-tabellen,
+    // dan pas de licentie), waardoor een trage of haperende databaseverbinding (bijv. tijdens een
+    // korte serverherstart) het HELE inlogscherm kon laten hangen -- ook al had dat feitelijk niets
+    // met kunnen inloggen te maken. Een niet-kritieke check mag de app nooit meer blokkeren.
+    var klaar = 0;
+    function volgende() { klaar++; if (klaar === 2) callback(); }
+    laadAlleOrgTabellen(volgende);
+    laadLicentieMetTimeout(volgende);
+  });
+}
+function laadLicentieMetTimeout(callback) {
+  var afgehandeld = false;
+  function eenmalig() { if (afgehandeld) return; afgehandeld = true; callback(); }
+  setTimeout(eenmalig, 4000); // na 4 seconden gewoon doorgaan met de standaardlicentie, wat er ook nog loopt
+  laadLicentie(eenmalig);
 }
 // ---------------------------------------------------------------------
 // LICENTIE / ABONNEMENT
