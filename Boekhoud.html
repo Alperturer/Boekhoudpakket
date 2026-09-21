@@ -121,7 +121,7 @@
   .ow-form .ow-mini-totals { color:#fff; }
   .ow-form .ow-mini-totals .row.final { color:#fff; border-top-color:rgba(255,255,255,0.25); }
 
-  .r-page { background:#fff; padding:28px; margin:0 auto 14px; width:100%; max-width:700px; min-height:990px; box-sizing:border-box; position:relative; overflow-x:hidden; }
+  .r-page { background:#fff; padding:28px; margin:0 auto 14px; width:100%; max-width:700px; min-height:950px; box-sizing:border-box; position:relative; overflow-x:hidden; }
   .r-brand { font-size:11px; color:var(--muted); letter-spacing:0.08em; text-transform:uppercase; font-weight:700; }
   .r-title { font-size:22px; font-weight:800; margin-top:4px; }
   .r-rule { border:none; border-top:2px solid var(--blue); margin:12px 0 18px; }
@@ -191,7 +191,7 @@
   .ow-mini-totals .row { display:flex; justify-content:space-between; padding:1px 0; }
   .ow-mini-totals .row.final { color:var(--text); font-weight:700; border-top:1px solid var(--border); margin-top:4px; padding-top:4px; }
 
-  #ow-print-area, #r-page-factuur { width:100%; max-width:700px; min-height:990px; margin:0 auto; background:#fff; box-sizing:border-box; position:relative; overflow-x:hidden; }
+  #ow-print-area, #r-page-factuur { width:100%; max-width:700px; min-height:950px; margin:0 auto; background:#fff; box-sizing:border-box; position:relative; overflow-x:hidden; }
   .ow-stripe { height:6px; }
   .ow-letterhead { padding:18px 22px 14px; border-bottom:1px solid #EFF6F5; display:flex; justify-content:space-between; align-items:flex-start; }
   .ow-wordmark { font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; font-size:calc(19px * var(--tekst-schaal, 1)); font-weight:800; letter-spacing:-0.01em; }
@@ -625,7 +625,7 @@ function downloadAlsPDF(elementId, bestandsnaam, knopId) {
   var jsPDF = window.jspdf.jsPDF;
   var pdf = new jsPDF("p", "mm", "a4");
   var pageWidth = 210, pageHeight = 297;
-  var DOEL_HOOGTE_PX = 950; // iets kleiner dan de min-height (990px), als veiligheidsmarge zodat het gegarandeerd past
+  var DOEL_HOOGTE_PX = 950; // zelfde veilige hoogte als de andere pagina's (.r-page min-height) -- ruim onder de rekenkundige 1-pagina-grens
 
   function verkleinTotEenPagina(paginaEl) {
     // De hoofdpagina (offerte/factuur zelf) mag NOOIT over 2 pagina's lopen: past de inhoud niet vanzelf,
@@ -666,7 +666,12 @@ function downloadAlsPDF(elementId, bestandsnaam, knopId) {
       // rechts op de pagina staan -- die vervolgens over de volle paginabreedte werd uitgerekt ("niet gecentreerd").
       // Door hier de echte vensterbreedte/-hoogte van de browser te gebruiken, blijft de normale (brede) desktop-
       // layout intact tijdens het fotograferen, precies zoals op het scherm te zien is.
-      var vensterBreedte = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0, 1400);
+      // Minimaal 1700px forceren (niet 1400): pas vanaf ~1556px bereikt het offerteblok zijn volle
+      // breedte (max-width:700px); daaronder valt hij terug op een smallere breedte, waardoor de
+      // 1-pagina-drempel (950px hoogte) niet meer klopt en er een bijna lege 2e pagina ontstaat.
+      // 1700 geeft hier ruim (140px) marge bovenop, ongeacht hoe smal het browservenster van de
+      // gebruiker zelf toevallig is.
+      var vensterBreedte = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0, 1700);
       var vensterHoogte = Math.max(window.innerHeight || 0, volledigeHoogte);
       var nietKnippenZones = [];
       return html2canvas(paginaEl, {
@@ -4156,14 +4161,14 @@ function renderDatasheetsSectie(datasheets, startPaginaNr, totaalPaginas, bedrij
   var pn = startPaginaNr;
   datasheets.forEach(function(d){
     if (d.data && d.data.indexOf("image") !== -1 && (!d.paginaAfbeeldingen || d.paginaAfbeeldingen.length === 0)) {
-      h += '<div class="r-page" style="padding:0;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;height:990px;">';
+      h += '<div class="r-page" style="padding:0;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;height:950px;">';
       h += '<img src="' + d.data + '" style="width:100%;height:100%;object-fit:contain;display:block;" />';
       h += '<div style="position:absolute;bottom:10px;right:14px;font-size:10px;color:#94A3B8;background:rgba(255,255,255,0.85);padding:2px 8px;border-radius:4px;">Pagina ' + pn + ' van ' + totaalPaginas + '</div>';
       h += '</div>';
       pn++;
     } else if (d.paginaAfbeeldingen && d.paginaAfbeeldingen.length > 0) {
       d.paginaAfbeeldingen.forEach(function(pagUrl){
-        h += '<div class="r-page" style="padding:0;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;height:990px;">';
+        h += '<div class="r-page" style="padding:0;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;height:950px;">';
         h += '<img src="' + pagUrl + '" style="width:100%;height:100%;object-fit:contain;display:block;" />';
         h += '<div style="position:absolute;bottom:10px;right:14px;font-size:10px;color:#94A3B8;background:rgba(255,255,255,0.85);padding:2px 8px;border-radius:4px;">Pagina ' + pn + ' van ' + totaalPaginas + '</div>';
         h += '</div>';
