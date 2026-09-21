@@ -132,6 +132,8 @@
   table.r-table td { padding:10px 8px; border-bottom:1px solid #F1F5F9; }
   table.r-table td.num { text-align:right; white-space:nowrap; }
   table.r-table th.num { text-align:right; white-space:nowrap; }
+  table.r-table-compact th { padding:4px 6px; }
+  table.r-table-compact td { padding:2.5px 6px; }
   table.r-table tr.total-row td { font-weight:800; border-top:2px solid var(--navy); border-bottom:none; }
   table.r-table tbody tr:hover { background:#F8FAFC; }
 
@@ -3827,7 +3829,7 @@ function renderOfferteWerkblad() {
       h += '</div></div>';
     }
   }
-  var energiePaginaCount = (o.energieActief && o.energie && o.energie.zonActief) ? 6 : 0;
+  var energiePaginaCount = (o.energieActief && o.energie && o.energie.zonActief) ? 4 : 0;
   var legplanPaginaCount = o.legplanFoto ? 1 : 0;
   var datasheetsPaginaCount = datasheetsPaginaAantal(o.datasheets);
   var voorwaardenPaginaCount = algemeneVoorwaardenPaginaAantal();
@@ -4294,16 +4296,12 @@ function EO_renderRapportPaginas(o, startPaginaNr, totaalPaginas, bedrijfOverrid
   h += '</div></div>';
   h += paginaVoetnoot(pn++, totaalPaginas) + '</div>';
 
-  // Pagina: besparing over 10 jaar (los, want stond eerst op dezelfde pagina als de 2 grafieken
-  // hierboven -- samen te lang voor 1 A4-pagina, waardoor de grafiek bij het exporteren
-  // doormidden werd geknipt en over 2 PDF-pagina's uitliep)
+  // Pagina: besparing over 10 jaar + financiële opbouw samen op 1 pagina
   h += '<div class="r-page">' + paginaLogoHeader(bedrijfOverride) + '<div class="r-h">Besparing over 10 jaar</div>';
   h += EO_svgBesparingChart(r.jaren, r.cumulatiefBesparing, r.cumulatiefNetto);
-  h += paginaVoetnoot(pn++, totaalPaginas) + '</div>';
 
-  // Pagina: financiële opbouw (alle componenten uitgesplitst)
-  h += '<div class="r-page">' + paginaLogoHeader(bedrijfOverride) + '<div class="r-h">Financiële opbouw</div>';
-  h += '<table class="r-table"><tbody>';
+  h += '<h3 style="margin-top:14px;">Financiële opbouw</h3>';
+  h += '<table class="r-table r-table-compact"><tbody>';
   if (s.zonActief) {
     h += '<tr><td>Besparing eigen verbruik (' + nf(r.eigenVerbruik) + ' kWh &times; ' + euro(s.stroomprijs) + ')</td><td class="num">' + euro(r.besparingEigenVerbruik) + '</td></tr>';
     h += '<tr><td>Opbrengst teruglevering (' + nf(r.teruglevering) + ' kWh &times; ' + euro(s.terugleverprijs) + ')</td><td class="num">' + euro(r.opbrengstTeruglevering) + '</td></tr>';
@@ -4315,7 +4313,7 @@ function EO_renderRapportPaginas(o, startPaginaNr, totaalPaginas, bedrijfOverrid
   h += '<tr style="font-weight:800;border-top:2px solid var(--border);"><td>Totale jaarlijkse besparing</td><td class="num">' + euro(r.totaleJaarlijkseBesparing) + '</td></tr>';
   h += '</tbody></table>';
 
-  h += '<h3 style="margin-top:18px;">Wat je investeert</h3><table class="r-table"><tbody>';
+  h += '<h3 style="margin-top:14px;">Wat je investeert</h3><table class="r-table r-table-compact"><tbody>';
   if (s.zonActief) h += '<tr><td>Zonnepanelen (' + nf(parseFloat(s.aantalPanelen)||0) + ' stuks, ' + nf(r.kWp,1) + ' kWp)</td><td class="num">' + euro(s.investeringZon) + '</td></tr>';
   if (s.batterijActief) h += '<tr><td>Thuisbatterij (' + esc(s.batterijCapaciteit) + ' kWh)</td><td class="num">' + euro(s.investeringBatterij) + '</td></tr>';
   if (s.wpActief) h += '<tr><td>Warmtepomp</td><td class="num">' + euro(s.investeringWP) + '</td></tr>';
@@ -4324,27 +4322,11 @@ function EO_renderRapportPaginas(o, startPaginaNr, totaalPaginas, bedrijfOverrid
   h += '</tbody></table>';
   h += paginaVoetnoot(pn++, totaalPaginas) + '</div>';
 
-  // Pagina: "Uw besparing" 25-jaars overzicht
+  // Pagina: "Uw besparing" 25-jaars overzicht -- ALLE 25 rijen op 1 pagina, met compacte tabelstijl.
   h += '<div class="r-page">' + paginaLogoHeader(bedrijfOverride) + '<div class="r-h">Uw besparing</div>';
-  h += '<h3>Berekening</h3><p style="font-size:12.5px;line-height:1.6;">Het eerste jaar ga je <b>' + nf(bp.jaaropwek1) + ' kWh</b> opwekken met je zonnepanelen. We gaan uit van een efficiency afname van <b>' + esc(s.efficiencyAfnamePct) + '</b> per jaar en een gemiddelde jaarlijkse energie-prijsindex van <b>' + esc(s.prijsstijgingPct) + '%</b>.</p>';
-  h += '<h3>Terugverdientijd</h3><p style="font-size:12.5px;line-height:1.6;">De indicatie van de terugverdientijd is ' + (bp.terugverdienJaar ? "minder dan <b>" + bp.terugverdienJaar + " jaar</b>" : "meer dan 25 jaar") + '.</p>';
-  // De volledige tabel (tot 25 rijen) past niet op 1 A4-pagina samen met de tekst hierboven --
-  // eerder liep dit door naar een 2e PDF-pagina met de tabel middenin geknipt en een losstaand
-  // "Pagina X van Y"-voettekstje bovenaan die volgende pagina. Daarom hier bewust splitsen in twee
-  // nette pagina's, elk met eigen kop en (op de 2e) herhaalde tabelheader.
-  var EO_TABEL_SPLIT = 13;
-  var rijenDeel1 = bp.rijen.slice(0, EO_TABEL_SPLIT);
-  var rijenDeel2 = bp.rijen.slice(EO_TABEL_SPLIT);
-  h += '<table class="r-table" style="font-size:10px;"><thead><tr><th>Jaar</th><th class="num">Productie kWh</th><th class="num">Energieprijs</th><th class="num">Besparing</th><th class="num">Rendement</th><th class="num">Cumulatief</th></tr></thead><tbody>';
-  rijenDeel1.forEach(function(row){
-    h += '<tr><td>' + row.jaar + 'e</td><td class="num">' + nf(row.opwek) + '</td><td class="num">' + euro(row.prijs) + '</td><td class="num">' + euro(row.besparing) + '</td><td class="num">' + nf(row.rendementPct,1) + '%</td><td class="num">' + euro(row.cumulatief) + '</td></tr>';
-  });
-  h += '</tbody></table>';
-  h += paginaVoetnoot(pn++, totaalPaginas) + '</div>';
-
-  h += '<div class="r-page">' + paginaLogoHeader(bedrijfOverride) + '<div class="r-h">Uw besparing (vervolg)</div>';
-  h += '<table class="r-table" style="font-size:10px;"><thead><tr><th>Jaar</th><th class="num">Productie kWh</th><th class="num">Energieprijs</th><th class="num">Besparing</th><th class="num">Rendement</th><th class="num">Cumulatief</th></tr></thead><tbody>';
-  rijenDeel2.forEach(function(row){
+  h += '<h3>Berekening</h3><p style="font-size:11px;line-height:1.4;margin:4px 0 8px;">Het eerste jaar ga je <b>' + nf(bp.jaaropwek1) + ' kWh</b> opwekken met je zonnepanelen. We gaan uit van een efficiency afname van <b>' + esc(s.efficiencyAfnamePct) + '</b> per jaar en een gemiddelde jaarlijkse energie-prijsindex van <b>' + esc(s.prijsstijgingPct) + '%</b>. De indicatie van de terugverdientijd is ' + (bp.terugverdienJaar ? "minder dan <b>" + bp.terugverdienJaar + " jaar</b>" : "meer dan 25 jaar") + '.</p>';
+  h += '<table class="r-table r-table-compact" style="font-size:9px;"><thead><tr><th>Jaar</th><th class="num">Productie kWh</th><th class="num">Energieprijs</th><th class="num">Besparing</th><th class="num">Rendement</th><th class="num">Cumulatief</th></tr></thead><tbody>';
+  bp.rijen.forEach(function(row){
     h += '<tr><td>' + row.jaar + 'e</td><td class="num">' + nf(row.opwek) + '</td><td class="num">' + euro(row.prijs) + '</td><td class="num">' + euro(row.besparing) + '</td><td class="num">' + nf(row.rendementPct,1) + '%</td><td class="num">' + euro(row.cumulatief) + '</td></tr>';
   });
   h += '<tr style="font-weight:800;"><td colspan="5">Totaal winst na 25 jaar</td><td class="num">' + euro(bp.totaalWinst25) + '</td></tr>';
@@ -5456,7 +5438,7 @@ function renderKlantOfferteView(o) {
   h += '</tbody></table>';
   h += '<div class="totals-box"><div class="totals-row grand"><span>Totaal incl. BTW</span><span>' + euro(t.totaalIncl) + '</span></div></div>';
   if (o.data.opmerking) h += '<p style="font-size:12.5px;color:#6b6659;margin-top:16px;">' + esc(o.data.opmerking) + '</p>';
-  var energiePaginaCountKlant = (o.data.energieActief && o.data.energie && o.data.energie.zonActief) ? 6 : 0;
+  var energiePaginaCountKlant = (o.data.energieActief && o.data.energie && o.data.energie.zonActief) ? 4 : 0;
   var legplanPaginaCountKlant = o.data.legplanFoto ? 1 : 0;
   var datasheetsPaginaCountKlant = datasheetsPaginaAantal(o.data.datasheets);
   var totaalPaginasKlant = 1 + energiePaginaCountKlant + legplanPaginaCountKlant + datasheetsPaginaCountKlant;
