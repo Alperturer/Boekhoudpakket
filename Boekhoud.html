@@ -400,7 +400,7 @@ function EO_svgBarChart(labels, values, kleur, toonWaarden) {
   return svg;
 }
 function EO_svgBesparingChart(labels, brutoSerie, nettoSerie) {
-  var w=640, h=280, padL=52, padR=16, padB=32, padT=20;
+  var w=640, h=350, padL=52, padR=16, padB=32, padT=20;
   var alle = brutoSerie.concat(nettoSerie);
   var maxVal = Math.max(1, Math.max.apply(null, alle));
   var minVal = Math.min(0, Math.min.apply(null, alle));
@@ -4328,8 +4328,8 @@ function EO_renderRapportPaginas(o, startPaginaNr, totaalPaginas, bedrijfOverrid
   h += '<div class="r-page">' + paginaLogoHeader(bedrijfOverride) + '<div class="r-h">Besparing over 10 jaar</div>';
   h += EO_svgBesparingChart(r.jaren, r.cumulatiefBesparing, r.cumulatiefNetto);
 
-  h += '<h3 style="margin-top:14px;">Financiële opbouw</h3>';
-  h += '<table class="r-table r-table-compact"><tbody>';
+  h += '<h3 style="margin-top:38px;">Financiële opbouw</h3>';
+  h += '<table class="r-table"><tbody>';
   if (s.zonActief) {
     h += '<tr><td>Besparing eigen verbruik (' + nf(r.eigenVerbruik) + ' kWh &times; ' + euro(s.stroomprijs) + ')</td><td class="num">' + euro(r.besparingEigenVerbruik) + '</td></tr>';
     h += '<tr><td>Opbrengst teruglevering (' + nf(r.teruglevering) + ' kWh &times; ' + euro(s.terugleverprijs) + ')</td><td class="num">' + euro(r.opbrengstTeruglevering) + '</td></tr>';
@@ -4341,7 +4341,7 @@ function EO_renderRapportPaginas(o, startPaginaNr, totaalPaginas, bedrijfOverrid
   h += '<tr style="font-weight:800;border-top:2px solid var(--border);"><td>Totale jaarlijkse besparing</td><td class="num">' + euro(r.totaleJaarlijkseBesparing) + '</td></tr>';
   h += '</tbody></table>';
 
-  h += '<h3 style="margin-top:14px;">Wat je investeert</h3><table class="r-table r-table-compact"><tbody>';
+  h += '<h3 style="margin-top:38px;">Wat je investeert</h3><table class="r-table"><tbody>';
   if (s.zonActief) h += '<tr><td>Zonnepanelen (' + nf(parseFloat(s.aantalPanelen)||0) + ' stuks, ' + nf(r.kWp,1) + ' kWp)</td><td class="num">' + euro(s.investeringZon) + '</td></tr>';
   if (s.batterijActief) h += '<tr><td>Thuisbatterij (' + esc(s.batterijCapaciteit) + ' kWh)</td><td class="num">' + euro(s.investeringBatterij) + '</td></tr>';
   if (s.wpActief) h += '<tr><td>Warmtepomp</td><td class="num">' + euro(s.investeringWP) + '</td></tr>';
