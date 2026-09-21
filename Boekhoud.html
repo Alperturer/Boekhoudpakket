@@ -668,7 +668,7 @@ function downloadAlsPDF(elementId, bestandsnaam, knopId) {
       var vensterHoogte = Math.max(window.innerHeight || 0, volledigeHoogte);
       var nietKnippenZones = [];
       return html2canvas(paginaEl, {
-        scale: 1.6, backgroundColor: "#ffffff", width: volledigeBreedte, height: volledigeHoogte, windowWidth: vensterBreedte, windowHeight: vensterHoogte,
+        scale: 1.4, backgroundColor: "#ffffff", width: volledigeBreedte, height: volledigeHoogte, windowWidth: vensterBreedte, windowHeight: vensterHoogte,
         onclone: function(clonedDoc, clonedEl) {
           // Meet de niet-knippen-blokken (tabel, totalen, kwaliteitsblok...) op exact hetzelfde
           // gekloonde element dat html2canvas zelf gaat fotograferen -- dat voorkomt verschillen
@@ -686,11 +686,11 @@ function downloadAlsPDF(elementId, bestandsnaam, knopId) {
           // Deze pagina is al gegarandeerd verkleind tot hij op 1 pagina past -- gewoon in zijn geheel plaatsen.
           var hoofdHoogteMm = canvas.height / pxPerMm;
           if (!eersteAfbeelding) pdf.addPage();
-          pdf.addImage(canvas.toDataURL("image/jpeg", 0.8), "JPEG", 0, 0, pageWidth, Math.min(hoofdHoogteMm, pageHeight));
+          pdf.addImage(canvas.toDataURL("image/jpeg", 0.72), "JPEG", 0, 0, pageWidth, Math.min(hoofdHoogteMm, pageHeight));
           eersteAfbeelding = false;
           return;
         }
-        var pxPerCssPx = 1.6; // zelfde waarde als de "scale" hierboven
+        var pxPerCssPx = 1.4; // zelfde waarde als de "scale" hierboven
         var pageHeightPx = pageHeight * pxPerMm;
         var totaalHoogtePx = canvas.height;
         var geplaatstPx = 0;
@@ -711,7 +711,7 @@ function downloadAlsPDF(elementId, bestandsnaam, knopId) {
           ctx.fillStyle = "#ffffff";
           ctx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
           ctx.drawImage(canvas, 0, geplaatstPx, canvas.width, sliceHoogtePx, 0, 0, canvas.width, sliceHoogtePx);
-          var sliceData = sliceCanvas.toDataURL("image/jpeg", 0.8);
+          var sliceData = sliceCanvas.toDataURL("image/jpeg", 0.72);
           var sliceHoogteMm = sliceHoogtePx / pxPerMm;
           if (!eersteAfbeelding) pdf.addPage();
           pdf.addImage(sliceData, "JPEG", 0, 0, pageWidth, sliceHoogteMm);
@@ -723,7 +723,11 @@ function downloadAlsPDF(elementId, bestandsnaam, knopId) {
   });
 
   keten.then(function(){
+    var bestandGrootteMB = pdf.output("blob").size / (1024*1024);
     pdf.save(bestandsnaam + ".pdf");
+    if (bestandGrootteMB > 10) {
+      toonToast("Let op: deze PDF is " + nf(bestandGrootteMB,1) + " MB \u2014 groter dan de gebruikelijke 10MB-limiet van e-mailbijlagen. Overweeg minder of kleinere productbladen toe te voegen, of verstuur via een downloadlink i.p.v. bijlage.");
+    }
     if (btn) { btn.innerText = origTekst; btn.disabled = false; }
   }).catch(function(){
     toonToast("PDF-export mislukt. Probeer opnieuw.");
@@ -878,12 +882,16 @@ function filesToDataUrls(files, callback) {
       // Elke geüploade afbeelding automatisch omzetten naar gecomprimeerde JPEG (kleinere bestanden, ook in de PDF-export).
       var img = new Image();
       img.onload = function(){
+        // Grote foto's (bijv. rechtstreeks van een telefoon, vaak 3000-4000px breed) fors verkleinen:
+        // dat scheelt enorm in bestandsgrootte en is ruim scherp genoeg voor zowel beeldscherm als print.
+        var MAX_AFMETING = 1600;
+        var schaal = Math.min(1, MAX_AFMETING / Math.max(img.naturalWidth, img.naturalHeight));
         var canvas = document.createElement("canvas");
-        canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+        canvas.width = Math.round(img.naturalWidth * schaal); canvas.height = Math.round(img.naturalHeight * schaal);
         var ctx = canvas.getContext("2d");
         ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, canvas.width, canvas.height); // voorkomt zwarte achtergrond bij transparante PNG's
-        ctx.drawImage(img, 0, 0);
-        results[idx] = canvas.toDataURL("image/jpeg", 0.85);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        results[idx] = canvas.toDataURL("image/jpeg", 0.8);
         remaining--; if (remaining === 0) callback(results);
       };
       img.onerror = function(){ results[idx] = e.target.result; remaining--; if (remaining === 0) callback(results); };
@@ -1709,9 +1717,10 @@ function klantOfferteAkkoord(offerteId, akkoord) {
   if (akkoord && !naam) { toonToast("Vul je naam in om te bevestigen."); return; }
   if (akkoord && (!klantSigCanvas || isCanvasLeeg(klantSigCanvas))) { toonToast("Zet even je handtekening voordat je akkoord gaat."); return; }
   var handtekening = akkoord && klantSigCanvas ? klantSigCanvas.toDataURL() : "";
-  var rij = { status: akkoord ? "geaccordeerd" : "afgewezen", handtekening: handtekening, akkoord_naam: naam, akkoord_datum: new Date().toISOString(), updated_at: new Date().toISOString() };
   document.getElementById("klant-actie-status").innerText = "Bezig met versturen...";
-  supabaseClient.from("boekhoud_offertes").update(rij).eq("id", offerteId).then(function(res){
+  // Ook hier: via een beveiligde functie i.p.v. rechtstreeks de tabel, zodat een bezoeker nooit iets
+  // anders dan de status/handtekening van precies déze offerte kan aanpassen (dus niet de prijs e.d.).
+  supabaseClient.rpc("zet_offerte_akkoord", { p_offerte_id: offerteId, p_status: akkoord ? "geaccordeerd" : "afgewezen", p_handtekening: handtekening, p_naam: naam }).then(function(res){
     if (res.error) { document.getElementById("klant-actie-status").innerText = "Er ging iets mis. Probeer het nogmaals of neem contact op."; return; }
     document.getElementById("klant-actie-view").innerHTML = akkoord
       ? '<div class="alert-box info" style="text-align:center;"><b>Bedankt!</b><br/>Je hebt akkoord gegeven op deze offerte. De aanbieder ontvangt hier automatisch een melding van.</div>'
@@ -1738,8 +1747,8 @@ function swipeVerwijderOfferte(id) {
     persistOffertes(); render();
   });
 }
-function addOfferteRegel(id) { var o = getOfferte(id); o.regels.push(newFactuurRegel()); persistOffertes(); render(); }
-function removeOfferteRegel(id, regelId) { var o = getOfferte(id); o.regels = o.regels.filter(function(r){return r.id!==regelId;}); persistOffertes(); render(); }
+function addOfferteRegel(id) { var o = getOfferte(id); o.regels.push(newFactuurRegel()); EO_herberekenInvesteringenVanuitRegels(o); persistOffertes(); render(); }
+function removeOfferteRegel(id, regelId) { var o = getOfferte(id); o.regels = o.regels.filter(function(r){return r.id!==regelId;}); EO_herberekenInvesteringenVanuitRegels(o); persistOffertes(); render(); }
 function synchroniseerEnergieMetRegel(o, r) {
   if (!r || !r.productId) return;
   var p = getProduct(r.productId);
@@ -1779,6 +1788,53 @@ var ZON_MERKEN = ["aiko","jinko","trina","longi","canadian solar","qcells","q ce
 var BATTERIJ_MERKEN = ["alpha ess","alphaess","byd","pylontech","growatt","huawei luna","sonnen","powerwall","lg energy","dyness","solax","deye","sigenergy"];
 var WARMTEPOMP_MERKEN = ["daikin altherma","mitsubishi ecodan","toshiba estia","panasonic aquarea","nibe","itho daalderop","remeha","vaillant arotherm","lg therma"];
 
+// ---------------------------------------------------------------------
+// AUTOMATISCHE INVESTERINGSBEDRAGEN VANUIT OFFERTEREGELS
+// ---------------------------------------------------------------------
+// Herkent tot welke energie-categorie een offerteregel hoort (via gekoppeld product
+// OF dezelfde merk/trefwoord-herkenning die ook al de technische specs herkent), en
+// telt de regelbedragen (aantal x prijs) daarna automatisch op tot de investering per
+// categorie. Zo hoeft niemand een investeringsbedrag nog los in te typen -- dat bedrag
+// staat al in de offerteregel zelf.
+function EO_categorieVanRegel(r) {
+  if (r.productId) {
+    var p = getProduct(r.productId);
+    if (p && p.categorie === "Zonnepanelen") return "zon";
+    if (p && p.categorie === "Thuisbatterijen") return "batterij";
+    if (p && p.categorie === "Warmtepompen") return "wp";
+    if (p && p.categorie === "Airco's") return "airco";
+  }
+  var tekst = (r.omschrijving || "").toLowerCase();
+  if (!tekst) return null;
+  function bevatMerk(lijst) { return lijst.some(function(m){ return tekst.indexOf(m) !== -1; }); }
+  if (/paneel|panelen|zonnepaneel|zonnepanelen|\bpv\b|glas.?glas|half.?cut|mono.?crystal/.test(tekst) || bevatMerk(ZON_MERKEN)) return "zon";
+  if (/batterij|accu|thuisbatterij/.test(tekst) || bevatMerk(BATTERIJ_MERKEN) || /\d+(?:[.,]\d+)?\s*kwh\b/.test(tekst)) return "batterij";
+  if (/warmtepomp/.test(tekst) || bevatMerk(WARMTEPOMP_MERKEN)) return "wp";
+  if (/airco|air.?conditioning|split.?unit|multisplit/.test(tekst)) return "airco";
+  return null;
+}
+function EO_herberekenInvesteringenVanuitRegels(o) {
+  if (!o || !o.energie) return;
+  var totalen = { zon: 0, batterij: 0, wp: 0 };
+  var aircoPrijsPerRegel = {};
+  (o.regels || []).forEach(function(r){
+    var cat = EO_categorieVanRegel(r);
+    if (!cat) return;
+    if (cat === "airco") { aircoPrijsPerRegel[r.id] = parseFloat(r.prijs) || 0; return; }
+    totalen[cat] += (parseFloat(r.aantal) || 0) * (parseFloat(r.prijs) || 0);
+  });
+  o.energie.investeringZon = String(totalen.zon);
+  o.energie.investeringBatterij = String(totalen.batterij);
+  o.energie.investeringWP = String(totalen.wp);
+  if (o.energie.aircoInstallaties && o.energie.aircoInstallaties.length) {
+    o.energie.aircoInstallaties.forEach(function(inst){
+      if (inst.gekoppeldAanRegelId && aircoPrijsPerRegel.hasOwnProperty(inst.gekoppeldAanRegelId)) {
+        inst.investering = String(aircoPrijsPerRegel[inst.gekoppeldAanRegelId]);
+      }
+    });
+  }
+}
+
 function synchroniseerEnergieMetVrijeTekst(o, r) {
   var tekst = (r.omschrijving || "").toLowerCase();
   if (!tekst) return;
@@ -1801,20 +1857,22 @@ function synchroniseerEnergieMetVrijeTekst(o, r) {
     }
   }
 
-  // Thuisbatterij: trefwoord, bekend merk, of een kWh-waarde (of een kaal getal, net als bij panelen)
+  // Thuisbatterij: een expliciete "X kWh"-vermelding is op zichzelf al een zeer betrouwbaar signaal
+  // (dat eenheid wordt hier nergens anders voor gebruikt) -- dus die alleen is al genoeg, ook als de
+  // merknaam een tikfout bevat (bijv. "Aplha ESS" i.p.v. "Alpha ESS") en het woord "batterij" niet voorkomt.
   var isBatterij = /batterij|accu|thuisbatterij/.test(tekst) || bevatMerk(BATTERIJ_MERKEN);
   var kwhMatch = tekst.match(/(\d+(?:[.,]\d+)?)\s*kwh\b/);
   var kaalGetalBatterij = null;
-  if (!kwhMatch) {
+  if (!kwhMatch && isBatterij) {
     var getalRegex = /(\d{1,2}(?:[.,]\d+)?)/g, m;
     while ((m = getalRegex.exec(tekst)) !== null) {
       var naDeGetal = tekst.substr(m.index + m[0].length, 8);
       if (!/^\s*jaar/.test(naDeGetal)) { kaalGetalBatterij = m; break; } // sla "10 jaar garantie" over
     }
   }
-  if (isBatterij && (kwhMatch || kaalGetalBatterij)) {
+  if (kwhMatch || (isBatterij && kaalGetalBatterij)) {
     var kwhWaarde = (kwhMatch ? kwhMatch[1] : kaalGetalBatterij[1]).replace(",", ".");
-    if (parseFloat(kwhWaarde) >= 1 && parseFloat(kwhWaarde) <= 40) { // sanity-check: realistisch batterijbereik
+    if (parseFloat(kwhWaarde) >= 1 && parseFloat(kwhWaarde) <= 100) { // realistisch bereik incl. grotere systemen (bijv. bij bedrijven/scholen)
       if (!o.energieActief) o.energieActief = true;
       if (!o.energie) o.energie = EO_nieuwSysteem();
       o.energie.batterijActief = true;
@@ -1859,10 +1917,11 @@ function updateOfferteRegelField(id, regelId, key, val) {
     r[key] = val;
     if (key === "aantal") synchroniseerEnergieMetRegel(o, r);
     if (key === "omschrijving" || key === "aantal") synchroniseerEnergieMetVrijeTekst(o, r);
+    if (key === "aantal" || key === "omschrijving" || key === "prijs") EO_herberekenInvesteringenVanuitRegels(o);
   }
   persistOffertes();
 }
-function updateOfferteRegel(id, regelId, patch) { var o = getOfferte(id); var r = o.regels.find(function(x){return x.id===regelId;}); if (r) Object.assign(r, patch); persistOffertes(); render(); }
+function updateOfferteRegel(id, regelId, patch) { var o = getOfferte(id); var r = o.regels.find(function(x){return x.id===regelId;}); if (r) { Object.assign(r, patch); if (patch.hasOwnProperty("productId")) { synchroniseerEnergieMetRegel(o, r); } EO_herberekenInvesteringenVanuitRegels(o); } persistOffertes(); render(); }
 function kiesKlantVoorOfferte(offerteId, klantId) {
   var o = getOfferte(offerteId); var k = getKlant(klantId);
   if (!o) return;
@@ -1995,12 +2054,12 @@ function converteerPdfNaarAfbeeldingen(dataUrl, callback) {
     var volgendePagina = function(nr){
       if (nr > pdf.numPages) { callback(afbeeldingen); return; }
       pdf.getPage(nr).then(function(page){
-        var viewport = page.getViewport({ scale: 1.6 });
+        var viewport = page.getViewport({ scale: 1.4 });
         var canvas = document.createElement("canvas");
         canvas.width = viewport.width; canvas.height = viewport.height;
         var ctx = canvas.getContext("2d");
         page.render({ canvasContext: ctx, viewport: viewport }).promise.then(function(){
-          afbeeldingen.push(canvas.toDataURL("image/jpeg", 0.82));
+          afbeeldingen.push(canvas.toDataURL("image/jpeg", 0.75));
           volgendePagina(nr+1);
         });
       });
@@ -3806,6 +3865,7 @@ function toggleEnergieActief(offerteId, checked) {
   var o = getOfferte(offerteId);
   o.energieActief = checked;
   if (checked && !o.energie) o.energie = EO_nieuwSysteem();
+  if (checked) EO_herberekenInvesteringenVanuitRegels(o); // meteen de al ingevulde offerteregels overnemen i.p.v. standaardbedragen
   persistOffertes(); render();
 }
 function eoVeld(offerteId, key, val) { var o = getOfferte(offerteId); if (o && o.energie) o.energie[key] = val; persistOffertes(); }
@@ -3815,6 +3875,9 @@ function eoField(offerteId, key, label, val) {
 }
 function eoGeldField(offerteId, key, label, val) {
   return '<div><label class="fl">' + label + '</label><div class="geld-input-wrap"><span class="geld-prefix">&euro;</span><input class="f" inputmode="decimal" value="' + esc(val) + '" oninput="eoVeld(\'' + offerteId + '\',\'' + key + '\',this.value)" onblur="render()" /></div></div>';
+}
+function eoBerekendVeld(label, val, bronLabel) {
+  return '<div><label class="fl">' + label + '</label><div class="f" style="background:#F1F5F4;color:#0A0A0A;font-weight:700;display:flex;align-items:center;cursor:default;" title="Automatisch opgeteld uit de offerteregels voor ' + esc(bronLabel) + ' -- pas het bedrag daar aan om dit te wijzigen.">' + euro(val) + '<span style="font-weight:400;font-size:11px;color:var(--muted);margin-left:auto;">automatisch \u2713</span></div></div>';
 }
 function eoImpactRegel(tekst) {
   return '<div style="margin-top:4px;padding:10px 12px;background:var(--blue-light);border-radius:8px;font-size:12.5px;font-weight:700;color:var(--navy);">' + tekst + '</div>';
@@ -3865,7 +3928,9 @@ function kiesAircoProduct(offerteId, instId, productId) {
   toonToast(pr.naam + " gekozen \u2014 " + pr.specWaarde + " kW overgenomen");
 }
 function EO_renderConfig(o) {
-  var s = o.energie, r = EO_berekenAlles(s);
+  var s = o.energie;
+  EO_herberekenInvesteringenVanuitRegels(o); // altijd vers doorrekenen vanuit de actuele offerteregels, nooit een verouderd handmatig bedrag tonen
+  var r = EO_berekenAlles(s);
   var oid = o.id;
   var h = '';
 
@@ -3991,9 +4056,9 @@ function EO_renderConfig(o) {
   h += eoField(oid,"terugleverGrensGratis","Teruglevering kosteloos tot (kWh/jr)",s.terugleverGrensGratis);
   h += eoGeldField(oid,"terugleverBoetePerKwh","Terugleverboete (&euro;/kWh)",s.terugleverBoetePerKwh);
   h += '</div><div class="grid3">';
-  if (s.zonActief) h += eoGeldField(oid,"investeringZon","Investering zon (&euro;)",s.investeringZon);
-  if (s.batterijActief) h += eoGeldField(oid,"investeringBatterij","Investering batterij (&euro;)",s.investeringBatterij);
-  if (s.wpActief) h += eoGeldField(oid,"investeringWP","Investering warmtepomp (&euro;)",s.investeringWP);
+  if (s.zonActief) h += eoBerekendVeld("Investering zon (&euro;)", s.investeringZon, "zonnepanelen");
+  if (s.batterijActief) h += eoBerekendVeld("Investering batterij (&euro;)", s.investeringBatterij, "batterij");
+  if (s.wpActief) h += eoBerekendVeld("Investering warmtepomp (&euro;)", s.investeringWP, "warmtepomp");
   h += '</div></div>';
 
   h += '<div class="stats-row">';
@@ -4109,12 +4174,34 @@ function algemeneVoorwaardenPagina(paginaNr, totaalPaginas, bedrijfOverride) {
     return h;
   }
   if (!b.algemeneVoorwaarden) return "";
-  return '<div class="r-page">' + paginaLogoHeader(bedrijfOverride) + '<div class="r-h">Algemene voorwaarden</div><p style="font-size:12px;line-height:1.6;white-space:pre-wrap;">' + esc(b.algemeneVoorwaarden) + '</p>' + paginaVoetnoot(paginaNr, totaalPaginas) + '</div>';
+  // Net als bij de 25-jaarstabel eerder: vrije tekst kan langer zijn dan 1 A4-pagina. Zonder
+  // dit knipt de PDF-export 'm alsnog af (met een losstaand voettekstje op de volgende fysieke
+  // pagina), terwijl "Pagina X van Y" bleef uitgaan van precies 1 pagina. Daarom hier alvast
+  // netjes opknippen per alinea (nooit midden in een zin) en elk stuk zijn eigen paginanummer geven.
+  var stukken = EO_splitsTekstInPaginas(b.algemeneVoorwaarden);
+  var hv = "";
+  stukken.forEach(function(stuk, idx){
+    hv += '<div class="r-page">' + paginaLogoHeader(bedrijfOverride) + '<div class="r-h">Algemene voorwaarden' + (stukken.length > 1 ? ' <span style="font-weight:400;color:var(--muted);font-size:12px;">(' + (idx+1) + '/' + stukken.length + ')</span>' : '') + '</div><p style="font-size:12px;line-height:1.6;white-space:pre-wrap;">' + esc(stuk) + '</p>' + paginaVoetnoot(paginaNr + idx, totaalPaginas) + '</div>';
+  });
+  return hv;
+}
+var EO_TEKENS_PER_PAGINA = 2600; // conservatieve schatting: past ruim binnen 1 A4-pagina op 12px tekst met 1.6 regelhoogte
+function EO_splitsTekstInPaginas(tekst) {
+  if (!tekst) return [];
+  var alineas = String(tekst).split(/\n{2,}/); // knip op lege regels, nooit midden in een alinea/zin
+  var paginas = [], huidige = "";
+  alineas.forEach(function(alinea){
+    var kandidaat = huidige ? huidige + "\n\n" + alinea : alinea;
+    if (kandidaat.length > EO_TEKENS_PER_PAGINA && huidige) { paginas.push(huidige); huidige = alinea; }
+    else huidige = kandidaat;
+  });
+  if (huidige) paginas.push(huidige);
+  return paginas.length ? paginas : [tekst];
 }
 function algemeneVoorwaardenPaginaAantal(bedrijfOverride) {
   var b = bedrijfOverride || state.bedrijf;
   if (b.algemeneVoorwaardenPaginaAfbeeldingen && b.algemeneVoorwaardenPaginaAfbeeldingen.length > 0) return b.algemeneVoorwaardenPaginaAfbeeldingen.length;
-  return b.algemeneVoorwaarden ? 1 : 0;
+  return b.algemeneVoorwaarden ? EO_splitsTekstInPaginas(b.algemeneVoorwaarden).length : 0;
 }
 function kompasRoosSvg(grootte) {
   var g = grootte || 90;
@@ -5262,9 +5349,12 @@ function renderConnectieFout() {
 function renderToegangAanvraagForm() {
   var h = '<div style="max-width:380px;margin:60px auto;padding:0 16px;">';
   h += '<div style="font-size:20px;font-weight:800;text-align:center;margin-bottom:4px;color:var(--navy);">Toegang aanvragen</div>';
-  h += '<div style="font-size:12.5px;color:var(--muted);text-align:center;margin-bottom:20px;">Vul je gegevens in. De beheerder beoordeelt je aanvraag en geeft daarna toegang.</div>';
+  h += '<div style="font-size:12.5px;color:var(--muted);text-align:center;margin-bottom:20px;">Zoek het bedrijf op en vul je gegevens in. De beheerder van dát bedrijf beoordeelt je aanvraag.</div>';
   if (state.authError) h += '<div class="alert-box">' + esc(state.authError) + '</div>';
   h += '<div class="section-card">';
+  h += '<label class="fl">Naam van het bedrijf</label><input class="f" id="aanvraag-bedrijf-zoek" oninput="zoekOrganisatieVoorAanvraag(this.value)" autocomplete="off" placeholder="Begin te typen..." />';
+  h += '<div id="aanvraag-bedrijf-resultaten"></div>';
+  h += '<input type="hidden" id="aanvraag-organisatie-id" />';
   h += '<label class="fl">Naam</label><input class="f" id="aanvraag-naam" />';
   h += '<label class="fl">E-mailadres</label><input class="f" type="email" id="aanvraag-email" autocapitalize="off" autocorrect="off" />';
   h += '<label class="fl">Toelichting (optioneel)</label><textarea class="f" id="aanvraag-bericht" placeholder="Bijv. wie je bent of waarom je toegang nodig hebt"></textarea>';
@@ -5273,6 +5363,27 @@ function renderToegangAanvraagForm() {
   h += '<div style="text-align:center;font-size:12.5px;color:var(--muted);margin-top:14px;">Terug naar <span style="color:var(--navy);font-weight:700;cursor:pointer;" onclick="state.authScreen=\'login\';state.authError=\'\';render();">inloggen</span></div>';
   h += '</div>';
   return h;
+}
+var aanvraagZoekTimer = null;
+function zoekOrganisatieVoorAanvraag(zoekterm) {
+  document.getElementById("aanvraag-organisatie-id").value = ""; // bij elke nieuwe zoekopdracht eerst de eerder gekozen keuze loslaten
+  clearTimeout(aanvraagZoekTimer);
+  if (!zoekterm || zoekterm.trim().length < 2) { document.getElementById("aanvraag-bedrijf-resultaten").innerHTML = ""; return; }
+  aanvraagZoekTimer = setTimeout(function(){
+    supabaseClient.rpc("zoek_organisaties", { p_zoekterm: zoekterm.trim() }).then(function(res){
+      var el = document.getElementById("aanvraag-bedrijf-resultaten");
+      if (!el) return; // gebruiker is inmiddels van scherm gewisseld
+      if (res.error || !res.data || !res.data.length) { el.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:4px 0;">Geen bedrijf gevonden met die naam.</div>'; return; }
+      el.innerHTML = res.data.map(function(o){
+        return '<div style="padding:8px;border:1px solid var(--border);border-radius:6px;margin-top:4px;cursor:pointer;font-size:13px;" onclick="kiesOrganisatieVoorAanvraag(\'' + o.id + '\',\'' + esc(o.naam).replace(/'/g,"&#39;") + '\')">' + esc(o.naam) + '</div>';
+      }).join("");
+    });
+  }, 300);
+}
+function kiesOrganisatieVoorAanvraag(id, naam) {
+  document.getElementById("aanvraag-organisatie-id").value = id;
+  document.getElementById("aanvraag-bedrijf-zoek").value = naam;
+  document.getElementById("aanvraag-bedrijf-resultaten").innerHTML = '<div style="font-size:12px;color:#16A34A;padding:4px 0;">\u2713 ' + esc(naam) + ' geselecteerd</div>';
 }
 function renderToegangAanvraagVerstuurd() {
   var h = '<div style="max-width:380px;margin:80px auto;padding:0 16px;text-align:center;">';
@@ -5286,10 +5397,13 @@ function verstuurToegangsaanvraag() {
   var naam = document.getElementById("aanvraag-naam").value.trim();
   var email = document.getElementById("aanvraag-email").value.trim();
   var bericht = document.getElementById("aanvraag-bericht").value.trim();
+  var organisatieId = document.getElementById("aanvraag-organisatie-id").value;
+  var organisatieNaam = document.getElementById("aanvraag-bedrijf-zoek").value.trim();
+  if (!organisatieId) { state.authError = "Zoek en kies eerst het bedrijf waar je toegang tot wilt."; render(); return; }
   if (!naam || !email) { state.authError = "Vul in elk geval je naam en e-mailadres in."; render(); return; }
   if (!supabaseClient) { state.authError = "Kon geen verbinding maken. Probeer het later opnieuw."; render(); return; }
   state.toegangsverzoekBusy = true; state.authError = ""; render();
-  supabaseClient.from("boekhoud_toegangsverzoeken").insert({ naam: naam, email: email, bericht: bericht, status: "in afwachting" }).then(function(res){
+  supabaseClient.from("boekhoud_toegangsverzoeken").insert({ naam: naam, email: email, bericht: bericht, status: "in afwachting", organisatie_id: organisatieId, organisatie_naam: organisatieNaam }).then(function(res){
     state.toegangsverzoekBusy = false;
     if (res.error) { state.authError = "Versturen mislukt: " + res.error.message; render(); return; }
     state.authScreen = "aanvraag-verstuurd";
@@ -5297,8 +5411,9 @@ function verstuurToegangsaanvraag() {
   });
 }
 function laadToegangsverzoeken() {
-  if (!supabaseClient || !state.user) return;
-  supabaseClient.from("boekhoud_toegangsverzoeken").select("*").order("created_at", { ascending: false }).then(function(res){
+  if (!supabaseClient || !state.user || !state.organisatieId) return;
+  // Alleen aanvragen voor JOUW bedrijf tonen -- niet meer die van alle bedrijven door elkaar.
+  supabaseClient.from("boekhoud_toegangsverzoeken").select("*").eq("organisatie_id", state.organisatieId).order("created_at", { ascending: false }).then(function(res){
     if (!res.error) { state.toegangsverzoeken = res.data || []; render(); }
   });
 }
@@ -5379,7 +5494,9 @@ function checkKlantLink() {
   var offerteId = params.get("offerte");
   if (!offerteId || !supabaseClient) return false;
   document.getElementById("root").innerHTML = '<div style="text-align:center;padding:80px 20px;color:#5E7876;font-size:13px;">Offerte laden...</div>';
-  supabaseClient.from("boekhoud_offertes").select("*").eq("id", offerteId).maybeSingle().then(function(res){
+  // Let op: dit gebruikt een beveiligde functie (get_gedeelde_offerte), NIET rechtstreeks de tabel --
+  // een bezoeker zonder account mag nooit de hele tabel met offertes van alle klanten kunnen opvragen.
+  supabaseClient.rpc("get_gedeelde_offerte", { p_offerte_id: offerteId }).maybeSingle().then(function(res){
     if (res.error || !res.data) {
       document.getElementById("root").innerHTML = '<div style="max-width:420px;margin:60px auto;padding:24px;text-align:center;"><b>Offerte niet gevonden.</b><br/><span style="font-size:12px;color:#5E7876;">Vraag de aanbieder om een nieuwe link te sturen.</span></div>';
       return;
