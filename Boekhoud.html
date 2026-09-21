@@ -609,7 +609,7 @@ function standaardOfferteTekst(stijl, bedrijfsnaam) {
 // ---------------------------------------------------------------------
 function downloadAlsPDF(elementId, bestandsnaam, knopId) {
   var el = document.getElementById(elementId);
-  if (!el || !window.html2canvas || !window.jspdf) { toonToast("PDF-export kon niet laden. Check je verbinding."); return; }
+  if (!el || !window.html2canvas || !window.jspdf) { toonToast("PDF-export kon niet laden (ontbrekende onderdelen). Ververs de pagina en probeer het opnieuw; blijft het mislukken, check je internetverbinding of een adblocker."); return; }
   var btn = knopId ? document.getElementById(knopId) : null;
   var origTekst = btn ? btn.innerText : "";
   if (btn) { btn.innerText = "Bezig..."; btn.disabled = true; }
@@ -1081,6 +1081,7 @@ var state = {
   bedrijf: Object.assign(emptyBedrijf(), loadJSON(STORAGE_BEDRIJF, {})),
   sjablonen: loadJSON(STORAGE_SJABLONEN, []),
   registraties: loadJSON(STORAGE_REGISTRATIES, []),
+  licentie: null, // { plan, max_gebruikers, max_offertes_per_maand, max_facturen_per_maand, actief } -- alleen leesbaar voor de klant, alleen serverside aan te passen (zie organisatie_licenties)
   huidigeFactuurId: null,
   huidigeOfferteId: null,
   huidigeUitgaveId: null,
@@ -1096,6 +1097,7 @@ var state = {
   authError: "",
   authBusy: false,
   cloudSaving: false,
+  cloudSyncFout: null, // korte, gebruiksvriendelijke tekst zodra een cloud-opslag mislukt -- anders merkt niemand het en denkt men dat werk bewaard is
   bevestigModal: null, // { tekst, actieFn } -- eigen bevestigingsscherm i.p.v. native confirm()
   toast: null, // { tekst } -- eigen meldingsbannertje i.p.v. native alert()
   authScreen: "login", // login -> aanvraag -> aanvraag-verstuurd
@@ -1213,7 +1215,17 @@ function checkSession() {
   }).catch(function(){ state.view = "auth"; render(); });
 }
 function naLogin() {
-  laadUitCloud(function(){ state.view = "app"; render(); if (state.magBeheren) { laadToegangsverzoeken(); laadTeamleden(); } logInlogMoment(); laadInlogHistorie(); });
+  laadUitCloud(function(){
+    state.view = "app";
+    if (state.nieuwAccountAangemaakt) {
+      state.nieuwAccountAangemaakt = false;
+      state.tab = "instellingen";
+      toonToast("Welkom! Vul hieronder eerst je bedrijfsgegevens in \u2014 die verschijnen automatisch op al je offertes en facturen.");
+    }
+    render();
+    if (state.magBeheren) { laadToegangsverzoeken(); laadTeamleden(); }
+    logInlogMoment(); laadInlogHistorie();
+  });
 }
 function logInlogMoment() {
   if (!supabaseClient || !state.user) return;
@@ -1273,14 +1285,33 @@ function scheduleCloudSyncSectie(tabel, waarde) {
   if (cloudSyncTimers[tabel]) clearTimeout(cloudSyncTimers[tabel]);
   cloudSyncTimers[tabel] = setTimeout(function(){ slaOpInCloudSectie(tabel, waarde); }, 800);
 }
+var laatsteMislukteSync = null; // { tabel, waarde } -- voor de "Opnieuw proberen"-knop
 function slaOpInCloudSectie(tabel, waarde) {
   state.cloudSaving = true;
   supabaseClient.from(tabel).upsert({ organisatie_id: state.organisatieId, data: waarde, updated_at: new Date().toISOString() }, { onConflict: "organisatie_id" }).then(function(res){
     state.cloudSaving = false;
-    if (res.error) console.error("Cloud-opslag mislukt voor " + tabel + ":", res.error.message);
+    if (res.error) {
+      console.error("Cloud-opslag mislukt voor " + tabel + ":", res.error.message);
+      laatsteMislukteSync = { tabel: tabel, waarde: waarde };
+      state.cloudSyncFout = "(" + res.error.message + ")";
+      render();
+      return;
+    }
     // Bewust GEEN render() hier: dit loopt op de achtergrond terwijl iemand kan zitten typen,
     // en een volledige herteken zou de focus uit het invoerveld gooien.
-  }).catch(function(err){ state.cloudSaving = false; console.error("Cloud-opslag mislukt voor " + tabel + ":", err); });
+    // Uitzondering: als er eerder een storing was, die moet nu wél verdwijnen.
+    if (state.cloudSyncFout) { state.cloudSyncFout = null; laatsteMislukteSync = null; render(); }
+  }).catch(function(err){
+    state.cloudSaving = false;
+    console.error("Cloud-opslag mislukt voor " + tabel + ":", err);
+    laatsteMislukteSync = { tabel: tabel, waarde: waarde };
+    state.cloudSyncFout = "(geen verbinding)";
+    render();
+  });
+}
+function opnieuwProberenCloudSync() {
+  if (!laatsteMislukteSync) { state.cloudSyncFout = null; render(); return; }
+  slaOpInCloudSectie(laatsteMislukteSync.tabel, laatsteMislukteSync.waarde);
 }
 function huidigeDataBundel() {
   return {
@@ -1333,6 +1364,7 @@ function maakNieuweOrganisatie(callback) {
     }
     state.organisatieId = res.data.id;
     state.magBeheren = true;
+    state.nieuwAccountAangemaakt = true; // stuurt de gebruiker na het inloggen naar Instellingen i.p.v. een leeg dashboard
     supabaseClient.from("organisatie_leden").insert({ organisatie_id: res.data.id, user_id: state.user.id, email: state.user.email, rol: "eigenaar", rechten: {} }).then(function(res5){
       if (res5.error) { state.organisatieFout = "Bedrijfsaccount aangemaakt, maar koppelen aan jouw account mislukte: " + res5.error.message; render(); callback(); return; }
       state.organisatieFout = null;
@@ -1383,7 +1415,50 @@ function laadAlleOrgTabellen(callback) {
 }
 function laadUitCloud(callback) {
   if (!supabaseClient || !state.user) { callback(); return; }
-  ensureOrganisatie(function(){ laadAlleOrgTabellen(callback); });
+  ensureOrganisatie(function(){ laadAlleOrgTabellen(function(){ laadLicentie(callback); }); });
+}
+// ---------------------------------------------------------------------
+// LICENTIE / ABONNEMENT
+// ---------------------------------------------------------------------
+// BELANGRIJK: dit leest uit een APARTE tabel (organisatie_licenties), NIET via
+// scheduleCloudSyncSectie/slaOpInCloudSectie -- die functies laten de klant zelf
+// vrijelijk elke org_* tabel overschrijven (nodig voor gewone gegevens, maar
+// ongeschikt voor limieten: anders zou een klant zijn eigen limiet kunnen
+// verhogen door gewoon de upsert-aanroep na te bootsen in de devtools).
+// De tabel organisatie_licenties mag daarom ALLEEN leesbaar zijn voor de eigen
+// organisatie (RLS) en NOOIT beschrijfbaar vanaf de client -- zie het SQL-bestand
+// (licentie_migratie.sql) voor de exacte policy's.
+var STANDAARD_LICENTIE = { plan: "starter", max_gebruikers: 1, max_offertes_per_maand: 15, max_facturen_per_maand: 15, actief: true };
+function laadLicentie(callback) {
+  if (!supabaseClient || !state.organisatieId) { state.licentie = Object.assign({}, STANDAARD_LICENTIE); callback(); return; }
+  supabaseClient.from("organisatie_licenties").select("*").eq("organisatie_id", state.organisatieId).maybeSingle().then(function(res){
+    // Geen rij gevonden (bijv. omdat de SQL-migratie nog niet is uitgevoerd, of een bestaand
+    // account van vóór het licentiesysteem) -- val terug op de standaard-limiet i.p.v. alles
+    // te blokkeren, zodat bestaand gebruik nooit stukgaat door het invoeren van dit systeem.
+    state.licentie = (res.data) ? res.data : Object.assign({}, STANDAARD_LICENTIE);
+    callback();
+  }).catch(function(){ state.licentie = Object.assign({}, STANDAARD_LICENTIE); callback(); });
+}
+function huidigeMaandTeller(lijst, datumVeld) {
+  var nu = new Date(); var jm = nu.getFullYear() + "-" + String(nu.getMonth()+1).padStart(2,"0");
+  return (lijst||[]).filter(function(x){ return x[datumVeld] && String(x[datumVeld]).slice(0,7) === jm; }).length;
+}
+function licentieLimietBereikt(soort) {
+  var lic = state.licentie || STANDAARD_LICENTIE;
+  if (lic.actief === false) return "Dit abonnement staat stil. Neem contact op om het te heractiveren.";
+  if (soort === "offerte" && lic.max_offertes_per_maand != null) {
+    var aantalO = huidigeMaandTeller(state.offertes, "datum");
+    if (aantalO >= lic.max_offertes_per_maand) return "Je hebt dit limiet van " + lic.max_offertes_per_maand + " offertes deze maand bereikt (plan: " + lic.plan + "). Neem contact op om te upgraden.";
+  }
+  if (soort === "factuur" && lic.max_facturen_per_maand != null) {
+    var aantalF = huidigeMaandTeller(state.facturen, "datum");
+    if (aantalF >= lic.max_facturen_per_maand) return "Je hebt de limiet van " + lic.max_facturen_per_maand + " facturen deze maand bereikt (plan: " + lic.plan + "). Neem contact op om te upgraden.";
+  }
+  if (soort === "gebruiker" && lic.max_gebruikers != null) {
+    var aantalG = 1 + (state.teamleden||[]).length; // eigenaar + huidige teamleden
+    if (aantalG >= lic.max_gebruikers) return "Je hebt het maximum van " + lic.max_gebruikers + " gebruiker(s) bereikt voor plan " + lic.plan + ". Neem contact op om te upgraden.";
+  }
+  return null; // geen limiet bereikt
 }
 
 function setTab(t) { if (!tabZichtbaar(t)) t = "dashboard"; state.tab = t; render(); }
@@ -1537,6 +1612,8 @@ function kiesKlantVoorFactuur(factuurId, klantId) {
 // OFFERTES
 // ---------------------------------------------------------------------
 function nieuweOfferte() {
+  var limietMelding = licentieLimietBereikt("offerte");
+  if (limietMelding) { toonToast(limietMelding); return; }
   var o = newOfferte();
   var basis = new Date(o.datum);
   basis.setDate(basis.getDate() + 30);
@@ -2085,6 +2162,8 @@ function pakketprijsSectieHtml(doc, updateFnNaam) {
   return h;
 }
 function vraagOmzettenNaarFactuur(offerteId) {
+  var limietMelding = licentieLimietBereikt("factuur");
+  if (limietMelding) { toonToast(limietMelding); return; }
   var o = getOfferte(offerteId);
   if (!o) return;
   var tekst = o.status === "geaccordeerd"
@@ -2130,6 +2209,8 @@ function converteerOfferteNaarFactuur(offerteId) {
 // FACTUREN
 // ---------------------------------------------------------------------
 function nieuweFactuur() {
+  var limietMelding = licentieLimietBereikt("factuur");
+  if (limietMelding) { toonToast(limietMelding); return; }
   var f = newFactuur("factuur");
   state.facturen.unshift(f);
   persistFacturen(); persistBedrijf();
@@ -2824,6 +2905,9 @@ function render() {
     html += '</div></nav>';
 
     html += '<div class="main-area"><div class="page">';
+    if (state.cloudSyncFout) {
+      html += '<div class="alert-box" style="margin-bottom:14px;"><b>Let op: je laatste wijziging is niet opgeslagen in de cloud.</b><br/>' + esc(state.cloudSyncFout) + ' Werk je gegevens blijven wel lokaal in deze browser staan totdat het weer lukt.<br/><span style="text-decoration:underline;cursor:pointer;font-weight:700;" onclick="opnieuwProberenCloudSync()">Opnieuw proberen</span></div>';
+    }
     if (state.organisatieFout) {
       html += '<div class="alert-box" style="margin-bottom:14px;"><b>Kon je bedrijfsgegevens niet laden:</b><br/>' + esc(state.organisatieFout) + '<br/><span style="text-decoration:underline;cursor:pointer;font-weight:700;" onclick="opnieuwProberenOrganisatie()">Opnieuw proberen</span></div>';
     }
@@ -3684,7 +3768,7 @@ function renderOfferteWerkblad() {
       h += '</div></div>';
     }
   }
-  var energiePaginaCount = (o.energieActief && o.energie && o.energie.zonActief) ? 4 : 0;
+  var energiePaginaCount = (o.energieActief && o.energie && o.energie.zonActief) ? 6 : 0;
   var legplanPaginaCount = o.legplanFoto ? 1 : 0;
   var datasheetsPaginaCount = datasheetsPaginaAantal(o.datasheets);
   var voorwaardenPaginaCount = algemeneVoorwaardenPaginaAantal();
@@ -3708,7 +3792,12 @@ function renderOfferteWerkblad() {
   h += '</div>'; // ow-layout
   return h;
 }
+function geldigEmailformaat(email) { return !email || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email); }
 function bevestigOpslaanOfferte(id) {
+  var o = getOfferte(id);
+  if (o && !o.klantNaam) { toonToast("Vul eerst een klantnaam in voordat je opslaat."); return; }
+  if (o && !geldigEmailformaat(o.klantEmail)) { toonToast("Het e-mailadres van de klant lijkt niet te kloppen (" + o.klantEmail + ")."); return; }
+  if (o && (!o.regels || o.regels.length === 0)) { toonToast("Voeg minstens één regel toe voordat je opslaat."); return; }
   persistOffertes();
   syncOfferteNaarCloud(id);
   toastEnGa("Offerte opgeslagen", "offertes");
@@ -4116,8 +4205,12 @@ function EO_renderRapportPaginas(o, startPaginaNr, totaalPaginas, bedrijfOverrid
   if (r.extraDoorBatterij > 0) h += '<span>' + icon("battery") + ' Waarvan ' + nf(r.extraDoorBatterij) + ' kWh dankzij batterij</span>';
   if (r.backupUren != null) h += '<span style="color:var(--navy);font-weight:800;">' + icon("zap") + ' ' + nf(r.backupUren,1) + ' uur noodstroom bij stroomuitval</span>';
   h += '</div></div>';
+  h += paginaVoetnoot(pn++, totaalPaginas) + '</div>';
 
-  h += '<h3 style="margin-top:18px;">Besparing over 10 jaar</h3>';
+  // Pagina: besparing over 10 jaar (los, want stond eerst op dezelfde pagina als de 2 grafieken
+  // hierboven -- samen te lang voor 1 A4-pagina, waardoor de grafiek bij het exporteren
+  // doormidden werd geknipt en over 2 PDF-pagina's uitliep)
+  h += '<div class="r-page">' + paginaLogoHeader(bedrijfOverride) + '<div class="r-h">Besparing over 10 jaar</div>';
   h += EO_svgBesparingChart(r.jaren, r.cumulatiefBesparing, r.cumulatiefNetto);
   h += paginaVoetnoot(pn++, totaalPaginas) + '</div>';
 
@@ -4148,8 +4241,23 @@ function EO_renderRapportPaginas(o, startPaginaNr, totaalPaginas, bedrijfOverrid
   h += '<div class="r-page">' + paginaLogoHeader(bedrijfOverride) + '<div class="r-h">Uw besparing</div>';
   h += '<h3>Berekening</h3><p style="font-size:12.5px;line-height:1.6;">Het eerste jaar ga je <b>' + nf(bp.jaaropwek1) + ' kWh</b> opwekken met je zonnepanelen. We gaan uit van een efficiency afname van <b>' + esc(s.efficiencyAfnamePct) + '</b> per jaar en een gemiddelde jaarlijkse energie-prijsindex van <b>' + esc(s.prijsstijgingPct) + '%</b>.</p>';
   h += '<h3>Terugverdientijd</h3><p style="font-size:12.5px;line-height:1.6;">De indicatie van de terugverdientijd is ' + (bp.terugverdienJaar ? "minder dan <b>" + bp.terugverdienJaar + " jaar</b>" : "meer dan 25 jaar") + '.</p>';
+  // De volledige tabel (tot 25 rijen) past niet op 1 A4-pagina samen met de tekst hierboven --
+  // eerder liep dit door naar een 2e PDF-pagina met de tabel middenin geknipt en een losstaand
+  // "Pagina X van Y"-voettekstje bovenaan die volgende pagina. Daarom hier bewust splitsen in twee
+  // nette pagina's, elk met eigen kop en (op de 2e) herhaalde tabelheader.
+  var EO_TABEL_SPLIT = 13;
+  var rijenDeel1 = bp.rijen.slice(0, EO_TABEL_SPLIT);
+  var rijenDeel2 = bp.rijen.slice(EO_TABEL_SPLIT);
   h += '<table class="r-table" style="font-size:10px;"><thead><tr><th>Jaar</th><th class="num">Productie kWh</th><th class="num">Energieprijs</th><th class="num">Besparing</th><th class="num">Rendement</th><th class="num">Cumulatief</th></tr></thead><tbody>';
-  bp.rijen.forEach(function(row){
+  rijenDeel1.forEach(function(row){
+    h += '<tr><td>' + row.jaar + 'e</td><td class="num">' + nf(row.opwek) + '</td><td class="num">' + euro(row.prijs) + '</td><td class="num">' + euro(row.besparing) + '</td><td class="num">' + nf(row.rendementPct,1) + '%</td><td class="num">' + euro(row.cumulatief) + '</td></tr>';
+  });
+  h += '</tbody></table>';
+  h += paginaVoetnoot(pn++, totaalPaginas) + '</div>';
+
+  h += '<div class="r-page">' + paginaLogoHeader(bedrijfOverride) + '<div class="r-h">Uw besparing (vervolg)</div>';
+  h += '<table class="r-table" style="font-size:10px;"><thead><tr><th>Jaar</th><th class="num">Productie kWh</th><th class="num">Energieprijs</th><th class="num">Besparing</th><th class="num">Rendement</th><th class="num">Cumulatief</th></tr></thead><tbody>';
+  rijenDeel2.forEach(function(row){
     h += '<tr><td>' + row.jaar + 'e</td><td class="num">' + nf(row.opwek) + '</td><td class="num">' + euro(row.prijs) + '</td><td class="num">' + euro(row.besparing) + '</td><td class="num">' + nf(row.rendementPct,1) + '%</td><td class="num">' + euro(row.cumulatief) + '</td></tr>';
   });
   h += '<tr style="font-weight:800;"><td colspan="5">Totaal winst na 25 jaar</td><td class="num">' + euro(bp.totaalWinst25) + '</td></tr>';
@@ -4319,6 +4427,10 @@ function renderFactuurForm() {
   return h;
 }
 function bevestigOpslaanFactuur(id) {
+  var f = getFactuur(id);
+  if (f && !f.klantNaam) { toonToast("Vul eerst een klantnaam in voordat je opslaat."); return; }
+  if (f && !geldigEmailformaat(f.klantEmail)) { toonToast("Het e-mailadres van de klant lijkt niet te kloppen (" + f.klantEmail + ")."); return; }
+  if (f && (!f.regels || f.regels.length === 0)) { toonToast("Voeg minstens één regel toe voordat je opslaat."); return; }
   persistFacturen();
   toastEnGa("Factuur opgeslagen", "facturen");
 }
@@ -4798,6 +4910,28 @@ function wijzigTeamlidRecht(id, sectie, waarde) {
   if (waarde === "geen") delete rechten[sectie]; else rechten[sectie] = waarde;
   supabaseClient.from("organisatie_leden").update({ rechten: rechten }).eq("id", id).then(function(){ laadTeamleden(); });
 }
+function planLabel(plan) {
+  return { starter: "Starter", pro: "Pro", unlimited: "Unlimited" }[plan] || (plan || "Starter");
+}
+function renderLicentieKaart() {
+  var lic = state.licentie || STANDAARD_LICENTIE;
+  var aantalO = huidigeMaandTeller(state.offertes, "datum");
+  var aantalF = huidigeMaandTeller(state.facturen, "datum");
+  var aantalG = 1 + (state.teamleden||[]).length;
+  var h = '<div class="section-card"><h2>Licentie</h2>';
+  h += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">';
+  h += '<span class="badge" style="background:var(--navy);color:#fff;">' + esc(planLabel(lic.plan)) + '</span>';
+  if (lic.actief === false) h += '<span class="badge badge-vervallen">Inactief</span>';
+  h += '</div>';
+  h += '<div class="ow-mini-totals" style="font-family:inherit;">';
+  h += '<div class="row"><span>Offertes deze maand</span><span>' + aantalO + (lic.max_offertes_per_maand!=null ? ' / ' + lic.max_offertes_per_maand : ' (onbeperkt)') + '</span></div>';
+  h += '<div class="row"><span>Facturen deze maand</span><span>' + aantalF + (lic.max_facturen_per_maand!=null ? ' / ' + lic.max_facturen_per_maand : ' (onbeperkt)') + '</span></div>';
+  h += '<div class="row"><span>Gebruikers</span><span>' + aantalG + (lic.max_gebruikers!=null ? ' / ' + lic.max_gebruikers : ' (onbeperkt)') + '</span></div>';
+  h += '</div>';
+  h += '<p class="subtitle" style="margin-top:10px;">Limiet bereikt of wil je meer? <a href="mailto:' + esc((state.bedrijf&&state.bedrijf.email)||"") + '?subject=' + encodeURIComponent("Upgrade licentie") + '" style="color:var(--blue);">Neem contact op om te upgraden</a>.</p>';
+  h += '</div>';
+  return h;
+}
 function renderTeamBeheer() {
   var h = '<div class="section-card"><h2>Team &amp; rechten</h2>';
   h += '<p class="subtitle" style="margin-top:-6px;">Wie toegang heeft tot jouw bedrijfsadministratie, en wat ze per onderdeel mogen: niet zien, alleen bekijken, of ook bewerken.</p>';
@@ -4835,6 +4969,8 @@ function renderTeamBeheer() {
   return h;
 }
 function nodigTeamlidUit() {
+  var limietMelding = licentieLimietBereikt("gebruiker");
+  if (limietMelding) { toonToast(limietMelding); return; }
   var email = document.getElementById("nieuw-teamlid-email").value.trim();
   if (!email) { toonToast("Vul een e-mailadres in."); return; }
   var rechten = leesRechtenKiezer("nieuwteamlid");
@@ -4905,7 +5041,7 @@ function renderInstellingen() {
     h += '<button class="btn-secondary" style="width:auto;padding:10px 18px;" onclick="doLogout()">Uitloggen</button>';
     h += '</div>';
     h += renderInlogHistorie();
-    if (state.magBeheren) { h += renderTeamBeheer(); h += renderToegangsverzoekenBeheer(); }
+    if (state.magBeheren) { h += renderLicentieKaart(); h += renderTeamBeheer(); h += renderToegangsverzoekenBeheer(); }
   }
   h += '<div class="section-card"><h2>Back-up &amp; herstel</h2>';
   h += '<p class="subtitle" style="margin-top:-6px;">Je gegevens worden automatisch in de cloud bewaard (account: ' + esc(state.user ? state.user.email : "") + '). Maak daarnaast voor de zekerheid regelmatig een back-upbestand, zodat je nooit iets kwijtraakt, ook niet bij problemen met je account of de cloud-verbinding.</p>';
@@ -4991,6 +5127,9 @@ function renderAuth() {
   if (state.authScreen === "aanvraag-verstuurd") return renderToegangAanvraagVerstuurd();
   if (state.authScreen === "nieuw-bedrijf") return renderNieuwBedrijfForm();
   if (state.authScreen === "nieuw-bedrijf-verstuurd") return renderNieuwBedrijfVerstuurd();
+  if (state.authScreen === "wachtwoord-vergeten") return renderWachtwoordVergetenForm();
+  if (state.authScreen === "wachtwoord-vergeten-verstuurd") return renderWachtwoordVergetenVerstuurd();
+  if (state.authScreen === "nieuw-wachtwoord") return renderNieuwWachtwoordForm();
   var h = '<div style="max-width:380px;margin:60px auto;padding:0 16px;">';
   h += '<div style="font-size:32px;text-align:center;margin-bottom:8px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><line x1="6" y1="20" x2="6" y2="12"/><line x1="12" y1="20" x2="12" y2="6"/><line x1="18" y1="20" x2="18" y2="15"/></svg></div>';
   h += '<div style="font-size:20px;font-weight:800;text-align:center;margin-bottom:4px;color:var(--navy);">Boekhouding</div>';
@@ -5000,6 +5139,7 @@ function renderAuth() {
   h += '<label class="fl">E-mailadres</label><input class="f" type="email" id="auth-email" autocapitalize="off" autocorrect="off" />';
   h += '<label class="fl">Wachtwoord</label><input class="f" type="password" id="auth-pass" />';
   h += '<button class="btn-primary" ' + (state.authBusy?"disabled":"") + ' onclick="submitAuth()">' + (state.authBusy ? "Bezig..." : "Inloggen") + '</button>';
+  h += '<div style="text-align:center;margin-top:10px;"><span style="font-size:12px;color:var(--muted);cursor:pointer;text-decoration:underline;" onclick="state.authScreen=\'wachtwoord-vergeten\';state.authError=\'\';render();">Wachtwoord vergeten?</span></div>';
   h += '</div>';
   h += '<div style="text-align:center;font-size:12.5px;color:var(--muted);margin-top:14px;">Werk je mee in het bedrijf van iemand anders? <span style="color:var(--navy);font-weight:700;cursor:pointer;" onclick="state.authScreen=\'aanvraag\';state.authError=\'\';render();">Toegang aanvragen</span></div>';
   h += '<div style="text-align:center;font-size:12.5px;color:var(--muted);margin-top:8px;">Ben je een ander bedrijf? <span style="color:var(--navy);font-weight:700;cursor:pointer;" onclick="state.authScreen=\'nieuw-bedrijf\';state.authError=\'\';render();">Start je eigen, aparte administratie</span></div>';
@@ -5028,6 +5168,63 @@ function renderNieuwBedrijfVerstuurd() {
   h += '<span style="color:var(--navy);font-weight:700;cursor:pointer;text-decoration:underline;" onclick="state.authScreen=\'login\';render();">Terug naar inloggen</span>';
   h += '</div>';
   return h;
+}
+function renderWachtwoordVergetenForm() {
+  var h = '<div style="max-width:380px;margin:60px auto;padding:0 16px;">';
+  h += '<div style="font-size:20px;font-weight:800;text-align:center;margin-bottom:4px;color:var(--navy);">Wachtwoord vergeten</div>';
+  h += '<div style="font-size:12.5px;color:var(--muted);text-align:center;margin-bottom:20px;">Vul je e-mailadres in, dan sturen we je een link om een nieuw wachtwoord in te stellen.</div>';
+  if (state.authError) h += '<div class="alert-box">' + esc(state.authError) + '</div>';
+  h += '<div class="section-card">';
+  h += '<label class="fl">E-mailadres</label><input class="f" type="email" id="wv-email" autocapitalize="off" autocorrect="off" />';
+  h += '<button class="btn-primary" ' + (state.authBusy?"disabled":"") + ' onclick="submitWachtwoordVergeten()">' + (state.authBusy ? "Bezig..." : "Verstuur link") + '</button>';
+  h += '</div>';
+  h += '<div style="text-align:center;font-size:12.5px;color:var(--muted);margin-top:14px;">Terug naar <span style="color:var(--navy);font-weight:700;cursor:pointer;" onclick="state.authScreen=\'login\';state.authError=\'\';render();">inloggen</span></div>';
+  h += '</div>';
+  return h;
+}
+function renderWachtwoordVergetenVerstuurd() {
+  var h = '<div style="max-width:380px;margin:80px auto;padding:0 16px;text-align:center;">';
+  h += '<div style="font-size:20px;font-weight:800;margin-bottom:10px;color:var(--navy);">Check je e-mail</div>';
+  h += '<div style="font-size:13.5px;color:var(--muted);margin-bottom:20px;">Als dit e-mailadres bij ons bekend is, ontvang je een link om een nieuw wachtwoord in te stellen.</div>';
+  h += '<span style="color:var(--navy);font-weight:700;cursor:pointer;text-decoration:underline;" onclick="state.authScreen=\'login\';render();">Terug naar inloggen</span>';
+  h += '</div>';
+  return h;
+}
+function renderNieuwWachtwoordForm() {
+  var h = '<div style="max-width:380px;margin:60px auto;padding:0 16px;">';
+  h += '<div style="font-size:20px;font-weight:800;text-align:center;margin-bottom:4px;color:var(--navy);">Nieuw wachtwoord instellen</div>';
+  if (state.authError) h += '<div class="alert-box">' + esc(state.authError) + '</div>';
+  h += '<div class="section-card">';
+  h += '<label class="fl">Nieuw wachtwoord (minstens 6 tekens)</label><input class="f" type="password" id="nw-pass" />';
+  h += '<button class="btn-primary" ' + (state.authBusy?"disabled":"") + ' onclick="submitNieuwWachtwoord()">' + (state.authBusy ? "Bezig..." : "Wachtwoord opslaan") + '</button>';
+  h += '</div></div>';
+  return h;
+}
+function submitWachtwoordVergeten() {
+  var email = document.getElementById("wv-email").value.trim();
+  if (!email) { state.authError = "Vul je e-mailadres in."; render(); return; }
+  state.authBusy = true; state.authError = ""; render();
+  supabaseClient.auth.resetPasswordForEmail(email, { redirectTo: window.location.href.split("#")[0] }).then(function(){
+    state.authBusy = false;
+    state.authScreen = "wachtwoord-vergeten-verstuurd";
+    render();
+  }).catch(function(){
+    state.authBusy = false;
+    // Bewust dezelfde melding tonen bij een fout, om niet per ongeluk te laten zien welke e-mailadressen wel/niet bestaan.
+    state.authScreen = "wachtwoord-vergeten-verstuurd";
+    render();
+  });
+}
+function submitNieuwWachtwoord() {
+  var pass = document.getElementById("nw-pass").value;
+  if (!pass || pass.length < 6) { state.authError = "Wachtwoord moet minstens 6 tekens zijn."; render(); return; }
+  state.authBusy = true; state.authError = ""; render();
+  supabaseClient.auth.updateUser({ password: pass }).then(function(res){
+    state.authBusy = false;
+    if (res.error) { state.authError = vertaalAuthFout(res.error.message); render(); return; }
+    toonToast("Wachtwoord bijgewerkt! Je bent nu ingelogd.");
+    naLogin();
+  }).catch(function(){ state.authBusy = false; state.authError = "Kon geen verbinding maken. Check je internetverbinding."; render(); });
 }
 function submitNieuwBedrijf() {
   var naam = document.getElementById("nb-naam").value.trim();
@@ -5144,7 +5341,7 @@ function renderKlantOfferteView(o) {
   h += '</tbody></table>';
   h += '<div class="totals-box"><div class="totals-row grand"><span>Totaal incl. BTW</span><span>' + euro(t.totaalIncl) + '</span></div></div>';
   if (o.data.opmerking) h += '<p style="font-size:12.5px;color:#6b6659;margin-top:16px;">' + esc(o.data.opmerking) + '</p>';
-  var energiePaginaCountKlant = (o.data.energieActief && o.data.energie && o.data.energie.zonActief) ? 4 : 0;
+  var energiePaginaCountKlant = (o.data.energieActief && o.data.energie && o.data.energie.zonActief) ? 6 : 0;
   var legplanPaginaCountKlant = o.data.legplanFoto ? 1 : 0;
   var datasheetsPaginaCountKlant = datasheetsPaginaAantal(o.data.datasheets);
   var totaalPaginasKlant = 1 + energiePaginaCountKlant + legplanPaginaCountKlant + datasheetsPaginaCountKlant;
@@ -5196,6 +5393,16 @@ function checkKlantLink() {
 }
 
 if (!checkKlantLink()) {
+  // Klik iemand op de "nieuw wachtwoord instellen"-link uit de e-mail, dan stuurt Supabase een
+  // PASSWORD_RECOVERY-event op het moment dat de pagina de token uit de link herkent. Toon dan
+  // altijd het formulier om een nieuw wachtwoord te kiezen, ongeacht welke pagina hierna laadt.
+  if (supabaseClient) {
+    supabaseClient.auth.onAuthStateChange(function(event, session){
+      if (event === "PASSWORD_RECOVERY") {
+        state.view = "auth"; state.authScreen = "nieuw-wachtwoord"; state.authError = ""; render();
+      }
+    });
+  }
   checkSession();
 }
 </script>
