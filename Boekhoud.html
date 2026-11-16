@@ -190,11 +190,11 @@
   .ow-chip.actief { background:linear-gradient(to right, #0B2530, #0F6E6E); border-color:#0B2530; color:#fff; }
   .ow-regel { border:1px solid var(--border); border-radius:8px; padding:10px; background:#fff; margin-bottom:8px; }
   .ow-regel .ow-desc { border:none; outline:none; width:100%; font-size:13px; background:transparent; margin-bottom:6px; font-family:inherit; }
-  .ow-regel-line { display:flex; gap:6px; align-items:center; }
-  .ow-regel-line input[type="number"] { width:52px; height:30px; box-sizing:border-box; border:none; border-bottom:1px solid var(--border); font-size:13px; background:transparent; padding:2px; -webkit-appearance:none; appearance:none; }
-  .ow-regel-line select { height:30px; box-sizing:border-box; font-size:11.5px; border:1px solid var(--border); border-radius:4px; background:#F8FDFC; padding:0 4px; -webkit-appearance:none; appearance:none; }
-  .ow-prijs-label { font-size:12px; color:var(--muted); }
-  .ow-remove { margin-left:auto; font-size:12px; color:var(--muted); background:none; border:none; cursor:pointer; }
+  .ow-regel-line { display:grid; grid-template-columns:62px minmax(0,1fr) minmax(0,1.25fr) minmax(0,1fr) 30px; gap:8px; align-items:center; }
+  .ow-regel-line input[type="number"] { width:100%; min-width:0; height:36px; box-sizing:border-box; border:1px solid var(--border); border-radius:6px; font-size:13px; background:#F8FDFC; padding:0 8px; -webkit-appearance:none; appearance:none; }
+  .ow-regel-line select { width:100%; min-width:0; height:36px; box-sizing:border-box; font-size:12px; border:1px solid var(--border); border-radius:6px; background:#F8FDFC; padding:0 6px; -webkit-appearance:none; appearance:none; }
+  .ow-prijs-label { display:none; }
+  .ow-remove { width:30px; height:36px; padding:0; display:flex; align-items:center; justify-content:center; font-size:12px; color:var(--muted); background:none; border:none; cursor:pointer; }
   .ow-mini-totals { margin-top:10px; font-size:12px; font-family:ui-monospace,monospace; color:var(--muted); }
   .ow-mini-totals .row { display:flex; justify-content:space-between; padding:1px 0; }
   .ow-mini-totals .row.final { color:var(--text); font-weight:700; border-top:1px solid var(--border); margin-top:4px; padding-top:4px; }
@@ -2964,8 +2964,122 @@ function tabZichtbaar(t) { var s = TAB_SECTIE[t]; return !s || magBekijken(s); }
 
 var TAB_ICONS = { dashboard:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><line x1="6" y1="20" x2="6" y2="12"/><line x1="12" y1="20" x2="12" y2="6"/><line x1="18" y1="20" x2="18" y2="15"/></svg>', projecten:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2Z"/></svg>', agenda:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>', schouwen:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>', offertes:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="16" y2="16"/><line x1="8" y1="8" x2="10" y2="8"/></svg>', facturen:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>', producten:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><path d="M21 8V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8"/><path d="M1 6l11-4 11 4-11 4Z"/><line x1="12" y1="10" x2="12" y2="21"/></svg>', klanten:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><path d="M14 21v-2a4 4 0 0 0-4-4H4a4 4 0 0 0-4 4v2"/><circle cx="7" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M15.5 3.13a4 4 0 0 1 0 7.75"/></svg>', uitgaven:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><path d="M17 7a6.5 6.5 0 1 0 0 10"/><line x1="4" y1="10" x2="14" y2="10"/><line x1="4" y1="14" x2="12" y2="14"/></svg>', registraties:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 16 14"/></svg>', btw:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><rect x="4" y="2" width="16" height="20" rx="1"/><line x1="9" y1="6" x2="9" y2="6.01"/><line x1="15" y1="6" x2="15" y2="6.01"/><line x1="9" y1="10" x2="9" y2="10.01"/><line x1="15" y1="10" x2="15" y2="10.01"/><line x1="9" y1="14" x2="9" y2="14.01"/><line x1="15" y1="14" x2="15" y2="14.01"/><line x1="9" y1="18" x2="15" y2="18"/></svg>', rapportage:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>', legplantest:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 15l5-5 4 4 5-6 4 5"/></svg>', instellingen:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6V21a2 2 0 0 1-4 0v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1H3a2 2 0 0 1 0-4h.2a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.6V3a2 2 0 0 1 4 0v.2a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.6 1H21a2 2 0 0 1 0 4h-.2a1.7 1.7 0 0 0-1.5 1Z"/></svg>' };
 
+// ---------------------------------------------------------------------
+// LIVE RENDER: de pagina wordt bij elke wijziging bijgewerkt zonder dat het veld waarin je typt
+// ooit wordt vervangen (geen focusverlies, toetsenbord blijft open, cursor en scrollpositie blijven staan).
+// Werkwijze: de nieuwe pagina wordt eerst in een los element opgebouwd en daarna alleen de VERSCHILLEN
+// doorgevoerd in de echte pagina ("morphen").
+// ---------------------------------------------------------------------
+var renderDoel = null;
+var liveRenderTimer = null;
+function liveRender() {
+  if (state.tab === "project-form") return; // handtekeningvlak: nooit midden in het tekenen verversen
+  clearTimeout(liveRenderTimer);
+  liveRenderTimer = setTimeout(render, 120);
+}
+function morphBehoudNode(o) {
+  return o.nodeType === 1 && ((o.classList && o.classList.contains("adres-suggesties")) || o.id === "aanvraag-bedrijf-resultaten");
+}
+function morphAttributen(o, n, actief) {
+  var i, a;
+  for (i = o.attributes.length - 1; i >= 0; i--) {
+    a = o.attributes[i];
+    if (!n.hasAttribute(a.name)) o.removeAttribute(a.name);
+  }
+  for (i = 0; i < n.attributes.length; i++) {
+    a = n.attributes[i];
+    if (actief && a.name === "value") continue;
+    if (o.getAttribute(a.name) !== a.value) o.setAttribute(a.name, a.value);
+  }
+}
+function morphNode(o, n, actief) {
+  if (o.nodeType !== n.nodeType || o.nodeName !== n.nodeName) { o.parentNode.replaceChild(n, o); return; }
+  if (o.nodeType !== 1) { if (o.nodeValue !== n.nodeValue) o.nodeValue = n.nodeValue; return; }
+  if (morphBehoudNode(o)) return;
+  var tag = o.nodeName, isActief = (o === actief);
+  if (tag === "INPUT") {
+    var type = (o.getAttribute("type") || "text").toLowerCase();
+    var oudAttr = o.getAttribute("value"), nieuwAttr = n.getAttribute("value");
+    var oudChecked = o.hasAttribute("checked"), nieuwChecked = n.hasAttribute("checked");
+    morphAttributen(o, n, isActief);
+    if (type === "checkbox" || type === "radio") { if (oudChecked !== nieuwChecked) o.checked = n.checked; }
+    else if (type !== "file" && !isActief && oudAttr !== nieuwAttr && o.value !== n.value) o.value = n.value;
+    return;
+  }
+  if (tag === "TEXTAREA") {
+    var oudTekst = o.defaultValue, nieuwTekst = n.defaultValue;
+    morphAttributen(o, n, isActief);
+    if (oudTekst !== nieuwTekst) { o.defaultValue = nieuwTekst; if (!isActief && o.value !== nieuwTekst) o.value = nieuwTekst; }
+    return;
+  }
+  if (tag === "SELECT") {
+    var oudIdx = -1, nieuwIdx = -1, k;
+    for (k = 0; k < o.options.length; k++) if (o.options[k].hasAttribute("selected")) { oudIdx = k; break; }
+    for (k = 0; k < n.options.length; k++) if (n.options[k].hasAttribute("selected")) { nieuwIdx = k; break; }
+    morphAttributen(o, n, isActief);
+    morphKinderen(o, n, actief);
+    if (!isActief && (oudIdx !== nieuwIdx || o.selectedIndex !== n.selectedIndex)) o.selectedIndex = n.selectedIndex;
+    return;
+  }
+  if (tag === "CANVAS") { morphAttributen(o, n, false); return; }
+  morphAttributen(o, n, false);
+  morphKinderen(o, n, actief);
+}
+function morphKinderen(oud, nieuw, actief) {
+  var nieuwLijst = Array.prototype.slice.call(nieuw.childNodes);
+  for (var i = 0; i < nieuwLijst.length; i++) {
+    var o = oud.childNodes[i];
+    if (!o) oud.appendChild(nieuwLijst[i]);
+    else morphNode(o, nieuwLijst[i], actief);
+  }
+  while (oud.childNodes.length > nieuwLijst.length) oud.removeChild(oud.lastChild);
+}
 function render() {
-  var root = document.getElementById("root");
+  var echt = document.getElementById("root");
+  if (!echt) return;
+  if (!echt.firstChild || state.tab === "project-form" || renderDoel) { renderCore(); return; }
+  var actief = document.activeElement;
+  var focusInfo = null;
+  if (actief && echt.contains(actief) && /^(INPUT|TEXTAREA|SELECT)$/.test(actief.tagName)) {
+    var lijst = echt.querySelectorAll("input,textarea,select");
+    focusInfo = { idx: Array.prototype.indexOf.call(lijst, actief), tag: actief.tagName, type: actief.type, value: actief.value, s: null, e: null };
+    try { focusInfo.s = actief.selectionStart; focusInfo.e = actief.selectionEnd; } catch (x) {}
+  } else { actief = null; }
+  var tijdelijk = document.createElement("div");
+  renderDoel = tijdelijk;
+  try { renderCore(); } finally { renderDoel = null; }
+  morphKinderen(echt, tijdelijk, actief);
+  // Vangnet: als het veld waarin je typde toch is vervangen (bijv. omdat de indeling van de pagina veranderde), zet de focus terug.
+  if (focusInfo && focusInfo.idx >= 0 && !(actief && actief.isConnected && document.activeElement === actief)) {
+    try {
+      var nieuw = echt.querySelectorAll("input,textarea,select")[focusInfo.idx];
+      if (nieuw && nieuw.tagName === focusInfo.tag && nieuw.type === focusInfo.type) {
+        if (nieuw.tagName !== "SELECT" && nieuw.type !== "checkbox" && nieuw.type !== "radio" && nieuw.type !== "file" && nieuw.value !== focusInfo.value) nieuw.value = focusInfo.value;
+        nieuw.focus({ preventScroll: true });
+        if (focusInfo.s != null) { try { nieuw.setSelectionRange(focusInfo.s, focusInfo.e); } catch (x) {} }
+      }
+    } catch (x) {}
+  }
+}
+// Elke wijziging in een invoerveld (tekst, getal, keuzelijst, vinkje) ververst na een heel korte pauze de hele pagina:
+// totalen, besparingen, 25-jaar-berekeningen, offertevoorbeeld, enz. De waarde zelf is dan al door het eigen veld verwerkt.
+document.addEventListener("input", function(e){
+  var t = e.target;
+  if (!t || !t.closest || !t.closest("#root")) return;
+  if (t.tagName === "INPUT" && /^(password|file)$/i.test(t.type)) return;
+  if (state.view === "auth" || state.view === "auth-loading" || state.view === "connectie-fout") return;
+  liveRender();
+}, false);
+document.addEventListener("change", function(e){
+  var t = e.target;
+  if (!t || !t.closest || !t.closest("#root")) return;
+  if (t.tagName === "INPUT" && /^(password|file)$/i.test(t.type)) return;
+  if (state.view === "auth" || state.view === "auth-loading" || state.view === "connectie-fout") return;
+  liveRender();
+}, false);
+
+function renderCore() {
+  var root = renderDoel || document.getElementById("root");
   try {
     if (state.view === "auth-loading") {
       root.innerHTML = '<div style="text-align:center;padding:80px 20px;color:var(--muted);font-size:13px;">Laden...</div>';
@@ -3677,14 +3791,14 @@ function renderOfferteWerkblad() {
     h += '<div class="ow-regel">';
     h += '<input class="ow-desc" placeholder="Omschrijving (bijv. Installatie 12 zonnepanelen)" value="' + esc(r.omschrijving) + '" oninput="updateOfferteRegelField(\'' + o.id + '\',\'' + r.id + '\',\'omschrijving\',this.value)" onblur="render()" />';
     h += '<div class="ow-regel-line">';
-    h += '<input type="number" value="' + esc(r.aantal) + '" oninput="updateOfferteRegelField(\'' + o.id + '\',\'' + r.id + '\',\'aantal\',this.value)" />';
+    h += '<input type="number" step="any" placeholder="Aantal" value="' + esc(r.aantal) + '" oninput="updateOfferteRegelField(\'' + o.id + '\',\'' + r.id + '\',\'aantal\',this.value)" />';
     h += '<select onchange="updateOfferteRegel(\'' + o.id + '\',\'' + r.id + '\',{eenheid:this.value})">';
     EENHEDEN.forEach(function(e){ h += '<option value="' + e + '"' + (r.eenheid===e?" selected":"") + '>' + e + '</option>'; });
     h += '</select>';
     h += '<span class="ow-prijs-label">&agrave; &euro;</span>';
-    h += '<input type="number" value="' + esc(r.prijs) + '" oninput="updateOfferteRegelField(\'' + o.id + '\',\'' + r.id + '\',\'prijs\',this.value)" />';
+    h += '<input type="number" step="any" placeholder="\u20ac prijs" value="' + esc(r.prijs) + '" oninput="updateOfferteRegelField(\'' + o.id + '\',\'' + r.id + '\',\'prijs\',this.value)" />';
     h += '<select style="font-size:11.5px;font-weight:700;border:1px solid var(--border);border-radius:4px;background:' + btwKleur(r.btw).bg + ';color:' + btwKleur(r.btw).tekst + ';padding:3px;" onchange="updateOfferteRegel(\'' + o.id + '\',\'' + r.id + '\',{btw:parseInt(this.value)})" title="BTW-tarief voor dit artikel">';
-    BTW_TARIEVEN.forEach(function(tp){ h += '<option value="' + tp + '"' + (r.btw===tp?" selected":"") + '>' + tp + '% btw</option>'; });
+    BTW_TARIEVEN.forEach(function(tp){ h += '<option value="' + tp + '"' + (r.btw===tp?" selected":"") + '>' + tp + '%</option>'; });
     h += '</select>';
     h += '<button class="ow-remove" onclick="removeOfferteRegel(\'' + o.id + '\',\'' + r.id + '\')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>';
     h += '</div></div>';
@@ -3906,7 +4020,17 @@ function toggleEnergieActief(offerteId, checked) {
   if (checked) EO_herberekenInvesteringenVanuitRegels(o); // meteen de al ingevulde offerteregels overnemen i.p.v. standaardbedragen
   persistOffertes(); render();
 }
-function eoVeld(offerteId, key, val) { var o = getOfferte(offerteId); if (o && o.energie) o.energie[key] = val; persistOffertes(); }
+function EO_synchroniseerRegelsMetConfig(o, key, val) {
+  // Wijzig je in de rekentool het aantal panelen of de Wp, dan past de bijbehorende offerteregel zich direct aan (en dus ook het investeringsbedrag).
+  if (key !== "aantalPanelen" && key !== "wpPerPaneel") return;
+  var zonRegels = (o.regels || []).filter(function(r){ return EO_categorieVanRegel(r) === "zon"; });
+  if (zonRegels.length !== 1) return;
+  var r = zonRegels[0], v = String(val).trim();
+  if (key === "aantalPanelen" && v !== "") r.aantal = v;
+  if (key === "wpPerPaneel" && /^\d{2,4}$/.test(v)) r.omschrijving = (r.omschrijving || "").replace(/(\d{2,4})(\s*wp\b)/i, v + "$2");
+  EO_herberekenInvesteringenVanuitRegels(o);
+}
+function eoVeld(offerteId, key, val) { var o = getOfferte(offerteId); if (o && o.energie) { o.energie[key] = val; EO_synchroniseerRegelsMetConfig(o, key, val); } persistOffertes(); }
 function eoVeldRender(offerteId, key, val) { var o = getOfferte(offerteId); if (o && o.energie) o.energie[key] = val; persistOffertes(); render(); }
 function eoField(offerteId, key, label, val) {
   return '<div><label class="fl">' + label + '</label><input class="f" value="' + esc(val) + '" oninput="eoVeld(\'' + offerteId + '\',\'' + key + '\',this.value)" onblur="render()" /></div>';
