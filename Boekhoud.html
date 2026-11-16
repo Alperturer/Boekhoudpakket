@@ -309,6 +309,20 @@
     .sidebar-nav button { padding:14px 18px; }
     .del-x { min-width:36px; min-height:36px; }
   }
+  /* Rapport/offerte-pagina's passend op telefoon (PDF-export gebruikt een breed venster, dus onaangetast) */
+  @media (max-width:700px) {
+    .ow-preview { display:block; overflow-x:hidden; }
+    #ow-print-area, #r-page-factuur, .r-page { width:100% !important; max-width:100% !important; min-width:0 !important; padding:16px 12px; min-height:0; }
+    .r-page table, #ow-print-area table, #r-page-factuur table { width:100%; table-layout:auto; font-size:11px; }
+    .r-page th, .r-page td, #ow-print-area th, #ow-print-area td, #r-page-factuur th, #r-page-factuur td { padding-left:4px !important; padding-right:4px !important; font-size:10.5px !important; }
+    table.r-table td.num, table.r-table th.num, table.ow-regels-table td:not(:first-child), table.ow-regels-table th:not(:first-child) { white-space:normal; }
+    .r-page img, #ow-print-area img { max-width:100%; height:auto; }
+    table.r-table-compact { font-size:9px !important; }
+    table.r-table-compact th, table.r-table-compact td { font-size:9px !important; padding-left:2px !important; padding-right:2px !important; letter-spacing:0 !important; }
+    table.r-table-compact th { font-size:7.5px !important; word-break:normal; overflow-wrap:normal; text-transform:none; }
+    table.r-table-compact th:first-child, table.r-table-compact td:first-child { white-space:nowrap; }
+    table.r-table th { letter-spacing:0 !important; }
+  }
 </style>
 <script>
 function svgGroupedBarChart(labels, seriesA, seriesB, kleurA, kleurB) {
