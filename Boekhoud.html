@@ -887,10 +887,55 @@ var DIENSTEN = [
   { id: "airco", label: "Airco" },
   { id: "overig", label: "Overig" },
 ];
-function standaardOfferteSecties(stijl, bedrijfsnaam, dienstLabels) {
+function standaardOfferteSecties(stijl, bedrijfsnaam, dienstLabels, soort, onderdelen) {
   var bn = bedrijfsnaam || "ons bedrijf";
   var dl = dienstLabels || "de besproken werkzaamheden";
-  var bibliotheek = {
+  var od = onderdelen || (soort === "klimaat" ? "een airco-installatie" : "een duurzaam energiesysteem");
+  var bibliotheek;
+  if (soort === "verduurzaming") {
+    bibliotheek = {
+      zakelijk: {
+        inleiding: "Naar aanleiding van uw aanvraag ontvangt u hierbij onze verduurzamingsofferte van " + bn + " voor " + od + ". Hiermee maakt u uw woning energiezuiniger en minder afhankelijk van het energienet. In het bijgevoegde rapport leest u wat dit voor u oplevert: de verwachte opbrengst, de besparing over 10 en 25 jaar en de terugverdientijd.",
+        werkzaamheden: "Wij leveren de genoemde onderdelen en verzorgen de montage, de elektrische aansluiting en de inbedrijfstelling. Na oplevering lichten wij de werking van het systeem toe en laten wij u zien hoe u de opbrengst kunt volgen. Alle werkzaamheden worden uitgevoerd conform de geldende normen en door gekwalificeerd personeel. Bijzonderheden aan uw meterkast of dak stemmen wij vooraf met u af.",
+        garantie: "Op de geleverde producten geldt de fabrieksgarantie van de fabrikant en op onze montage de installatiegarantie. De berekende opbrengsten en besparingen zijn een indicatie en geen garantie. Deze offerte is 30 dagen geldig vanaf de offertedatum.",
+        afsluiting: "Heeft u vragen over deze verduurzamingsofferte? Neem gerust contact met ons op. Wij zien uw akkoord graag tegemoet.",
+      },
+      vriendelijk: {
+        inleiding: "Bedankt voor uw aanvraag! Hieronder vindt u onze verduurzamingsofferte van " + bn + " voor " + od + ". Zo maakt u uw woning slimmer, groener en onafhankelijker van het net. In het rapport ziet u precies wat het u gaat opleveren.",
+        werkzaamheden: "Wij leveren alles, monteren het netjes en nemen het systeem voor u in gebruik. Daarna leggen we rustig uit hoe het werkt en hoe u uw opbrengst volgt. Zijn er bijzonderheden bij uw dak of meterkast? Dan stemmen we dat vooraf met u af.",
+        garantie: "U krijgt de fabrieksgarantie op de producten en installatiegarantie op ons werk. Let op: de berekende besparing is een indicatie, geen garantie. Deze offerte is 30 dagen geldig.",
+        afsluiting: "Vragen over uw verduurzaming? Bel of mail ons gerust, we denken graag met u mee!",
+      },
+      kort: {
+        inleiding: "Hierbij onze verduurzamingsofferte van " + bn + " voor " + od + ". Rapport met opbrengst en terugverdientijd bijgevoegd.",
+        werkzaamheden: "Levering, montage, aansluiting en inbedrijfstelling inclusief uitleg.",
+        garantie: "Fabrieks- en installatiegarantie. Besparing is een indicatie. Offerte 30 dagen geldig.",
+        afsluiting: "Vragen? Neem contact op. Akkoord graag retour.",
+      },
+    };
+  } else if (soort === "klimaat") {
+    bibliotheek = {
+      zakelijk: {
+        inleiding: "Naar aanleiding van uw aanvraag ontvangt u hierbij onze klimaatbeheersingsofferte van " + bn + " voor " + od + ". Met deze installatie verwarmt u uw woning of bedrijfspand in de winter en koelt u het in de zomer, met één energiezuinig systeem. In het bijgevoegde rapport vindt u het verwachte stroomverbruik, de energiekosten en de besparing over 25 jaar.",
+        werkzaamheden: "Wij leveren de binnen- en buitenunit(s) en verzorgen de montage, het leidingwerk, de condensafvoer, de elektrische aansluiting en de inbedrijfstelling. Na oplevering lichten wij de bediening en het onderhoud toe. De locatie van de units en het leidingtraject stemmen wij vooraf met u af. Alle werkzaamheden worden uitgevoerd conform de geldende normen en door gekwalificeerd personeel.",
+        garantie: "Op de geleverde units geldt de fabrieksgarantie en op onze installatie de installatiegarantie. De berekende verbruiks- en besparingscijfers zijn een indicatie en geen garantie. Deze offerte is 30 dagen geldig vanaf de offertedatum.",
+        afsluiting: "Heeft u vragen over deze klimaatbeheersingsofferte? Neem gerust contact met ons op. Wij zien uw akkoord graag tegemoet.",
+      },
+      vriendelijk: {
+        inleiding: "Bedankt voor uw aanvraag! Hieronder vindt u onze klimaatbeheersingsofferte van " + bn + " voor " + od + ". Lekker warm in de winter, aangenaam koel in de zomer, en dat energiezuinig met één installatie. In het rapport ziet u wat het verbruikt en bespaart.",
+        werkzaamheden: "Wij leveren de units, monteren alles netjes weg, sluiten het aan en nemen het in gebruik. Daarna leggen we uit hoe u het bedient en onderhoudt. Samen bepalen we vooraf waar de units en het leidingwerk het beste kunnen komen.",
+        garantie: "U krijgt de fabrieksgarantie op de units en installatiegarantie op ons werk. De berekende besparing is een indicatie, geen garantie. Deze offerte is 30 dagen geldig.",
+        afsluiting: "Vragen over uw nieuwe klimaatinstallatie? Bel of mail ons gerust!",
+      },
+      kort: {
+        inleiding: "Hierbij onze klimaatbeheersingsofferte van " + bn + " voor " + od + " (verwarmen en koelen). Rapport met verbruik en besparing bijgevoegd.",
+        werkzaamheden: "Levering en montage van binnen- en buitenunit(s), leidingwerk, aansluiting en inbedrijfstelling inclusief uitleg.",
+        garantie: "Fabrieks- en installatiegarantie. Besparing is een indicatie. Offerte 30 dagen geldig.",
+        afsluiting: "Vragen? Neem contact op. Akkoord graag retour.",
+      },
+    };
+  } else {
+    bibliotheek = {
     zakelijk: {
       inleiding: "Naar aanleiding van uw aanvraag ontvangt u hierbij de offerte van " + bn + " voor de uitvoering van " + dl + ". Wij hebben de werkzaamheden zorgvuldig in kaart gebracht en hieronder toegelicht.",
       werkzaamheden: "De werkzaamheden worden uitgevoerd conform de geldende technische normen en door gekwalificeerd personeel. Wij zorgen voor een efficiënte planning en houden u gedurende het traject op de hoogte van de voortgang. Eventuele bijzonderheden stemmen wij vooraf met u af.",
@@ -909,8 +954,41 @@ function standaardOfferteSecties(stijl, bedrijfsnaam, dienstLabels) {
       garantie: "Garantie op materiaal en werk. Offerte 30 dagen geldig.",
       afsluiting: "Vragen? Neem contact op. Akkoord graag retour.",
     },
-  };
+    };
+  }
   return bibliotheek[stijl] || bibliotheek.zakelijk;
+}
+// Soort offerte: "klimaat" (losse airco), "verduurzaming" (zon/batterij/warmtepomp, evt. met airco) of null (vrije offerte)
+function EO_offerteSoort(o) {
+  if (!o || !o.energieActief || !o.energie) return null;
+  var e = o.energie;
+  if (e.zonActief || e.batterijActief || e.wpActief) return "verduurzaming";
+  if (e.aircoActief) return "klimaat";
+  return null;
+}
+function EO_soortLabel(o) {
+  var soort = EO_offerteSoort(o);
+  return soort === "verduurzaming" ? "Verduurzamingsofferte" : soort === "klimaat" ? "Klimaatbeheersingsofferte" : "Offerte";
+}
+function EO_onderdelenTekst(o) {
+  var e = o && o.energie; if (!e) return "";
+  var d = [];
+  if (e.zonActief) d.push("zonnepanelen");
+  if (e.batterijActief) d.push(e.batterijBackupActief ? "een thuisbatterij met noodstroom" : "een thuisbatterij");
+  if (e.wpActief) d.push("een warmtepomp");
+  if (e.aircoActief) {
+    var n = (e.aircoInstallaties || []).length;
+    d.push(n > 1 ? "airco-installaties" : "een airco-installatie");
+  }
+  if (d.length <= 1) return d[0] || "";
+  return d.slice(0, -1).join(", ") + " en " + d[d.length - 1];
+}
+// Vult de offerteteksten passend bij de soort offerte; "tekstAuto" onthoudt dat de tekst automatisch is (en dus mee mag veranderen).
+function EO_pasAutoTekstToe(o) {
+  var dienstLabels = (o.diensten||[]).map(function(dId){ var d = DIENSTEN.find(function(x){return x.id===dId;}); return d?d.label:null; }).filter(Boolean).join(", ");
+  var sec = standaardOfferteSecties(o.standaardStijl||"zakelijk", state.bedrijf.naam, dienstLabels, EO_offerteSoort(o), EO_onderdelenTekst(o));
+  o.inleiding = sec.inleiding; o.werkzaamheden = sec.werkzaamheden; o.garantie = sec.garantie; o.afsluiting = sec.afsluiting;
+  o.tekstAuto = true;
 }
 var BTW_TARIEVEN = [21, 9, 0];
 var FREQUENTIES = { maandelijks: "Maandelijks", kwartaal: "Per kwartaal", jaarlijks: "Jaarlijks" };
@@ -1784,7 +1862,7 @@ function nieuweOfferte() {
 function getOfferte(id) { return state.offertes.find(function(o){return o.id===id;}); }
 function openOfferte(id) { state.huidigeOfferteId = id; setTab("offerte-view"); }
 function bewerkOfferte(id) { state.huidigeOfferteId = id; setTab("offerte-form"); }
-function updateOfferteField(id, key, val) { var o = getLegplanDoel(id); if (o) o[key] = val; if (id !== LEGPLAN_TEST_ID) persistOffertes(); }
+function updateOfferteField(id, key, val) { var o = getLegplanDoel(id); if (o) { o[key] = val; if (key === "inleiding" || key === "werkzaamheden" || key === "garantie" || key === "afsluiting") o.tekstAuto = false; } if (id !== LEGPLAN_TEST_ID) persistOffertes(); }
 function updateOfferteStatus(id, status) { var o = getOfferte(id); if (o) o.status = status; persistOffertes(); syncOfferteNaarCloud(id); render(); }
 
 // ---------------------------------------------------------------------
@@ -3217,7 +3295,7 @@ function renderCore() {
 
     // Zijbalk (zichtbaar vanaf ~900px breed)
     html += '<nav class="sidebar no-print">';
-    html += '<div class="sidebar-logo" onclick="setTab(\'dashboard\')"><span class="dot"></span> Boekhouding' + '<span style="font-size:9px;font-weight:600;opacity:0.6;margin-left:6px;">v16-11-22x</span>' + (state.cloudSaving ? ' <span style="font-size:9px;font-weight:600;opacity:0.7;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><path d="M18 10h-1.3A6 6 0 1 0 6 15h12a4 4 0 0 0 0-8Z"/></svg> opslaan...</span>' : '') + '</div>';
+    html += '<div class="sidebar-logo" onclick="setTab(\'dashboard\')"><span class="dot"></span> Boekhouding' + '<span style="font-size:9px;font-weight:600;opacity:0.6;margin-left:6px;">v16-11-22y</span>' + (state.cloudSaving ? ' <span style="font-size:9px;font-weight:600;opacity:0.7;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><path d="M18 10h-1.3A6 6 0 1 0 6 15h12a4 4 0 0 0 0-8Z"/></svg> opslaan...</span>' : '') + '</div>';
     if (state.user) html += '<div style="padding:0 20px 14px;font-size:11px;color:#B7DFDA;">' + esc(state.user.email) + '<br/><span style="cursor:pointer;text-decoration:underline;" onclick="doLogout()">Uitloggen</span></div>';
     html += '<div class="sidebar-nav">';
     TABS.forEach(function(t){
@@ -3847,6 +3925,7 @@ function renderOffertesLijst() {
 function renderOfferteWerkblad() {
   var o = getOfferte(state.huidigeOfferteId);
   if (!o) return '<div class="empty-state">Offerte niet gevonden.</div>';
+  if (o.tekstAuto === true && o.tekstmodus !== "eigen") EO_pasAutoTekstToe(o); // onderdelen/soort gewijzigd? tekst loopt automatisch mee
   var t = offerteTotalen(o);
   var b = state.bedrijf;
   var accent = b.offerteAccentKleur || b.accentKleur || "#0F6E6E";
@@ -4028,7 +4107,7 @@ function renderOfferteWerkblad() {
   h += '<div class="ow-wordmark" style="margin-top:14px;margin-bottom:0;font-size:16px;line-height:1.6;">' + esc(b.naam || "Jouw bedrijf") + '</div>';
   h += verkoperGegevensHtml(b);
   h += '</div>';
-  h += '<div class="ow-lh-right"><div class="doc-type-label">Offerte</div><div class="num">' + esc(o.offertenummer) + (o.status!=="concept" ? ' <span class="badge badge-' + o.status + '" style="margin-left:4px;">' + statusLabel(o.status) + '</span>' : '') + '</div><div>' + esc(o.datum) + (o.geldigTot ? '<br/>Geldig tot ' + esc(o.geldigTot) : '') + '</div>';
+  h += '<div class="ow-lh-right"><div class="doc-type-label">' + EO_soortLabel(o) + '</div><div class="num">' + esc(o.offertenummer) + (o.status!=="concept" ? ' <span class="badge badge-' + o.status + '" style="margin-left:4px;">' + statusLabel(o.status) + '</span>' : '') + '</div><div>' + esc(o.datum) + (o.geldigTot ? '<br/>Geldig tot ' + esc(o.geldigTot) : '') + '</div>';
   h += '<div class="ow-klant-block" style="padding:0;margin-top:14px;text-align:right;"><div class="naam">' + esc(o.klantNaam || "Klantnaam") + '</div>' + (o.klantContactpersoon ? '<div class="sub-line">T.a.v. ' + esc(o.klantContactpersoon) + '</div>' : '');
   if (o.klantAdres) h += '<div class="sub-line">' + esc(o.klantAdres) + '</div>';
   if (o.klantPostcode || o.klantPlaats) h += '<div class="sub-line">' + esc([o.klantPostcode,o.klantPlaats].filter(Boolean).join(" ")) + '</div>';
@@ -4131,6 +4210,7 @@ function toggleEnergieActief(offerteId, checked) {
   if (checked && !o.energie) o.energie = EO_nieuwSysteem();
   if (checked && o.energie && !o.energie.zonActief && !o.energie.batterijActief && !o.energie.wpActief) o.energie.zonActief = true; // terug uit airco-modus
   if (checked) EO_herberekenInvesteringenVanuitRegels(o); // meteen de al ingevulde offerteregels overnemen i.p.v. standaardbedragen
+  if (o.tekstmodus !== "eigen" && o.tekstAuto !== false) EO_pasAutoTekstToe(o);
   persistOffertes(); render();
 }
 function kiesAircoOfferte(offerteId) {
@@ -4141,6 +4221,7 @@ function kiesAircoOfferte(offerteId) {
   s.zonActief = false; s.batterijActief = false; s.wpActief = false; s.aircoActief = true;
   if (!s.aircoInstallaties || s.aircoInstallaties.length === 0) s.aircoInstallaties = [EO_nieuweAircoInstallatie()];
   EO_herberekenInvesteringenVanuitRegels(o);
+  if (o.tekstmodus !== "eigen" && o.tekstAuto !== false) EO_pasAutoTekstToe(o);
   persistOffertes(); render();
 }
 function EO_synchroniseerRegelsMetConfig(o, key, val) {
@@ -4386,9 +4467,7 @@ function toggleOfferteDienst(id, dienstId) {
 function vulStandaardtekstIn(id) {
   var o = getOfferte(id);
   if (!o) return;
-  var dienstLabels = (o.diensten||[]).map(function(dId){ var d = DIENSTEN.find(function(x){return x.id===dId;}); return d?d.label:null; }).filter(Boolean).join(", ");
-  var secties = standaardOfferteSecties(o.standaardStijl||"zakelijk", state.bedrijf.naam, dienstLabels);
-  o.inleiding = secties.inleiding; o.werkzaamheden = secties.werkzaamheden; o.garantie = secties.garantie; o.afsluiting = secties.afsluiting;
+  EO_pasAutoTekstToe(o);
   persistOffertes(); render();
 }
 function beslisAkkoordLokaal(id, beslissing) {
