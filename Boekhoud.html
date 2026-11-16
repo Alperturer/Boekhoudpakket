@@ -1409,7 +1409,7 @@ function verwijderSchouwFoto(schouwId, fotoId) {
   persistSchouwen(); render();
 }
 function persistFacturen() { saveJSON(STORAGE_FACTUREN, state.facturen); scheduleCloudSyncSectie("org_facturen", state.facturen); }
-function persistOffertes() { saveJSON(STORAGE_OFFERTES, state.offertes); scheduleCloudSyncSectie("org_offertes", state.offertes); }
+function persistOffertes() { EO_ruimAlleOffertesOp(); saveJSON(STORAGE_OFFERTES, state.offertes); scheduleCloudSyncSectie("org_offertes", state.offertes); }
 function persistUitgaven() { saveJSON(STORAGE_UITGAVEN, state.uitgaven); scheduleCloudSyncSectie("org_uitgaven", state.uitgaven); }
 function persistBedrijf() { saveJSON(STORAGE_BEDRIJF, state.bedrijf); scheduleCloudSyncSectie("org_instellingen", state.bedrijf); }
 function persistSjablonen() { saveJSON(STORAGE_SJABLONEN, state.sjablonen); scheduleCloudSyncSectie("org_sjablonen", state.sjablonen); }
@@ -1861,7 +1861,27 @@ function kiesKlantVoorFactuur(factuurId, klantId) {
 // ---------------------------------------------------------------------
 // OFFERTES
 // ---------------------------------------------------------------------
+// Opruimen: (1) datasheets die automatisch bij een productregel zijn gekomen verdwijnen als die regel uit de offerte gaat,
+// (2) de zware originele PDF wordt weggegooid zodra de paginafoto's er zijn (de offerte toont alleen de paginafoto's).
+// Zelf toegevoegde bijlagen blijven altijd staan.
+function EO_ruimDatasheetsOp(o) {
+  if (!o || !o.datasheets || !o.datasheets.length) return false;
+  var gewijzigd = false;
+  var productIdsInRegels = (o.regels || []).map(function(r){ return r.productId; }).filter(Boolean);
+  o.datasheets = o.datasheets.filter(function(d){
+    var prod = d.productId ? getProduct(d.productId) : (state.producten || []).find(function(pr){ return pr.datasheetNaam && d.naam === pr.naam + " \u2014 " + pr.datasheetNaam; });
+    var isAuto = d.auto || (!d.productId && prod);
+    if (isAuto && prod && productIdsInRegels.indexOf(prod.id) === -1) { gewijzigd = true; return false; }
+    return true;
+  });
+  o.datasheets.forEach(function(d){
+    if (d.data && d.data.length > 20000 && d.paginaAfbeeldingen && d.paginaAfbeeldingen.length > 0 && d.data.indexOf("pdf") !== -1) { d.data = ""; gewijzigd = true; }
+  });
+  return gewijzigd;
+}
+function EO_ruimAlleOffertesOp() { var g = false; (state.offertes || []).forEach(function(o){ if (EO_ruimDatasheetsOp(o)) g = true; }); return g; }
 function nieuweOfferte() {
+  EO_ruimAlleOffertesOp(); // bij elke nieuwe offerte meteen de overbodige PDF's uit alle offertes halen
   var limietMelding = licentieLimietBereikt("offerte");
   if (limietMelding) { toonToast(limietMelding); return; }
   var o = newOfferte();
@@ -2252,7 +2272,7 @@ function kiesProductVoorOfferteRegel(offerteId, regelId, productId) {
     if (!o.datasheets) o.datasheets = [];
     var bestaatAl = o.datasheets.some(function(d){ return d.naam === (p.naam + " \u2014 " + p.datasheetNaam) || (d.naam === p.datasheetNaam && d.data === p.datasheetData); });
     if (!bestaatAl) {
-      var nieuwRecord = { naam: p.naam + " — " + p.datasheetNaam, data: p.datasheetData, paginaAfbeeldingen: [] };
+      var nieuwRecord = { naam: p.naam + " — " + p.datasheetNaam, data: p.datasheetData, paginaAfbeeldingen: [], productId: p.id, auto: true };
       o.datasheets.push(nieuwRecord);
       if (p.datasheetNaam && p.datasheetNaam.toLowerCase().endsWith(".pdf")) {
         converteerPdfNaarAfbeeldingen(p.datasheetData, function(afbeeldingen){ nieuwRecord.paginaAfbeeldingen = afbeeldingen; persistOffertes(); render(); });
@@ -3310,7 +3330,7 @@ function renderCore() {
 
     // Zijbalk (zichtbaar vanaf ~900px breed)
     html += '<nav class="sidebar no-print">';
-    html += '<div class="sidebar-logo" onclick="setTab(\'dashboard\')"><span class="dot"></span> Boekhouding' + '<span style="font-size:9px;font-weight:600;opacity:0.6;margin-left:6px;">v16-11-22z</span>' + (state.cloudSaving ? ' <span style="font-size:9px;font-weight:600;opacity:0.7;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><path d="M18 10h-1.3A6 6 0 1 0 6 15h12a4 4 0 0 0 0-8Z"/></svg> opslaan...</span>' : '') + '</div>';
+    html += '<div class="sidebar-logo" onclick="setTab(\'dashboard\')"><span class="dot"></span> Boekhouding' + '<span style="font-size:9px;font-weight:600;opacity:0.6;margin-left:6px;">v16-11-23a</span>' + (state.cloudSaving ? ' <span style="font-size:9px;font-weight:600;opacity:0.7;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><path d="M18 10h-1.3A6 6 0 1 0 6 15h12a4 4 0 0 0 0-8Z"/></svg> opslaan...</span>' : '') + '</div>';
     if (state.user) html += '<div style="padding:0 20px 14px;font-size:11px;color:#B7DFDA;">' + esc(state.user.email) + '<br/><span style="cursor:pointer;text-decoration:underline;" onclick="doLogout()">Uitloggen</span></div>';
     html += '<div class="sidebar-nav">';
     TABS.forEach(function(t){
