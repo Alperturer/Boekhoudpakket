@@ -58,8 +58,16 @@
   select.f { background-image:url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath fill='%234B7A73' d='M1 1l5 5 5-5'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 11px center; background-size:11px; padding-right:30px; line-height:38px; }
   input.f:focus, select.f:focus, textarea.f:focus { outline:2px solid #BFDBFE; border-color: var(--blue); }
   textarea.f { resize:vertical; min-height:48px; }
-  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:0 12px; }
-  .grid3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:0 12px; }
+  .grid2 { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0 12px; }
+  .grid3 { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:0 12px; }
+  /* Offertetool: alle velden in gelijke kolommen, invoervakken altijd exact op één lijn (ook als labels over 1, 2 of 3 regels lopen) */
+  .ow-form .grid2, .ow-form .grid3 { align-items:end; }
+  .ow-form .grid2 > *, .ow-form .grid3 > * { min-width:0; display:flex; flex-direction:column; justify-content:flex-end; }
+  .ow-form .grid2 label.fl, .ow-form .grid3 label.fl { overflow-wrap:break-word; hyphens:auto; }
+  .ow-form .grid2 .btn-primary, .ow-form .grid3 .btn-primary { height:40px; margin-bottom:12px; padding:0 8px; font-size:12.5px; line-height:1.15; }
+  .ow-form .f-berekend { height:40px; box-sizing:border-box; margin-bottom:12px; padding:0 11px; border:1px solid var(--border); border-radius:8px; white-space:nowrap; overflow:hidden; }
+  .ow-form .toggle-row:last-child { margin-bottom:0 !important; }
+  @media (max-width:600px) { .grid3, .ow-form .grid3 { grid-template-columns:repeat(2,minmax(0,1fr)); } }
   .full { grid-column:1/-1; }
 
   .section-card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:20px; margin-bottom:16px; box-shadow: 0 1px 2px rgba(15,23,42,0.04); }
@@ -3907,7 +3915,7 @@ function eoGeldField(offerteId, key, label, val) {
   return '<div><label class="fl">' + label + '</label><div class="geld-input-wrap"><span class="geld-prefix">&euro;</span><input class="f" inputmode="decimal" value="' + esc(val) + '" oninput="eoVeld(\'' + offerteId + '\',\'' + key + '\',this.value)" onblur="render()" /></div></div>';
 }
 function eoBerekendVeld(label, val, bronLabel) {
-  return '<div><label class="fl">' + label + '</label><div class="f" style="background:#F1F5F4;color:#0A0A0A;font-weight:700;display:flex;align-items:center;cursor:default;" title="Automatisch opgeteld uit de offerteregels voor ' + esc(bronLabel) + ' -- pas het bedrag daar aan om dit te wijzigen.">' + euro(val) + '<span style="font-weight:400;font-size:11px;color:var(--muted);margin-left:auto;">automatisch \u2713</span></div></div>';
+  return '<div><label class="fl">' + label + '</label><div class="f f-berekend" style="background:#F1F5F4;color:#0A0A0A;font-weight:700;font-size:13.5px;display:flex;align-items:center;cursor:default;" title="Automatisch opgeteld uit de offerteregels voor ' + esc(bronLabel) + ' -- pas het bedrag daar aan om dit te wijzigen.">' + euro(val) + '<span style="font-weight:400;font-size:11px;color:var(--muted);margin-left:auto;padding-left:6px;">auto \u2713</span></div></div>';
 }
 function eoImpactRegel(tekst) {
   return '<div style="margin-top:4px;padding:10px 12px;background:var(--blue-light);border-radius:8px;font-size:12.5px;font-weight:700;color:var(--navy);">' + tekst + '</div>';
@@ -3988,12 +3996,12 @@ function EO_renderConfig(o) {
       h += '<option value="' + opt[0] + '"' + (s.dakOrientatie===opt[0]?" selected":"") + '>' + opt[1] + '</option>';
     });
     h += '</select></div>';
-    h += '<div style="display:flex;align-items:flex-end;"><button class="btn-primary" style="margin-bottom:12px;" ' + (state.pvgisBusy===oid?"disabled":"") + ' onclick="berekenPvgisOpwek(\'' + oid + '\')">' + (state.pvgisBusy===oid ? "Bezig..." : "Bereken met PVGIS") + '</button></div>';
+    h += '<div><button class="btn-primary" ' + (state.pvgisBusy===oid?"disabled":"") + ' onclick="berekenPvgisOpwek(\'' + oid + '\')">' + (state.pvgisBusy===oid ? "Bezig..." : "Bereken met PVGIS") + '</button></div>';
     h += '</div>';
     h += '<div class="grid3">';
     h += eoField(oid,"efficiencyAfnamePct","Efficiëntie-afname (%/jr)",s.efficiencyAfnamePct);
     h += eoField(oid,"prijsstijgingPct","Energieprijsstijging (%/jr)",s.prijsstijgingPct);
-    h += eoGeldField(oid,"onderhoudJaarlijks","Onderhoud/schoonmaak (&euro;/jr)",s.onderhoudJaarlijks);
+    h += eoGeldField(oid,"onderhoudJaarlijks","Onderhoud / schoonmaak (&euro;/jr)",s.onderhoudJaarlijks);
     h += '</div>';
     h += eoImpactRegel('<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.2" y1="4.2" x2="5.6" y2="5.6"/><line x1="18.4" y1="18.4" x2="19.8" y2="19.8"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.2" y1="19.8" x2="5.6" y2="18.4"/><line x1="18.4" y1="5.6" x2="19.8" y2="4.2"/></svg> ' + nf(r.kWp,1) + " kWp &middot; " + nf(r.jaaropwek) + " kWh/jaar opwek &middot; netto opbrengst " + euro(r.netoOpbrengstZon) + "/jaar");
   }
@@ -4079,7 +4087,7 @@ function EO_renderConfig(o) {
 
   // Energie & financieel
   h += '<div style="border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;background:#FAFCFA;">';
-  h += '<h3 style="margin-top:0;">Energieprijzen &amp; investering</h3><div class="grid3">';
+  h += '<h3 style="margin-top:0;color:#0A0A0A;">Energieprijzen &amp; investering</h3><div class="grid3">';
   h += eoGeldField(oid,"stroomprijs","Stroomprijs (&euro;/kWh)",s.stroomprijs);
   h += eoGeldField(oid,"terugleverprijs","Terugleverprijs (&euro;/kWh)",s.terugleverprijs);
   h += eoField(oid,"eigenVerbruikPct","Eigen verbruik zonder batterij (%)",s.eigenVerbruikPct);
