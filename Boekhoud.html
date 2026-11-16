@@ -408,7 +408,7 @@ var EO_MAAND_SOM = EO_MAAND_VERDELING_RUW.reduce(function(a,b){return a+b;},0);
 var EO_MAAND_VERDELING = EO_MAAND_VERDELING_RUW.map(function(p){ return p / EO_MAAND_SOM; });
 
 function EO_nieuweAircoInstallatie() {
-  return { id: uid(), type: "single", aantalBinnenunits: "1", vermogen: "3.5", urenPerJaar: "600", cop: "3.8", investering: "2800", omschrijving: "", productId: "" };
+  return { id: uid(), type: "single", aantalBinnenunits: "1", vermogen: "3.5", urenPerJaar: "600", cop: "3.8", koelUren: "150", eer: "4.5", vervangt: "gas", investering: "2800", omschrijving: "", productId: "" };
 }
 function EO_nieuwSysteem() {
   return {
@@ -550,6 +550,37 @@ function EO_svgBesparingChart(labels, brutoSerie, nettoSerie) {
   return svg + legenda;
 }
 
+// Airco: verwarmen (SCOP) en koelen (EER), vergeleken met de huidige verwarming (gas of direct elektrisch).
+// Koelen levert geen besparing op maar kost stroom; dat wordt eerlijk van de besparing afgetrokken.
+function EO_aircoAnalyse(s) {
+  var res = { items: [], elektriciteit: 0, kostenAirco: 0, kostenHuidig: 0, besparing: 0, investering: 0 };
+  if (!s || !s.aircoActief) return res;
+  var stroom = parseFloat(s.stroomprijs)||0, gas = parseFloat(s.gasprijs)||0;
+  (s.aircoInstallaties||[]).forEach(function(inst){
+    var kw = parseFloat(inst.vermogen)||0, uren = parseFloat(inst.urenPerJaar)||0, cop = parseFloat(inst.cop)||1;
+    var koelUren = parseFloat(inst.koelUren)||0, eer = parseFloat(inst.eer)||1;
+    var vervangt = inst.vervangt === "gas" ? "gas" : "elektrisch";
+    var warmte = kw * uren;
+    var elekVerwarmen = warmte / cop, elekKoelen = (kw * koelUren) / eer;
+    var kostenAirco = (elekVerwarmen + elekKoelen) * stroom;
+    var kostenHuidig = vervangt === "gas" ? (warmte / (9.77 * 0.9)) * gas : warmte * stroom; // 9,77 kWh per m3 gas, ketelrendement 90%
+    var it = { type: inst.type, binnenunits: inst.type === "multi" ? (parseInt(inst.aantalBinnenunits)||1) : 1, kw: kw, vervangt: vervangt,
+      elekVerwarmen: elekVerwarmen, elekKoelen: elekKoelen, elektriciteit: elekVerwarmen + elekKoelen, kostenAirco: kostenAirco, kostenHuidig: kostenHuidig,
+      besparing: kostenHuidig - kostenAirco, investering: parseFloat(inst.investering)||0 };
+    res.items.push(it);
+    res.elektriciteit += it.elektriciteit; res.kostenAirco += kostenAirco; res.kostenHuidig += kostenHuidig;
+    res.besparing += it.besparing; res.investering += it.investering;
+  });
+  return res;
+}
+function EO_isAircoModus(o) {
+  var s = o && o.energie;
+  return !!(o && o.energieActief && s && s.aircoActief && !s.zonActief && !s.batterijActief && !s.wpActief);
+}
+function EO_aantalEnergiePaginas(o) {
+  if (!o || !o.energieActief || !o.energie) return 0;
+  return (o.energie.zonActief ? 4 : 0) + (o.energie.aircoActief ? 2 : 0);
+}
 function EO_berekenAlles(s) {
   var kWp = (parseFloat(s.aantalPanelen)||0) * (parseFloat(s.wpPerPaneel)||0) / 1000;
   var jaaropwek = s.zonActief ? kWp * (parseFloat(s.opwekfactor)||0) : 0;
@@ -593,19 +624,8 @@ function EO_berekenAlles(s) {
     besparingWP = huidigeKostenGas - nieuweStroomkostenWP;
   }
 
-  var besparingAirco = 0, elektriciteitAirco = 0, investeringAircoTotaal = 0;
-  if (s.aircoActief) {
-    (s.aircoInstallaties||[]).forEach(function(inst){
-      var vermogen = parseFloat(inst.vermogen)||0, uren = parseFloat(inst.urenPerJaar)||0, cop = parseFloat(inst.cop)||1;
-      var warmtevraagAirco = vermogen * uren;
-      var elektriciteitDitToestel = warmtevraagAirco / cop;
-      elektriciteitAirco += elektriciteitDitToestel;
-      var kostenAirco = elektriciteitDitToestel * stroomprijs;
-      var kostenDirectElektrisch = warmtevraagAirco * stroomprijs;
-      besparingAirco += kostenDirectElektrisch - kostenAirco;
-      investeringAircoTotaal += parseFloat(inst.investering)||0;
-    });
-  }
+  var aircoAn = EO_aircoAnalyse(s);
+  var besparingAirco = aircoAn.besparing, elektriciteitAirco = aircoAn.elektriciteit, investeringAircoTotaal = aircoAn.investering;
 
   var totaleJaarlijkseBesparing = netoOpbrengstZon + besparingWP + besparingAirco;
 
@@ -3197,7 +3217,7 @@ function renderCore() {
 
     // Zijbalk (zichtbaar vanaf ~900px breed)
     html += '<nav class="sidebar no-print">';
-    html += '<div class="sidebar-logo" onclick="setTab(\'dashboard\')"><span class="dot"></span> Boekhouding' + '<span style="font-size:9px;font-weight:600;opacity:0.6;margin-left:6px;">v16-11-22w</span>' + (state.cloudSaving ? ' <span style="font-size:9px;font-weight:600;opacity:0.7;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><path d="M18 10h-1.3A6 6 0 1 0 6 15h12a4 4 0 0 0 0-8Z"/></svg> opslaan...</span>' : '') + '</div>';
+    html += '<div class="sidebar-logo" onclick="setTab(\'dashboard\')"><span class="dot"></span> Boekhouding' + '<span style="font-size:9px;font-weight:600;opacity:0.6;margin-left:6px;">v16-11-22x</span>' + (state.cloudSaving ? ' <span style="font-size:9px;font-weight:600;opacity:0.7;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><path d="M18 10h-1.3A6 6 0 1 0 6 15h12a4 4 0 0 0 0-8Z"/></svg> opslaan...</span>' : '') + '</div>';
     if (state.user) html += '<div style="padding:0 20px 14px;font-size:11px;color:#B7DFDA;">' + esc(state.user.email) + '<br/><span style="cursor:pointer;text-decoration:underline;" onclick="doLogout()">Uitloggen</span></div>';
     html += '<div class="sidebar-nav">';
     TABS.forEach(function(t){
@@ -3840,7 +3860,8 @@ function renderOfferteWerkblad() {
   h += '<div class="ow-step"><label class="fl">Soort offerte</label>';
   h += '<div class="type-toggle">';
   h += '<button type="button" class="' + (!o.energieActief?"active":"") + '" onclick="toggleEnergieActief(\'' + o.id + '\', false)">Vrije offerte (renovatie, kabelwerk, alles)</button>';
-  h += '<button type="button" class="' + (o.energieActief?"active":"") + '" onclick="toggleEnergieActief(\'' + o.id + '\', true)">Verduurzaming (met zon/batterij-rekentool)</button>';
+  h += '<button type="button" class="' + ((o.energieActief && !EO_isAircoModus(o))?"active":"") + '" onclick="toggleEnergieActief(\'' + o.id + '\', true)">Verduurzaming (zon/batterij)</button>';
+  h += '<button type="button" class="' + (EO_isAircoModus(o)?"active":"") + '" onclick="kiesAircoOfferte(\'' + o.id + '\')">Airco (los aanbieden)</button>';
   h += '</div></div>';
 
   h += '<div class="ow-step"><div class="ow-step-head"><span class="ow-step-num">0</span><span class="ow-step-title">Jouw bedrijfsgegevens</span></div>';
@@ -4070,7 +4091,7 @@ function renderOfferteWerkblad() {
       h += '</div></div>';
     }
   }
-  var energiePaginaCount = (o.energieActief && o.energie && o.energie.zonActief) ? 4 : 0;
+  var energiePaginaCount = EO_aantalEnergiePaginas(o);
   var legplanPaginaCount = o.legplanFoto ? 1 : 0;
   var datasheetsPaginaCount = datasheetsPaginaAantal(o.datasheets);
   var voorwaardenPaginaCount = algemeneVoorwaardenPaginaAantal();
@@ -4108,7 +4129,18 @@ function toggleEnergieActief(offerteId, checked) {
   var o = getOfferte(offerteId);
   o.energieActief = checked;
   if (checked && !o.energie) o.energie = EO_nieuwSysteem();
+  if (checked && o.energie && !o.energie.zonActief && !o.energie.batterijActief && !o.energie.wpActief) o.energie.zonActief = true; // terug uit airco-modus
   if (checked) EO_herberekenInvesteringenVanuitRegels(o); // meteen de al ingevulde offerteregels overnemen i.p.v. standaardbedragen
+  persistOffertes(); render();
+}
+function kiesAircoOfferte(offerteId) {
+  var o = getOfferte(offerteId);
+  o.energieActief = true;
+  if (!o.energie) o.energie = EO_nieuwSysteem();
+  var s = o.energie;
+  s.zonActief = false; s.batterijActief = false; s.wpActief = false; s.aircoActief = true;
+  if (!s.aircoInstallaties || s.aircoInstallaties.length === 0) s.aircoInstallaties = [EO_nieuweAircoInstallatie()];
+  EO_herberekenInvesteringenVanuitRegels(o);
   persistOffertes(); render();
 }
 function EO_synchroniseerRegelsMetConfig(o, key, val) {
@@ -4187,6 +4219,7 @@ function EO_renderConfig(o) {
   var oid = o.id;
   var h = '';
 
+  var aircoModus = EO_isAircoModus(o), hVoorZon = h;
   // Zonnepanelen
   h += '<div style="border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;background:#FAFCFA;">';
   h += '<div class="toggle-row" style="margin-bottom:10px;"><input type="checkbox" ' + (s.zonActief?"checked":"") + ' onchange="eoVeldRender(\'' + oid + '\',\'zonActief\', this.checked)" style="width:18px;height:18px;" /><label style="font-weight:700;font-size:13px;color:#0A0A0A;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.2" y1="4.2" x2="5.6" y2="5.6"/><line x1="18.4" y1="18.4" x2="19.8" y2="19.8"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.2" y1="19.8" x2="5.6" y2="18.4"/><line x1="18.4" y1="5.6" x2="19.8" y2="4.2"/></svg> Zonnepanelen</label></div>';
@@ -4271,6 +4304,7 @@ function EO_renderConfig(o) {
   }
   h += '</div>';
 
+  if (aircoModus) h = hVoorZon; // losse airco-offerte: zon/batterij/warmtepomp-blokken verbergen
   // Airco
   h += '<div style="border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;background:#FAFCFA;">';
   h += '<div class="toggle-row" style="margin-bottom:10px;"><input type="checkbox" ' + (s.aircoActief?"checked":"") + ' onchange="toggleEOAircoActief(\'' + oid + '\', this.checked)" style="width:18px;height:18px;" /><label style="font-weight:700;font-size:13px;color:#0A0A0A;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><line x1="12" y1="2" x2="12" y2="22"/><line x1="4.9" y1="6" x2="19.1" y2="18"/><line x1="4.9" y1="18" x2="19.1" y2="6"/><path d="M12 2l-2 2M12 2l2 2M12 22l-2-2M12 22l2-2"/></svg> Airco</label></div>';
@@ -4290,8 +4324,12 @@ function EO_renderConfig(o) {
       if (inst.type === "multi") h += '<div><label class="fl">Aantal binnenunits</label><input class="f" value="' + esc(inst.aantalBinnenunits) + '" oninput="updateEOAircoVeld(\'' + oid + '\',\'' + inst.id + '\',\'aantalBinnenunits\',this.value)" onblur="render()" /></div>';
       h += '</div><div class="grid3">';
       h += '<div><label class="fl">Vermogen (kW)</label><input class="f" value="' + esc(inst.vermogen) + '" oninput="updateEOAircoVeld(\'' + oid + '\',\'' + inst.id + '\',\'vermogen\',this.value)" onblur="render()" /></div>';
-      h += '<div><label class="fl">Uren per jaar</label><input class="f" value="' + esc(inst.urenPerJaar) + '" oninput="updateEOAircoVeld(\'' + oid + '\',\'' + inst.id + '\',\'urenPerJaar\',this.value)" onblur="render()" /></div>';
-      h += '<div><label class="fl">COP</label><input class="f" value="' + esc(inst.cop) + '" oninput="updateEOAircoVeld(\'' + oid + '\',\'' + inst.id + '\',\'cop\',this.value)" onblur="render()" /></div>';
+      h += '<div><label class="fl">Verwarmen (uren/jaar)</label><input class="f" value="' + esc(inst.urenPerJaar) + '" oninput="updateEOAircoVeld(\'' + oid + '\',\'' + inst.id + '\',\'urenPerJaar\',this.value)" onblur="render()" /></div>';
+      h += '<div><label class="fl">COP verwarmen</label><input class="f" value="' + esc(inst.cop) + '" oninput="updateEOAircoVeld(\'' + oid + '\',\'' + inst.id + '\',\'cop\',this.value)" onblur="render()" /></div>';
+      h += '</div><div class="grid3">';
+      h += '<div><label class="fl">Koelen (uren/jaar)</label><input class="f" inputmode="decimal" value="' + esc(inst.koelUren != null ? inst.koelUren : "0") + '" oninput="updateEOAircoVeld(\'' + oid + '\',\'' + inst.id + '\',\'koelUren\',this.value)" onblur="render()" /></div>';
+      h += '<div><label class="fl">EER koelen</label><input class="f" inputmode="decimal" value="' + esc(inst.eer || "4.5") + '" oninput="updateEOAircoVeld(\'' + oid + '\',\'' + inst.id + '\',\'eer\',this.value)" onblur="render()" /></div>';
+      h += '<div><label class="fl">Vervangt</label><select class="f" onchange="updateEOAircoVeldRender(\'' + oid + '\',\'' + inst.id + '\',\'vervangt\',this.value)"><option value="gas"' + (inst.vervangt==="gas"?" selected":"") + '>Gasverwarming</option><option value="elektrisch"' + (inst.vervangt!=="gas"?" selected":"") + '>Elektrisch</option></select></div>';
       h += '</div><label class="fl">Investering (&euro;)</label><div class="geld-input-wrap"><span class="geld-prefix">&euro;</span><input class="f" inputmode="decimal" value="' + esc(inst.investering) + '" oninput="updateEOAircoVeld(\'' + oid + '\',\'' + inst.id + '\',\'investering\',this.value)" onblur="render()" /></div>';
       h += '</div>';
     });
@@ -4304,10 +4342,16 @@ function EO_renderConfig(o) {
   h += '<div style="border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;background:#FAFCFA;">';
   h += '<h3 style="margin-top:0;color:#0A0A0A;">Energieprijzen &amp; investering</h3><div class="grid3">';
   h += eoGeldField(oid,"stroomprijs","Stroomprijs (&euro;/kWh)",s.stroomprijs);
+  if (aircoModus) {
+    h += eoGeldField(oid,"gasprijs","Gasprijs (&euro;/m&sup3;)",s.gasprijs);
+    h += eoField(oid,"prijsstijgingPct","Energieprijsstijging (%/jr)",s.prijsstijgingPct);
+    h += eoGeldField(oid,"onderhoudJaarlijks","Onderhoud (&euro;/jr)",s.onderhoudJaarlijks);
+  } else {
   h += eoGeldField(oid,"terugleverprijs","Terugleverprijs (&euro;/kWh)",s.terugleverprijs);
   h += eoField(oid,"eigenVerbruikPct","Eigen verbruik zonder batterij (%)",s.eigenVerbruikPct);
   h += eoField(oid,"terugleverGrensGratis","Teruglevering kosteloos tot (kWh/jr)",s.terugleverGrensGratis);
   h += eoGeldField(oid,"terugleverBoetePerKwh","Terugleverboete (&euro;/kWh)",s.terugleverBoetePerKwh);
+  }
   h += '</div><div class="grid3">';
   if (s.zonActief) h += eoBerekendVeld("Investering zon (&euro;)", s.investeringZon, "zonnepanelen");
   if (s.batterijActief) h += eoBerekendVeld("Investering batterij (&euro;)", s.investeringBatterij, "batterij");
@@ -4521,6 +4565,71 @@ function legplanPagina(o, paginaNr, totaalPaginas, bedrijfOverride) {
   return h;
 }
 function EO_renderRapportPaginas(o, startPaginaNr, totaalPaginas, bedrijfOverride) {
+  if (!o || !o.energieActief || !o.energie) return "";
+  var pn = startPaginaNr || 2, h = "";
+  if (o.energie.zonActief) { h += EO_renderZonRapportPaginas(o, pn, totaalPaginas, bedrijfOverride); pn += 4; }
+  if (o.energie.aircoActief) h += EO_renderAircoPaginas(o, pn, totaalPaginas, bedrijfOverride);
+  return h;
+}
+function EO_renderAircoPaginas(o, startPaginaNr, totaalPaginas, bedrijfOverride) {
+  var s = o.energie, r = EO_berekenAlles(s), an = EO_aircoAnalyse(s);
+  var pn = startPaginaNr || 2, h = '';
+  var onderhoud = parseFloat(s.onderhoudJaarlijks)||0;
+  var besparingNetto = an.besparing - onderhoud;
+  var terugverdien = besparingNetto > 0 ? an.investering / besparingNetto : null;
+  var heeftGas = an.items.some(function(i){ return i.vervangt === "gas"; });
+  var heeftKoelen = an.items.some(function(i){ return i.elekKoelen > 0; });
+  var maxKosten = Math.max(1, an.kostenHuidig, an.kostenAirco);
+  function balk(label, waarde, kleur) {
+    return '<div style="margin:10px 0;"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;"><span>' + label + '</span><b>' + euro(waarde) + ' per jaar</b></div>' +
+      '<div style="background:#EEF6F5;border-radius:6px;height:22px;"><div style="width:' + Math.max(2, Math.round(waarde / maxKosten * 100)) + '%;height:22px;border-radius:6px;background:' + kleur + ';"></div></div></div>';
+  }
+
+  // Pagina 1: samenvatting + vergelijking
+  h += '<div class="r-page">' + paginaLogoHeader(bedrijfOverride) + '<div class="r-h">Uw airco-oplossing</div>';
+  h += '<div class="stats-row">';
+  h += '<div class="stat-box hero"><div class="stat-num">' + euro(besparingNetto) + '</div><div class="stat-label">Jaarlijkse besparing</div></div>';
+  h += '<div class="stat-box"><div class="stat-num">' + (terugverdien != null ? nf(terugverdien,1) + " jaar" : "—") + '</div><div class="stat-label">Terugverdientijd</div></div>';
+  h += '<div class="stat-box"><div class="stat-num">' + nf(an.elektriciteit) + ' kWh</div><div class="stat-label">Stroomverbruik per jaar</div></div>';
+  h += '<div class="stat-box"><div class="stat-num">' + euro(an.investering) + '</div><div class="stat-label">Totale investering</div></div>';
+  h += '</div>';
+  h += '<h3 style="margin-top:18px;">Jaarlijkse energiekosten: nu versus met airco</h3>';
+  h += balk(heeftGas ? 'Huidige verwarming (gas)' : 'Huidige verwarming (elektrisch)', an.kostenHuidig, '#F59E0B');
+  h += balk('Met airco' + (heeftKoelen ? ' (verwarmen en koelen)' : ''), an.kostenAirco, '#0D9488');
+  h += '<p style="font-size:11.5px;line-height:1.6;color:var(--muted);">Een airco is een warmtepomp op lucht: voor elke kWh stroom haalt het toestel ongeveer ' + nf(parseFloat((s.aircoInstallaties[0]||{}).cop)||0,1) + ' kWh warmte uit de buitenlucht. ' + (heeftKoelen ? 'In de zomer koelt dezelfde installatie uw woning, voor meer comfort op warme dagen. ' : '') + 'Onderstaande getallen zijn een indicatie op basis van de ingevoerde gebruiksuren en energieprijzen.</p>';
+
+  h += '<h3 style="margin-top:22px;">Uw installatie</h3><table class="r-table"><thead><tr><th>Installatie</th><th class="num">Vermogen</th><th class="num">Verbruik</th><th class="num">Kosten per jaar</th></tr></thead><tbody>';
+  an.items.forEach(function(it, i){
+    var naam = (it.type === "multi" ? 'Multisplit (' + it.binnenunits + ' binnenunits)' : 'Single split');
+    h += '<tr><td>' + (i + 1) + '. ' + naam + '</td><td class="num">' + nf(it.kw,1) + ' kW</td><td class="num">' + nf(it.elektriciteit) + ' kWh</td><td class="num">' + euro(it.kostenAirco) + '</td></tr>';
+  });
+  h += '</tbody></table>';
+
+  h += '<h3 style="margin-top:22px;">Financiële opbouw</h3><table class="r-table"><tbody>';
+  h += '<tr><td>Kosten huidige verwarming</td><td class="num">' + euro(an.kostenHuidig) + '</td></tr>';
+  h += '<tr><td>Stroomkosten airco (' + nf(an.elektriciteit) + ' kWh &times; ' + euro(s.stroomprijs) + ')</td><td class="num">&minus; ' + euro(an.kostenAirco) + '</td></tr>';
+  if (onderhoud > 0) h += '<tr><td>Onderhoud</td><td class="num">&minus; ' + euro(onderhoud) + '</td></tr>';
+  h += '<tr style="font-weight:800;border-top:2px solid var(--border);"><td>Jaarlijkse besparing</td><td class="num">' + euro(besparingNetto) + '</td></tr>';
+  h += '<tr><td>Totale investering</td><td class="num">' + euro(an.investering) + '</td></tr>';
+  h += '</tbody></table>';
+  h += paginaVoetnoot(pn++, totaalPaginas) + '</div>';
+
+  // Pagina 2: 25 jaar
+  var stijg = (parseFloat(s.prijsstijgingPct)||0) / 100, cum = -an.investering, rijen = '';
+  for (var j = 1; j <= 25; j++) {
+    var f = Math.pow(1 + stijg, j - 1);
+    var kh = an.kostenHuidig * f, ka = an.kostenAirco * f, bes = kh - ka - onderhoud;
+    cum += bes;
+    rijen += '<tr><td>' + j + 'e</td><td class="num">' + euro(kh) + '</td><td class="num">' + euro(ka) + '</td><td class="num">' + euro(bes) + '</td><td class="num">' + euro(cum) + '</td></tr>';
+  }
+  h += '<div class="r-page">' + paginaLogoHeader(bedrijfOverride) + '<div class="r-h">Airco: uw besparing over 25 jaar</div>';
+  h += '<p style="font-size:11px;line-height:1.4;margin:4px 0 8px;">We gaan uit van een energieprijsstijging van <b>' + esc(s.prijsstijgingPct) + '%</b> per jaar. Het cumulatieve bedrag is na aftrek van de investering van <b>' + euro(an.investering) + '</b>.</p>';
+  h += '<table class="r-table r-table-compact" style="font-size:9px;"><thead><tr><th>Jaar</th><th class="num">Huidige kosten</th><th class="num">Kosten airco</th><th class="num">Besparing</th><th class="num">Cumulatief</th></tr></thead><tbody>' + rijen;
+  h += '<tr style="font-weight:800;"><td colspan="4">Totaal winst na 25 jaar</td><td class="num">' + euro(cum) + '</td></tr></tbody></table>';
+  h += paginaVoetnoot(pn++, totaalPaginas) + '</div>';
+  return h;
+}
+function EO_renderZonRapportPaginas(o, startPaginaNr, totaalPaginas, bedrijfOverride) {
   if (!o.energieActief || !o.energie || !o.energie.zonActief) return "";
   var s = o.energie, r = EO_berekenAlles(s), bp = EO_berekening25Jaar(s);
   var pn = startPaginaNr || 2;
@@ -5689,7 +5798,7 @@ function renderKlantOfferteView(o) {
   h += '</tbody></table>';
   h += '<div class="totals-box"><div class="totals-row grand"><span>Totaal incl. BTW</span><span>' + euro(t.totaalIncl) + '</span></div></div>';
   if (o.data.opmerking) h += '<p style="font-size:12.5px;color:#6b6659;margin-top:16px;">' + esc(o.data.opmerking) + '</p>';
-  var energiePaginaCountKlant = (o.data.energieActief && o.data.energie && o.data.energie.zonActief) ? 4 : 0;
+  var energiePaginaCountKlant = EO_aantalEnergiePaginas(o.data);
   var legplanPaginaCountKlant = o.data.legplanFoto ? 1 : 0;
   var datasheetsPaginaCountKlant = datasheetsPaginaAantal(o.data.datasheets);
   var totaalPaginasKlant = 1 + energiePaginaCountKlant + legplanPaginaCountKlant + datasheetsPaginaCountKlant;
