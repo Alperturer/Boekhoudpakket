@@ -311,19 +311,19 @@
     .sidebar-nav button { padding:14px 18px; }
     .del-x { min-width:36px; min-height:36px; }
   }
-  /* Rapport/offerte-pagina's passend op telefoon (PDF-export gebruikt een breed venster, dus onaangetast) */
+  /* Rapport/offerte-pagina's passend op telefoon (uitgeschakeld tijdens PDF-export via body.pdf-export) */
   @media (max-width:700px) {
-    .ow-preview { display:block; overflow-x:hidden; }
-    #ow-print-area, #r-page-factuur, .r-page { width:100% !important; max-width:100% !important; min-width:0 !important; padding:16px 12px; min-height:0; }
-    .r-page table, #ow-print-area table, #r-page-factuur table { width:100%; table-layout:auto; font-size:11px; }
-    .r-page th, .r-page td, #ow-print-area th, #ow-print-area td, #r-page-factuur th, #r-page-factuur td { padding-left:4px !important; padding-right:4px !important; font-size:10.5px !important; }
-    table.r-table td.num, table.r-table th.num, table.ow-regels-table td:not(:first-child), table.ow-regels-table th:not(:first-child) { white-space:normal; }
-    .r-page img, #ow-print-area img { max-width:100%; height:auto; }
-    table.r-table-compact { font-size:9px !important; }
-    table.r-table-compact th, table.r-table-compact td { font-size:9px !important; padding-left:2px !important; padding-right:2px !important; letter-spacing:0 !important; }
-    table.r-table-compact th { font-size:7.5px !important; word-break:normal; overflow-wrap:normal; text-transform:none; }
-    table.r-table-compact th:first-child, table.r-table-compact td:first-child { white-space:nowrap; }
-    table.r-table th { letter-spacing:0 !important; }
+    body:not(.pdf-export) .ow-preview { display:block; overflow-x:hidden; }
+    body:not(.pdf-export) #ow-print-area, body:not(.pdf-export) #r-page-factuur, body:not(.pdf-export) .r-page { width:100% !important; max-width:100% !important; min-width:0 !important; padding:16px 12px; min-height:0; }
+    body:not(.pdf-export) .r-page table, body:not(.pdf-export) #ow-print-area table, body:not(.pdf-export) #r-page-factuur table { width:100%; table-layout:auto; font-size:11px; }
+    body:not(.pdf-export) .r-page th, body:not(.pdf-export) .r-page td, body:not(.pdf-export) #ow-print-area th, body:not(.pdf-export) #ow-print-area td, body:not(.pdf-export) #r-page-factuur th, body:not(.pdf-export) #r-page-factuur td { padding-left:4px !important; padding-right:4px !important; font-size:10.5px !important; }
+    body:not(.pdf-export) table.r-table td.num, body:not(.pdf-export) table.r-table th.num, body:not(.pdf-export) table.ow-regels-table td:not(:first-child), body:not(.pdf-export) table.ow-regels-table th:not(:first-child) { white-space:normal; }
+    body:not(.pdf-export) .r-page img, body:not(.pdf-export) #ow-print-area img { max-width:100%; height:auto; }
+    body:not(.pdf-export) table.r-table-compact { font-size:9px !important; }
+    body:not(.pdf-export) table.r-table-compact th, body:not(.pdf-export) table.r-table-compact td { font-size:9px !important; padding-left:2px !important; padding-right:2px !important; letter-spacing:0 !important; }
+    body:not(.pdf-export) table.r-table-compact th { font-size:7.5px !important; word-break:normal; overflow-wrap:normal; text-transform:none; }
+    body:not(.pdf-export) table.r-table-compact th:first-child, body:not(.pdf-export) table.r-table-compact td:first-child { white-space:nowrap; }
+    body:not(.pdf-export) table.r-table th { letter-spacing:0 !important; }
   }
 </style>
 <script>
@@ -699,6 +699,7 @@ function downloadAlsPDF(elementId, bestandsnaam, knopId) {
   var el = document.getElementById(elementId);
   if (!el || !window.html2canvas || !window.jspdf) { toonToast("PDF-export kon niet laden (ontbrekende onderdelen). Ververs de pagina en probeer het opnieuw; blijft het mislukken, check je internetverbinding of een adblocker."); return; }
   var btn = knopId ? document.getElementById(knopId) : null;
+  document.body.classList.add("pdf-export"); // schakelt alle telefoon-opmaak uit: PDF is op elk toestel identiek
   var origTekst = btn ? btn.innerText : "";
   if (btn) { btn.innerText = "Bezig..."; btn.disabled = true; }
 
@@ -735,9 +736,10 @@ function downloadAlsPDF(elementId, bestandsnaam, knopId) {
     };
   }
 
+  var PDF_SCALE = 2; // scherpe tekst; bestand blijft ruim onder 8MB door JPEG-compressie
   var eersteAfbeelding = true;
   var breedteHersteller = [];
-  var herstelAlleBreedtes = function() { breedteHersteller.forEach(function(f){ try { f(); } catch (e) {} }); breedteHersteller = []; };
+  var herstelAlleBreedtes = function() { document.body.classList.remove("pdf-export"); breedteHersteller.forEach(function(f){ try { f(); } catch (e) {} }); breedteHersteller = []; };
   var keten = Promise.resolve();
   paginaElementen.forEach(function(paginaEl){
     keten = keten.then(function(){
@@ -745,8 +747,8 @@ function downloadAlsPDF(elementId, bestandsnaam, knopId) {
       // De PDF is op elk toestel (iPhone, iPad, laptop) exact hetzelfde: de pagina wordt tijdens het fotograferen altijd op de
       // vaste papierbreedte van 700px gezet, los van hoe smal het scherm is. Zo klopt ook de 1-pagina-berekening altijd.
       var origStijl = { w: paginaEl.style.width, mx: paginaEl.style.maxWidth, mn: paginaEl.style.minWidth, fl: paginaEl.style.flex };
-      paginaEl.style.width = "700px"; paginaEl.style.maxWidth = "700px"; paginaEl.style.minWidth = "700px"; paginaEl.style.flex = "none";
-      var herstelBreedte = function() { paginaEl.style.width = origStijl.w; paginaEl.style.maxWidth = origStijl.mx; paginaEl.style.minWidth = origStijl.mn; paginaEl.style.flex = origStijl.fl; };
+      paginaEl.style.setProperty("width", "700px", "important"); paginaEl.style.setProperty("max-width", "700px", "important"); paginaEl.style.setProperty("min-width", "700px", "important"); paginaEl.style.flex = "none";
+      var herstelBreedte = function() { paginaEl.style.removeProperty("width"); paginaEl.style.removeProperty("max-width"); paginaEl.style.removeProperty("min-width"); if (origStijl.w) paginaEl.style.width = origStijl.w; if (origStijl.mx) paginaEl.style.maxWidth = origStijl.mx; if (origStijl.mn) paginaEl.style.minWidth = origStijl.mn; paginaEl.style.flex = origStijl.fl; };
       breedteHersteller.push(herstelBreedte);
       var herstelFn = isHoofdpagina ? verkleinTotEenPagina(paginaEl) : null;
       var volledigeHoogte = Math.max(paginaEl.scrollHeight, paginaEl.offsetHeight, paginaEl.getBoundingClientRect().height);
@@ -769,7 +771,7 @@ function downloadAlsPDF(elementId, bestandsnaam, knopId) {
       var vensterHoogte = Math.max(window.innerHeight || 0, volledigeHoogte);
       var nietKnippenZones = [];
       return html2canvas(paginaEl, {
-        scale: 1.4, backgroundColor: "#ffffff", width: volledigeBreedte, height: volledigeHoogte, windowWidth: vensterBreedte, windowHeight: vensterHoogte,
+        scale: PDF_SCALE, backgroundColor: "#ffffff", width: volledigeBreedte, height: volledigeHoogte, windowWidth: vensterBreedte, windowHeight: vensterHoogte,
         onclone: function(clonedDoc, clonedEl) {
           // Meet de niet-knippen-blokken (tabel, totalen, kwaliteitsblok...) op exact hetzelfde
           // gekloonde element dat html2canvas zelf gaat fotograferen -- dat voorkomt verschillen
@@ -788,11 +790,11 @@ function downloadAlsPDF(elementId, bestandsnaam, knopId) {
           // Deze pagina is al gegarandeerd verkleind tot hij op 1 pagina past -- gewoon in zijn geheel plaatsen.
           var hoofdHoogteMm = canvas.height / pxPerMm;
           if (!eersteAfbeelding) pdf.addPage();
-          pdf.addImage(canvas.toDataURL("image/jpeg", 0.72), "JPEG", 0, 0, pageWidth, Math.min(hoofdHoogteMm, pageHeight));
+          pdf.addImage(canvas.toDataURL("image/jpeg", 0.8), "JPEG", 0, 0, pageWidth, Math.min(hoofdHoogteMm, pageHeight));
           eersteAfbeelding = false;
           return;
         }
-        var pxPerCssPx = 1.4; // zelfde waarde als de "scale" hierboven
+        var pxPerCssPx = PDF_SCALE; // zelfde waarde als de "scale" hierboven
         var pageHeightPx = pageHeight * pxPerMm;
         var totaalHoogtePx = canvas.height;
         var geplaatstPx = 0;
@@ -813,7 +815,7 @@ function downloadAlsPDF(elementId, bestandsnaam, knopId) {
           ctx.fillStyle = "#ffffff";
           ctx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height);
           ctx.drawImage(canvas, 0, geplaatstPx, canvas.width, sliceHoogtePx, 0, 0, canvas.width, sliceHoogtePx);
-          var sliceData = sliceCanvas.toDataURL("image/jpeg", 0.72);
+          var sliceData = sliceCanvas.toDataURL("image/jpeg", 0.8);
           var sliceHoogteMm = sliceHoogtePx / pxPerMm;
           if (!eersteAfbeelding) pdf.addPage();
           pdf.addImage(sliceData, "JPEG", 0, 0, pageWidth, sliceHoogteMm);
@@ -3195,7 +3197,7 @@ function renderCore() {
 
     // Zijbalk (zichtbaar vanaf ~900px breed)
     html += '<nav class="sidebar no-print">';
-    html += '<div class="sidebar-logo" onclick="setTab(\'dashboard\')"><span class="dot"></span> Boekhouding' + '<span style="font-size:9px;font-weight:600;opacity:0.6;margin-left:6px;">v16-11-22v</span>' + (state.cloudSaving ? ' <span style="font-size:9px;font-weight:600;opacity:0.7;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><path d="M18 10h-1.3A6 6 0 1 0 6 15h12a4 4 0 0 0 0-8Z"/></svg> opslaan...</span>' : '') + '</div>';
+    html += '<div class="sidebar-logo" onclick="setTab(\'dashboard\')"><span class="dot"></span> Boekhouding' + '<span style="font-size:9px;font-weight:600;opacity:0.6;margin-left:6px;">v16-11-22w</span>' + (state.cloudSaving ? ' <span style="font-size:9px;font-weight:600;opacity:0.7;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><path d="M18 10h-1.3A6 6 0 1 0 6 15h12a4 4 0 0 0 0-8Z"/></svg> opslaan...</span>' : '') + '</div>';
     if (state.user) html += '<div style="padding:0 20px 14px;font-size:11px;color:#B7DFDA;">' + esc(state.user.email) + '<br/><span style="cursor:pointer;text-decoration:underline;" onclick="doLogout()">Uitloggen</span></div>';
     html += '<div class="sidebar-nav">';
     TABS.forEach(function(t){
