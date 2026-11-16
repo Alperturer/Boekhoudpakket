@@ -2,7 +2,13 @@
 <html lang="nl">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0B2530" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="Boekhouding" />
+<meta name="format-detection" content="telephone=no" />
 <title>Boekhouding app</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -246,6 +252,62 @@
     .ow-layout { display:block; margin:0; }
     .ow-preview { padding:0; background:#fff; }
     #ow-print-area, #r-page-factuur, .r-page { border:none; box-shadow:none; max-width:100%; }
+  }
+
+  /* ---- iPhone & iPad: past zich automatisch aan op toestel, schermbreedte, draairichting en notch/home-balk ---- */
+  html { -webkit-text-size-adjust:100%; text-size-adjust:100%; }
+  body { -webkit-tap-highlight-color:transparent; padding-left:env(safe-area-inset-left); padding-right:env(safe-area-inset-right); }
+  button, select, input, label, .tab-btn, .ow-chip, .toggle-row { touch-action:manipulation; }
+  .app-shell { min-height:100vh; min-height:100dvh; }
+  .sidebar { height:100vh; height:100dvh; }
+  .ow-layout { min-height:calc(100vh - 60px); min-height:calc(100dvh - 60px); }
+  .ow-form { width:clamp(360px, 42%, 560px); }
+  .ow-preview { min-width:0; padding:24px clamp(10px, 2vw, 28px); }
+  /* Met de zijbalk zichtbaar is de tabbalk bovenaan dubbelop */
+  @media (min-width:901px) { .tabs { display:none; } }
+  /* iPad liggend en kleine laptops: formulier boven, offertevoorbeeld eronder -- zo past alles altijd zonder zijwaarts scrollen */
+  @media (min-width:901px) and (max-width:1240px) {
+    .sidebar { width:200px; }
+    .sidebar-nav button { padding:11px 16px; }
+    .page { padding:20px 24px 60px; }
+    .ow-layout { flex-direction:column; margin:0 -24px; }
+    .ow-form { width:100%; padding:22px 26px; }
+    .ow-preview { padding:20px 24px; }
+    .grid3, .ow-form .grid3 { grid-template-columns:repeat(3,minmax(0,1fr)); }
+  }
+  @media (min-width:1241px) and (max-width:1400px) {
+    .sidebar { width:200px; }
+    .page { padding:24px 24px 60px; }
+    .ow-layout { margin:-24px -24px; }
+  }
+  @media (max-width:900px) {
+    .mobile-header { padding-top:calc(10px + env(safe-area-inset-top)); }
+    .page { padding-bottom:calc(70px + env(safe-area-inset-bottom)); }
+    .tabs { -webkit-overflow-scrolling:touch; scrollbar-width:none; }
+    .tabs::-webkit-scrollbar { display:none; }
+  }
+  @media (min-width:601px) and (max-width:900px) {
+    .page { padding-left:24px; padding-right:24px; }
+    .ow-layout { margin:-12px -24px; }
+    .ow-form { padding:24px 28px; }
+    .ow-preview { padding:20px 24px; }
+  }
+  /* Aanraakschermen: invoervelden minimaal 16px (anders zoomt iOS bij elke tik in) en knoppen minimaal 44px hoog */
+  @media (hover:none) and (pointer:coarse) {
+    input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]), select, textarea { font-size:16px !important; }
+    input.f, select.f { height:46px; }
+    select.f { line-height:44px; }
+    .geld-input-wrap .geld-prefix { height:46px; font-size:16px; }
+    .ow-form .f-berekend { height:46px; font-size:16px !important; }
+    .ow-form .grid2 .btn-primary, .ow-form .grid3 .btn-primary { height:46px; }
+    .btn-primary, .btn-secondary, .btn-add, .tab-btn { min-height:44px; }
+    .ow-chip { padding:10px 14px; }
+    .ow-regel-line { grid-template-columns:64px minmax(0,1fr) minmax(0,1.25fr) minmax(0,1fr) 44px; }
+    .ow-regel-line input[type="number"], .ow-regel-line select { height:46px; }
+    .ow-remove { width:44px; height:46px; }
+    input[type=checkbox], input[type=radio] { width:22px; height:22px; }
+    .sidebar-nav button { padding:14px 18px; }
+    .del-x { min-width:36px; min-height:36px; }
   }
 </style>
 <script>
@@ -658,10 +720,18 @@ function downloadAlsPDF(elementId, bestandsnaam, knopId) {
   }
 
   var eersteAfbeelding = true;
+  var breedteHersteller = [];
+  var herstelAlleBreedtes = function() { breedteHersteller.forEach(function(f){ try { f(); } catch (e) {} }); breedteHersteller = []; };
   var keten = Promise.resolve();
   paginaElementen.forEach(function(paginaEl){
     keten = keten.then(function(){
       var isHoofdpagina = paginaEl.id === "ow-print-area" || paginaEl.id === "r-page-factuur";
+      // De PDF is op elk toestel (iPhone, iPad, laptop) exact hetzelfde: de pagina wordt tijdens het fotograferen altijd op de
+      // vaste papierbreedte van 700px gezet, los van hoe smal het scherm is. Zo klopt ook de 1-pagina-berekening altijd.
+      var origStijl = { w: paginaEl.style.width, mx: paginaEl.style.maxWidth, mn: paginaEl.style.minWidth, fl: paginaEl.style.flex };
+      paginaEl.style.width = "700px"; paginaEl.style.maxWidth = "700px"; paginaEl.style.minWidth = "700px"; paginaEl.style.flex = "none";
+      var herstelBreedte = function() { paginaEl.style.width = origStijl.w; paginaEl.style.maxWidth = origStijl.mx; paginaEl.style.minWidth = origStijl.mn; paginaEl.style.flex = origStijl.fl; };
+      breedteHersteller.push(herstelBreedte);
       var herstelFn = isHoofdpagina ? verkleinTotEenPagina(paginaEl) : null;
       var volledigeHoogte = Math.max(paginaEl.scrollHeight, paginaEl.offsetHeight, paginaEl.getBoundingClientRect().height);
       // Bewust ALLEEN de eigen opgemaakte breedte gebruiken (nooit scrollWidth) -- anders kan een lange, niet-afbrekende
@@ -696,6 +766,7 @@ function downloadAlsPDF(elementId, bestandsnaam, knopId) {
         }
       }).then(function(canvas){
         if (herstelFn) herstelFn(); // lettergrootte weer normaal zetten, klaar met fotograferen
+        herstelBreedte();
         var pxPerMm = canvas.width / pageWidth;
         if (isHoofdpagina) {
           // Deze pagina is al gegarandeerd verkleind tot hij op 1 pagina past -- gewoon in zijn geheel plaatsen.
@@ -738,6 +809,7 @@ function downloadAlsPDF(elementId, bestandsnaam, knopId) {
   });
 
   keten.then(function(){
+    herstelAlleBreedtes();
     var bestandGrootteMB = pdf.output("blob").size / (1024*1024);
     pdf.save(bestandsnaam + ".pdf");
     if (bestandGrootteMB > 10) {
@@ -745,6 +817,7 @@ function downloadAlsPDF(elementId, bestandsnaam, knopId) {
     }
     if (btn) { btn.innerText = origTekst; btn.disabled = false; }
   }).catch(function(){
+    herstelAlleBreedtes();
     toonToast("PDF-export mislukt. Probeer opnieuw.");
     if (btn) { btn.innerText = origTekst; btn.disabled = false; }
   });
@@ -4033,7 +4106,7 @@ function EO_synchroniseerRegelsMetConfig(o, key, val) {
 function eoVeld(offerteId, key, val) { var o = getOfferte(offerteId); if (o && o.energie) { o.energie[key] = val; EO_synchroniseerRegelsMetConfig(o, key, val); } persistOffertes(); }
 function eoVeldRender(offerteId, key, val) { var o = getOfferte(offerteId); if (o && o.energie) o.energie[key] = val; persistOffertes(); render(); }
 function eoField(offerteId, key, label, val) {
-  return '<div><label class="fl">' + label + '</label><input class="f" value="' + esc(val) + '" oninput="eoVeld(\'' + offerteId + '\',\'' + key + '\',this.value)" onblur="render()" /></div>';
+  return '<div><label class="fl">' + label + '</label><input class="f" inputmode="decimal" value="' + esc(val) + '" oninput="eoVeld(\'' + offerteId + '\',\'' + key + '\',this.value)" onblur="render()" /></div>';
 }
 function eoGeldField(offerteId, key, label, val) {
   return '<div><label class="fl">' + label + '</label><div class="geld-input-wrap"><span class="geld-prefix">&euro;</span><input class="f" inputmode="decimal" value="' + esc(val) + '" oninput="eoVeld(\'' + offerteId + '\',\'' + key + '\',this.value)" onblur="render()" /></div></div>';
