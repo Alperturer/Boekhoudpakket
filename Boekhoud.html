@@ -262,7 +262,8 @@
   .app-shell { min-height:100vh; min-height:100dvh; }
   .sidebar { height:100vh; height:100dvh; }
   .ow-layout { min-height:calc(100vh - 60px); min-height:calc(100dvh - 60px); }
-  .ow-form { width:clamp(360px, 42%, 560px); }
+  @media (min-width:1241px) { .ow-form { width:clamp(360px, 42%, 560px); } }
+  @media (max-width:1240px) { .ow-form { width:100% !important; max-width:100%; box-sizing:border-box; } }
   .ow-preview { min-width:0; padding:24px clamp(10px, 2vw, 28px); }
   /* Met de zijbalk zichtbaar is de tabbalk bovenaan dubbelop */
   @media (min-width:901px) { .tabs { display:none; } }
@@ -3194,7 +3195,7 @@ function renderCore() {
 
     // Zijbalk (zichtbaar vanaf ~900px breed)
     html += '<nav class="sidebar no-print">';
-    html += '<div class="sidebar-logo" onclick="setTab(\'dashboard\')"><span class="dot"></span> Boekhouding' + '<span style="font-size:9px;font-weight:600;opacity:0.6;margin-left:6px;">v16-11-22u</span>' + (state.cloudSaving ? ' <span style="font-size:9px;font-weight:600;opacity:0.7;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><path d="M18 10h-1.3A6 6 0 1 0 6 15h12a4 4 0 0 0 0-8Z"/></svg> opslaan...</span>' : '') + '</div>';
+    html += '<div class="sidebar-logo" onclick="setTab(\'dashboard\')"><span class="dot"></span> Boekhouding' + '<span style="font-size:9px;font-weight:600;opacity:0.6;margin-left:6px;">v16-11-22v</span>' + (state.cloudSaving ? ' <span style="font-size:9px;font-weight:600;opacity:0.7;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><path d="M18 10h-1.3A6 6 0 1 0 6 15h12a4 4 0 0 0 0-8Z"/></svg> opslaan...</span>' : '') + '</div>';
     if (state.user) html += '<div style="padding:0 20px 14px;font-size:11px;color:#B7DFDA;">' + esc(state.user.email) + '<br/><span style="cursor:pointer;text-decoration:underline;" onclick="doLogout()">Uitloggen</span></div>';
     html += '<div class="sidebar-nav">';
     TABS.forEach(function(t){
