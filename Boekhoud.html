@@ -470,22 +470,21 @@ function wfBasisVoorOfferte(o, t) {
 function wfBlokPagina1Html(o, t, accent) {
   if (o && o.wfPagina1Modus === "uit") return "";
   var w = wfBasisVoorOfferte(o, t); if (!w) return "";
-  var laatste = w.termijnen[w.termijnen.length - 1];
   var kleur = accent || "#2F6B4F";
-  var h = '<div class="no-split" style="margin:18px 0;border:2px solid ' + kleur + ';border-radius:12px;padding:14px 16px;background:#F4FBF7;">';
-  h += '<div style="font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:' + kleur + ';">Financieren via het Warmtefonds</div>';
-  h += '<div style="font-size:20px;font-weight:800;color:var(--navy);margin:4px 0 2px;">Vanaf ' + euro(wfMaandbedrag(w.lening, w.rente[laatste], laatste)) + ' per maand</div>';
-  h += '<div style="font-size:12px;color:var(--muted);margin-bottom:10px;">Te financieren: ' + euro(w.lening) + ' &mdash; vaste rente, geen advies-, taxatie- of notariskosten.</div>';
-  h += '<table style="width:100%;border-collapse:collapse;font-size:12.5px;text-align:center;"><thead><tr>';
-  w.termijnen.forEach(function(tj){ h += '<th style="padding:4px 6px;border-bottom:1px solid #cfe3d8;">' + tj + ' jaar</th>'; });
-  h += '</tr></thead><tbody><tr>';
-  w.termijnen.forEach(function(tj){ h += '<td style="padding:7px 6px;font-weight:800;color:var(--navy);">' + euro(wfMaandbedrag(w.lening, w.rente[tj], tj)) + '<div style="font-weight:400;font-size:10px;color:var(--muted);">' + nf(w.rente[tj], 2) + '% rente</div></td>'; });
-  h += '</tr></tbody></table>';
-  h += '<div style="font-size:10px;color:var(--muted);margin-top:8px;line-height:1.5;">Indicatief, als annu&iuml;teit met de effectieve jaarrente van het Nationaal Warmtefonds (peildatum ' + esc(wfWaarde("wfPeildatum")) + '). Alleen voor eigenaar-bewoners van een bestaande woning; lenen van ' + euro(wfGetal("wfMinLening")).replace(",00","") + ' tot ' + euro(wfGetal("wfMaxLening")).replace(",00","") + (w.begrensd ? ' (het meerdere betaalt u zelf)' : '') + '. Bij een gezamenlijk bruto-inkomen onder &euro; 60.000 kan 0% rente mogelijk zijn. Goedkeuring en definitieve rente via het Warmtefonds.</div>';
+  var rMin = w.rente[w.termijnen[0]], rMax = w.rente[w.termijnen[w.termijnen.length - 1]];
+  var h = '<div class="no-split" style="margin:10px 0 6px;border:1px solid ' + kleur + ';border-radius:8px;padding:7px 12px;background:#F6FBF8;font-size:0.9em;">';
+  h += '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;">';
+  h += '<span style="font-size:0.78em;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:' + kleur + ';">Financieren via het Warmtefonds</span>';
+  h += '<span style="font-size:0.85em;color:var(--muted);">Te financieren ' + euro(w.lening) + '</span></div>';
+  h += '<div style="display:flex;gap:6px;margin-top:5px;">';
+  w.termijnen.forEach(function(tj){
+    h += '<div style="flex:1;text-align:center;padding:4px 2px;background:#fff;border-radius:5px;border:1px solid #DCEBE2;"><div style="font-size:0.78em;color:var(--muted);">' + tj + ' jaar</div><div style="font-weight:800;color:var(--navy);">' + euro(wfMaandbedrag(w.lening, w.rente[tj], tj)) + '<span style="font-weight:400;font-size:0.75em;color:var(--muted);"> p/m</span></div></div>';
+  });
+  h += '</div>';
+  h += '<div style="font-size:0.7em;color:var(--muted);margin-top:4px;line-height:1.35;">Indicatief, vaste rente ' + nf(rMin, 2) + '&ndash;' + nf(rMax, 2) + '% (peildatum ' + esc(wfWaarde("wfPeildatum")) + '). Voor eigenaar-bewoners; 0% rente mogelijk bij inkomen onder &euro; 60.000. Definitieve voorwaarden via het Nationaal Warmtefonds.</div>';
   h += '</div>';
   return h;
 }
-
 function wfPaginaActief(s) { return !!wfBereken(s, 0); }
 function EO_paginaAantal(s) { return 4 + (wfPaginaActief(s) ? 1 : 0); }
 function wfPaginaHtml(s, r, bedrijfOverride, pn, totaalPaginas) {
