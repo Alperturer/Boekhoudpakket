@@ -444,6 +444,48 @@ function wfBereken(s, jaarBesparing) {
   return { rijen: rijen, termijnen: termijnen, rente: rente, lening: lening, totaalFin: totaalFin, factor: factor, eigenInbreng: Math.max(0, invTotaal - lening),
     twintigMogelijk: twintigMogelijk, begrensd: totaalFin > maxL, maandBesparing: (jaarBesparing || 0) / 12 };
 }
+// Warmtefonds-blok voor pagina 1 van de offerte (werkt ook zonder energierapport)
+function wfBasisVoorOfferte(o, t) {
+  if (!o) return null;
+  if (o.energieActief && o.energie) {
+    var wE = wfBereken(o.energie, EO_berekenAlles(o.energie).totaleJaarlijkseBesparing);
+    if (wE) return wE;
+  }
+  var regels = o.regels || [];
+  var re = /paneel|panelen|batterij|accu|warmtepomp/i;
+  if (!regels.some(function(r){ return re.test(r.omschrijving || ""); })) return null;
+  var incl = function(r){ return (parseFloat(r.aantal)||0) * (parseFloat(r.prijs)||0) * (1 + (parseFloat(r.btw)||0) / 100); };
+  var totaal = t && t.totaalIncl ? t.totaalIncl : 0;
+  var minL = wfGetal("wfMinLening"), maxL = wfGetal("wfMaxLening");
+  if (totaal < minL) return null;
+  var lening = Math.min(totaal, maxL);
+  var bat = regels.filter(function(r){ return /batterij|accu/i.test(r.omschrijving || ""); }).reduce(function(a, r){ return a + incl(r); }, 0);
+  var wp = regels.filter(function(r){ return /warmtepomp/i.test(r.omschrijving || ""); }).reduce(function(a, r){ return a + incl(r); }, 0);
+  var termijnen = [7, 10, 15];
+  var twintig = lening > wfGetal("wfGrens20") && (bat / totaal) <= 1 / 3 && (wp / totaal) <= 1 / 3;
+  if (twintig) termijnen.push(20);
+  return { lening: lening, termijnen: termijnen, twintigMogelijk: twintig, begrensd: totaal > maxL,
+    rente: { 7: wfGetal("wfRente7"), 10: wfGetal("wfRente10"), 15: wfGetal("wfRente15"), 20: wfGetal("wfRente20") }, maandBesparing: 0 };
+}
+function wfBlokPagina1Html(o, t, accent) {
+  if (o && o.wfPagina1 === false) return "";
+  var w = wfBasisVoorOfferte(o, t); if (!w) return "";
+  var laatste = w.termijnen[w.termijnen.length - 1];
+  var kleur = accent || "#2F6B4F";
+  var h = '<div class="no-split" style="margin:18px 0;border:2px solid ' + kleur + ';border-radius:12px;padding:14px 16px;background:#F4FBF7;">';
+  h += '<div style="font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:' + kleur + ';">Financieren via het Warmtefonds</div>';
+  h += '<div style="font-size:20px;font-weight:800;color:var(--navy);margin:4px 0 2px;">Vanaf ' + euro(wfMaandbedrag(w.lening, w.rente[laatste], laatste)) + ' per maand</div>';
+  h += '<div style="font-size:12px;color:var(--muted);margin-bottom:10px;">Te financieren: ' + euro(w.lening) + ' &mdash; vaste rente, geen advies-, taxatie- of notariskosten.</div>';
+  h += '<table style="width:100%;border-collapse:collapse;font-size:12.5px;text-align:center;"><thead><tr>';
+  w.termijnen.forEach(function(tj){ h += '<th style="padding:4px 6px;border-bottom:1px solid #cfe3d8;">' + tj + ' jaar</th>'; });
+  h += '</tr></thead><tbody><tr>';
+  w.termijnen.forEach(function(tj){ h += '<td style="padding:7px 6px;font-weight:800;color:var(--navy);">' + euro(wfMaandbedrag(w.lening, w.rente[tj], tj)) + '<div style="font-weight:400;font-size:10px;color:var(--muted);">' + nf(w.rente[tj], 2) + '% rente</div></td>'; });
+  h += '</tr></tbody></table>';
+  h += '<div style="font-size:10px;color:var(--muted);margin-top:8px;line-height:1.5;">Indicatief, als annu&iuml;teit met de effectieve jaarrente van het Nationaal Warmtefonds (peildatum ' + esc(wfWaarde("wfPeildatum")) + '). Alleen voor eigenaar-bewoners van een bestaande woning; lenen van ' + euro(wfGetal("wfMinLening")).replace(",00","") + ' tot ' + euro(wfGetal("wfMaxLening")).replace(",00","") + (w.begrensd ? ' (het meerdere betaalt u zelf)' : '') + '. Bij een gezamenlijk bruto-inkomen onder &euro; 60.000 kan 0% rente mogelijk zijn. Goedkeuring en definitieve rente via het Warmtefonds.</div>';
+  h += '</div>';
+  return h;
+}
+
 function wfPaginaActief(s) { return !!wfBereken(s, 0); }
 function EO_paginaAantal(s) { return 4 + (wfPaginaActief(s) ? 1 : 0); }
 function wfPaginaHtml(s, r, bedrijfOverride, pn, totaalPaginas) {
@@ -4253,6 +4295,7 @@ function renderOfferteWerkblad() {
   h += '<div class="ow-totals-row"><span>BTW</span><span>' + euro(t.totaalBtw) + '</span></div>';
   h += '<div class="ow-totals-final"><span>Totaal</span><span>' + euro(t.totaalIncl) + '</span></div>';
   h += '</div></div>';
+  h += wfBlokPagina1Html(o, t, accent);
   h += btwOverzichtPrintHtml(t);
   if (o.garantie) h += '<h4 class="ow-section-title">Garantie &amp; voorwaarden</h4><p>' + esc(o.garantie) + '</p>';
   if (o.opmerking) h += '<h4 class="ow-section-title">Toelichting</h4><p>' + esc(o.opmerking) + '</p>';
@@ -6006,6 +6049,7 @@ function renderKlantOfferteView(o) {
   });
   h += '</tbody></table>';
   h += '<div class="totals-box"><div class="totals-row grand"><span>Totaal incl. BTW</span><span>' + euro(t.totaalIncl) + '</span></div></div>';
+  h += wfBlokPagina1Html(o.data, t, (b && b.accentKleur) || "");
   if (o.data.opmerking) h += '<p style="font-size:12.5px;color:#6b6659;margin-top:16px;">' + esc(o.data.opmerking) + '</p>';
   var energiePaginaCountKlant = EO_aantalEnergiePaginas(o.data);
   var legplanPaginaCountKlant = o.data.legplanFoto ? 1 : 0;
