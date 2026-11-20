@@ -208,17 +208,17 @@
 
   #ow-print-area, #r-page-factuur { width:100%; max-width:650px; min-height:919px; margin:0 auto; background:#fff; box-sizing:border-box; position:relative; overflow-x:hidden; }
   .ow-stripe { height:6px; }
-  .ow-letterhead { padding:18px 22px 14px; border-bottom:1px solid #EFF6F5; display:flex; justify-content:space-between; align-items:flex-start; }
+  .ow-letterhead { padding:calc(18px * var(--tekst-schaal, 1)) 22px calc(14px * var(--tekst-schaal, 1)); border-bottom:1px solid #EFF6F5; display:flex; justify-content:space-between; align-items:flex-start; }
   .ow-wordmark { font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; font-size:calc(19px * var(--tekst-schaal, 1)); font-weight:800; letter-spacing:-0.01em; }
   .verkoper-gegevens { margin-top:0; font-size:calc(11px * var(--tekst-schaal, 1)); line-height:1.6; color:var(--muted); }
   .ow-tagline { font-size:calc(11px * var(--tekst-schaal, 1)); color:var(--muted); margin-top:2px; }
   .ow-lh-right { text-align:right; font-size:calc(12px * var(--tekst-schaal, 1)); color:var(--muted); overflow-wrap:break-word; word-break:break-word; max-width:260px; }
   .doc-type-label { font-size:calc(10.5px * var(--tekst-schaal, 1)); font-weight:800; letter-spacing:0.06em; text-transform:uppercase; color:var(--muted); margin-bottom:2px; }
   .ow-lh-right .num { font-family:ui-monospace,monospace; font-weight:700; color:var(--text); }
-  .ow-klant-block { padding:0 34px; margin-top:16px; font-size:calc(13px * var(--tekst-schaal, 1)); }
+  .ow-klant-block { padding:0 34px; margin-top:calc(16px * var(--tekst-schaal, 1)); font-size:calc(13px * var(--tekst-schaal, 1)); }
   .ow-klant-block .naam { font-weight:700; }
   .ow-klant-block .sub-line { color:var(--muted); }
-  .ow-body { padding:18px 22px; font-size:calc(12.5px * var(--tekst-schaal, 1)); line-height:1.42; color:#0A0A0A; overflow-wrap:break-word; word-break:break-word; }
+  .ow-body { padding:calc(18px * var(--tekst-schaal, 1)) 22px; font-size:calc(12.5px * var(--tekst-schaal, 1)); line-height:1.42; color:#0A0A0A; overflow-wrap:break-word; word-break:break-word; }
   .ow-body p { margin:0 0 8px; }
   .ow-body h4.ow-section-title { margin:12px 0 5px; }
   #ow-print-area, #ow-print-area .ow-klant-block, #ow-print-area .ow-wordmark, #r-page-factuur, #r-page-factuur .ow-klant-block, #r-page-factuur .ow-wordmark { color:#0A0A0A; }
@@ -232,7 +232,7 @@
   table.ow-regels-table th { text-align:left; padding:9px 10px; font-size:calc(11px * var(--tekst-schaal, 1)); color:#fff; font-weight:700; text-transform:uppercase; letter-spacing:0.03em; background:linear-gradient(to right, #0F6E6E, #2FA398); }
   table.ow-regels-table th:first-child { border-radius:6px 0 0 6px; }
   table.ow-regels-table th:last-child { border-radius:0 6px 6px 0; }
-  table.ow-regels-table td { padding:6px 10px; border-bottom:1px solid #F1F5F9; }
+  table.ow-regels-table td { padding:calc(6px * var(--tekst-schaal, 1)) 10px; border-bottom:1px solid #F1F5F9; }
   table.ow-regels-table td:not(:first-child) { white-space:nowrap; }
   table.ow-regels-table th:not(:first-child) { white-space:nowrap; }
   .ow-totals { display:flex; justify-content:flex-end; margin-top:10px; }
@@ -474,14 +474,14 @@ function wfBlokPagina1Html(o, t, accent) {
   var rMin = w.rente[w.termijnen[0]], rMax = w.rente[w.termijnen[w.termijnen.length - 1]];
   var h = '<div class="no-split" style="margin:10px 0 6px;border:1px solid ' + kleur + ';border-radius:8px;padding:7px 12px;background:#F6FBF8;font-size:0.9em;">';
   h += '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;">';
-  h += '<span style="font-size:0.78em;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:' + kleur + ';">Financieren via het Warmtefonds</span>';
-  h += '<span style="font-size:0.85em;color:var(--muted);">Te financieren ' + euro(w.lening) + '</span></div>';
+  h += '<span style="font-size:0.9em;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:' + kleur + ';">Financieren via het Warmtefonds</span>';
+  h += '<span style="font-size:0.95em;color:var(--muted);">Te financieren ' + euro(w.lening) + '</span></div>';
   h += '<div style="display:flex;gap:6px;margin-top:5px;">';
   w.termijnen.forEach(function(tj){
-    h += '<div style="flex:1;text-align:center;padding:4px 2px;background:#fff;border-radius:5px;border:1px solid #DCEBE2;"><div style="font-size:0.78em;color:var(--muted);">' + tj + ' jaar</div><div style="font-weight:800;color:var(--navy);">' + euro(wfMaandbedrag(w.lening, w.rente[tj], tj)) + '<span style="font-weight:400;font-size:0.75em;color:var(--muted);"> p/m</span></div></div>';
+    h += '<div style="flex:1;text-align:center;padding:4px 2px;background:#fff;border-radius:5px;border:1px solid #DCEBE2;"><div style="font-size:0.9em;color:var(--muted);">' + tj + ' jaar</div><div style="font-weight:800;color:var(--navy);">' + euro(wfMaandbedrag(w.lening, w.rente[tj], tj)) + '<span style="font-weight:400;font-size:0.85em;color:var(--muted);"> p/m</span></div></div>';
   });
   h += '</div>';
-  h += '<div style="font-size:0.7em;color:var(--muted);margin-top:4px;line-height:1.35;">Indicatief, vaste rente ' + nf(rMin, 2) + '&ndash;' + nf(rMax, 2) + '% (peildatum ' + esc(wfWaarde("wfPeildatum")) + '). Voor eigenaar-bewoners; 0% rente mogelijk bij inkomen onder &euro; 60.000. Definitieve voorwaarden via het Nationaal Warmtefonds.</div>';
+  h += '<div style="font-size:0.8em;color:var(--muted);margin-top:4px;line-height:1.35;">Indicatief, vaste rente ' + nf(rMin, 2) + '&ndash;' + nf(rMax, 2) + '% (peildatum ' + esc(wfWaarde("wfPeildatum")) + '). Voor eigenaar-bewoners; 0% rente mogelijk bij inkomen onder &euro; 60.000. Definitieve voorwaarden via het Nationaal Warmtefonds.</div>';
   h += '</div>';
   return h;
 }
@@ -864,11 +864,12 @@ function downloadAlsPDF(elementId, bestandsnaam, knopId) {
     paginaEl.style.minHeight = "0px"; // even uitzetten om de ECHTE natuurlijke hoogte te meten
     paginaEl.style.setProperty("--tekst-schaal", "1");
     var schaal = 1;
-    for (var poging = 0; poging < 8; poging++) {
+    for (var poging = 0; poging < 12; poging++) {
       var huidigeHoogte = paginaEl.scrollHeight;
-      if (huidigeHoogte <= DOEL_HOOGTE_PX || schaal <= 0.55) break;
-      schaal = schaal * (DOEL_HOOGTE_PX / huidigeHoogte) * 0.975;
-      schaal = Math.max(schaal, 0.55);
+      if (huidigeHoogte <= DOEL_HOOGTE_PX && (huidigeHoogte >= DOEL_HOOGTE_PX * 0.96 || schaal >= 1)) break; // past, en vult de pagina goed (of is al op normale grootte)
+      if (huidigeHoogte > DOEL_HOOGTE_PX && schaal <= 0.55) break;
+      schaal = schaal * (DOEL_HOOGTE_PX * 0.985 / huidigeHoogte);
+      schaal = Math.min(1, Math.max(schaal, 0.55)); // nooit groter dan normaal, nooit kleiner dan 0,55
       paginaEl.style.setProperty("--tekst-schaal", String(schaal));
     }
     paginaEl.style.minHeight = DOEL_HOOGTE_PX + "px"; // weer aanzetten zodat korte offertes de pagina vullen
@@ -1184,7 +1185,7 @@ function btwOverzichtHtml(t) {
 function btwOverzichtPrintHtml(t) {
   var tarieven = Object.keys(t.subtotalen || {});
   if (tarieven.length < 2) return ""; // pas tonen als er meerdere tarieven door elkaar lopen
-  var h = '<div class="no-split" style="margin-top:10px;padding:10px 12px;background:#F7FEFC;border:1px solid var(--border);border-radius:8px;font-size:11.5px;max-width:240px;margin-left:auto;">';
+  var h = '<div class="no-split" style="margin-top:calc(10px * var(--tekst-schaal,1));padding:calc(10px * var(--tekst-schaal,1)) calc(12px * var(--tekst-schaal,1));background:#F7FEFC;border:1px solid var(--border);border-radius:8px;font-size:calc(11.5px * var(--tekst-schaal,1));max-width:240px;margin-left:auto;">';
   h += '<div style="font-weight:700;color:var(--navy);margin-bottom:4px;">Verdeling per btw-tarief</div>';
   tarieven.sort(function(a,b){ return a-b; }).forEach(function(tarief){
     var kleur = btwKleur(parseInt(tarief));
@@ -4285,7 +4286,7 @@ function renderOfferteWerkblad() {
   h += '<div class="ow-letterhead">';
   h += '<div>';
   h += '<div style="display:flex;align-items:flex-start;justify-content:flex-start;gap:12px;">';
-  if (b.logoData) h += '<img src="' + b.logoData + '" style="height:' + (b.logoHoogte||70) + 'px;max-width:340px;object-fit:contain;object-position:left top;display:block;margin:0;" />';
+  if (b.logoData) h += '<img src="' + b.logoData + '" style="height:calc(' + (b.logoHoogte||70) + 'px * var(--tekst-schaal,1));max-width:340px;object-fit:contain;object-position:left top;display:block;margin:0;" />';
   h += '</div>';
   h += '<div class="ow-wordmark" style="margin-top:14px;margin-bottom:0;font-size:16px;line-height:1.6;">' + esc(b.naam || "Jouw bedrijf") + '</div>';
   h += verkoperGegevensHtml(b);
@@ -4326,7 +4327,7 @@ function renderOfferteWerkblad() {
   if (o.opmerking) h += '<h4 class="ow-section-title">Toelichting</h4><p>' + esc(o.opmerking) + '</p>';
   if (o.afsluiting) h += '<p style="margin-top:16px;">' + esc(o.afsluiting) + '</p>';
   if (b.isInstallQErkend || b.isVCAGecertificeerd || b.certificeringNotities) {
-    h += '<div class="no-split" style="margin-top:18px;padding:12px 14px;background:#F7FEFC;border:1px solid var(--border);border-radius:8px;font-size:11.5px;line-height:1.6;color:var(--muted);text-align:left;">';
+    h += '<div class="no-split" style="margin-top:calc(18px * var(--tekst-schaal,1));padding:calc(12px * var(--tekst-schaal,1)) calc(14px * var(--tekst-schaal,1));background:#F7FEFC;border:1px solid var(--border);border-radius:8px;font-size:calc(11.5px * var(--tekst-schaal,1));line-height:1.6;color:var(--muted);text-align:left;">';
     h += '<b style="color:var(--navy);">Kwaliteit &amp; zekerheid</b><br/>';
     var puntjes = [];
     if (b.isInstallQErkend) puntjes.push(icon("checkCircle") + ' <b>' + esc(b.naam||"Ons bedrijf") + '</b> is een <b>InstallQ-erkend installatiebedrijf</b>, wat betekent dat onze installaties voldoen aan de landelijk erkende kwaliteits- en veiligheidsnormen voor duurzame energie-installaties.');
@@ -5148,7 +5149,7 @@ function renderFactuurDocument(f) {
   h += '<div class="ow-letterhead">';
   h += '<div>';
   h += '<div style="display:flex;align-items:flex-start;justify-content:flex-start;gap:12px;">';
-  if (b.logoData) h += '<img src="' + b.logoData + '" style="height:' + (b.logoHoogte||70) + 'px;max-width:340px;object-fit:contain;object-position:left top;display:block;margin:0;" />';
+  if (b.logoData) h += '<img src="' + b.logoData + '" style="height:calc(' + (b.logoHoogte||70) + 'px * var(--tekst-schaal,1));max-width:340px;object-fit:contain;object-position:left top;display:block;margin:0;" />';
   h += '</div>';
   h += '<div class="ow-wordmark" style="margin-top:14px;margin-bottom:0;font-size:16px;line-height:1.6;">' + esc(b.naam || "Jouw bedrijf") + '</div>';
   h += verkoperGegevensHtml(b);
@@ -5192,7 +5193,7 @@ function renderFactuurDocument(f) {
   if (f.opmerking) h += '<h4 class="ow-section-title">Toelichting</h4><p>' + esc(f.opmerking) + '</p>';
   if (f.afsluiting) h += '<p style="margin-top:16px;">' + esc(f.afsluiting) + '</p>';
   if (b.isInstallQErkend || b.isVCAGecertificeerd || b.certificeringNotities) {
-    h += '<div class="no-split" style="margin-top:18px;padding:12px 14px;background:#F7FEFC;border:1px solid var(--border);border-radius:8px;font-size:11.5px;line-height:1.6;color:var(--muted);text-align:left;">';
+    h += '<div class="no-split" style="margin-top:calc(18px * var(--tekst-schaal,1));padding:calc(12px * var(--tekst-schaal,1)) calc(14px * var(--tekst-schaal,1));background:#F7FEFC;border:1px solid var(--border);border-radius:8px;font-size:calc(11.5px * var(--tekst-schaal,1));line-height:1.6;color:var(--muted);text-align:left;">';
     h += '<b style="color:var(--navy);">Kwaliteit &amp; zekerheid</b><br/>';
     var puntjesF = [];
     if (b.isInstallQErkend) puntjesF.push(icon("checkCircle") + ' <b>' + esc(b.naam||"Ons bedrijf") + '</b> is een <b>InstallQ-erkend installatiebedrijf</b>, wat betekent dat onze installaties voldoen aan de landelijk erkende kwaliteits- en veiligheidsnormen voor duurzame energie-installaties.');
@@ -5766,7 +5767,7 @@ function renderInstellingen() {
     h += '<input type="range" min="30" max="200" value="' + (b.logoHoogte||70) + '" oninput="updateBedrijfField(\'logoHoogte\', parseInt(this.value)); render();" style="flex:1;" />';
     h += '<span style="font-size:13px;color:var(--muted);width:50px;">' + (b.logoHoogte||70) + 'px</span>';
     h += '</div>';
-    h += '<div style="background:#F1F5F9;border-radius:8px;padding:16px;margin-bottom:14px;"><p class="subtitle" style="margin:0 0 8px;">Zo groot komt het op de offerte/factuur te staan:</p><img src="' + b.logoData + '" style="height:' + (b.logoHoogte||70) + 'px;max-width:340px;object-fit:contain;display:block;" /></div>';
+    h += '<div style="background:#F1F5F9;border-radius:8px;padding:16px;margin-bottom:14px;"><p class="subtitle" style="margin:0 0 8px;">Zo groot komt het op de offerte/factuur te staan:</p><img src="' + b.logoData + '" style="height:calc(' + (b.logoHoogte||70) + 'px * var(--tekst-schaal,1));max-width:340px;object-fit:contain;display:block;" /></div>';
   }
   h += huisstijlSectie("Algemene accentkleur", "accentKleur", b.accentKleur||"#2F6B4F", "Wordt gebruikt als je geen aparte kleur instelt voor offertes of facturen hieronder.");
   h += '<label class="fl">Voettekst op offertes/facturen (bijv. dankwoord, korte notitie)</label>';
