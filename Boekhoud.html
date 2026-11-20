@@ -447,24 +447,39 @@ function wfBereken(s, jaarBesparing) {
 // Warmtefonds-blok voor pagina 1 van de offerte (werkt ook zonder energierapport)
 function wfBasisVoorOfferte(o, t) {
   if (!o) return null;
-  if (o.energieActief && o.energie) {
-    var wE = wfBereken(o.energie, EO_berekenAlles(o.energie).totaleJaarlijkseBesparing);
-    if (wE) return wE;
-  }
   var regels = o.regels || [];
-  var re = /paneel|panelen|zonne|solar|\bpv\b|omvormer|batterij|accu|opslag|warmtepomp/i;
-  if (o.wfPagina1Modus !== "aan" && !regels.some(function(r){ return re.test(r.omschrijving || ""); })) return null;
-  var incl = function(r){ return (parseFloat(r.aantal)||0) * (parseFloat(r.prijs)||0) * (1 + (parseFloat(r.btw)||0) / 100); };
-  var totaal = t && t.totaalIncl ? t.totaalIncl : 0;
+  if (regels.length === 0) return null;
+  var g = function(v){ return parseFloat(String(v).replace(",", ".")) || 0; };
+  var incl = function(r){ return g(r.aantal) * g(r.prijs) * (1 + g(r.btw) / 100); };
+  var som = { zon: 0, batterij: 0, wp: 0, overig: 0 }, totaalRegels = 0;
+  regels.forEach(function(r){
+    var cat = EO_categorieVanRegel(r);
+    if (cat === "airco") return; // airco valt buiten het Warmtefonds
+    var bedrag = incl(r);
+    totaalRegels += bedrag;
+    if (cat === "zon" || cat === "batterij" || cat === "wp") som[cat] += bedrag; else som.overig += bedrag;
+  });
+  var heeftKomend = som.zon + som.batterij + som.wp > 0;
+  if (!heeftKomend && o.wfPagina1Modus !== "aan") return null;
+  // Pakketprijs: de klant betaalt dan dit totaal, dus de bedragen per regel schalen daarmee mee
+  var factor = (t && t.totaalIncl && totaalRegels > 0 && o.pakketprijsActief) ? t.totaalIncl / totaalRegels : 1;
+  ["zon", "batterij", "wp", "overig"].forEach(function(k){ som[k] *= factor; });
+  var totaalInv = som.zon + som.batterij + som.wp + som.overig;
+  var aantalPanelen = (o.energie && g(o.energie.aantalPanelen) > 0) ? g(o.energie.aantalPanelen) : 0;
+  var capZon = aantalPanelen > 0 ? Math.min(som.zon, wfGetal("wfMaxPerPaneel") * aantalPanelen) : som.zon;
+  var capBat = Math.min(som.batterij, wfGetal("wfMaxBatterij"));
+  var totaalFin = capZon + capBat + som.wp + som.overig;
   var minL = wfGetal("wfMinLening"), maxL = wfGetal("wfMaxLening");
-  if (totaal < minL) return null;
-  var lening = Math.min(totaal, maxL);
-  var bat = regels.filter(function(r){ return /batterij|accu/i.test(r.omschrijving || ""); }).reduce(function(a, r){ return a + incl(r); }, 0);
-  var wp = regels.filter(function(r){ return /warmtepomp/i.test(r.omschrijving || ""); }).reduce(function(a, r){ return a + incl(r); }, 0);
+  if (totaalFin < minL) return null;
+  var lening = Math.min(totaalFin, maxL);
   var termijnen = [7, 10, 15];
-  var twintig = lening > wfGetal("wfGrens20") && (bat / totaal) <= 1 / 3 && (wp / totaal) <= 1 / 3;
+  var twintig = lening > wfGetal("wfGrens20") && (capBat / lening) <= 1 / 3 && (som.wp / lening) <= 1 / 3;
   if (twintig) termijnen.push(20);
-  return { lening: lening, termijnen: termijnen, twintigMogelijk: twintig, begrensd: totaal > maxL,
+  var redenen = [];
+  if (som.batterij > capBat + 0.5) redenen.push("thuisbatterij maximaal " + euro(wfGetal("wfMaxBatterij")).replace(",00", ""));
+  if (aantalPanelen > 0 && som.zon > capZon + 0.5) redenen.push("zonnepanelen maximaal " + euro(wfGetal("wfMaxPerPaneel")).replace(",00", "") + " per paneel");
+  if (totaalFin > maxL) redenen.push("lening maximaal " + euro(maxL).replace(",00", ""));
+  return { lening: lening, totaalInvestering: totaalInv, eigenInbreng: Math.max(0, totaalInv - lening), redenen: redenen, termijnen: termijnen, twintigMogelijk: twintig,
     rente: { 7: wfGetal("wfRente7"), 10: wfGetal("wfRente10"), 15: wfGetal("wfRente15"), 20: wfGetal("wfRente20") }, maandBesparing: 0 };
 }
 function wfBlokPagina1Html(o, t, accent) {
@@ -475,13 +490,13 @@ function wfBlokPagina1Html(o, t, accent) {
   var h = '<div class="no-split" style="margin:10px 0 6px;border:1px solid ' + kleur + ';border-radius:8px;padding:7px 12px;background:#F6FBF8;font-size:0.9em;">';
   h += '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;">';
   h += '<span style="font-size:0.9em;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:' + kleur + ';">Financieren via het Warmtefonds</span>';
-  h += '<span style="font-size:0.95em;color:var(--muted);">Te financieren ' + euro(w.lening) + '</span></div>';
+  h += '<span style="font-size:0.95em;color:var(--muted);">Te financieren ' + euro(w.lening) + (w.eigenInbreng > 0.5 ? ' van ' + euro(w.totaalInvestering) + ' (incl. btw)' : ' (incl. btw)') + '</span></div>';
   h += '<div style="display:flex;gap:6px;margin-top:5px;">';
   w.termijnen.forEach(function(tj){
     h += '<div style="flex:1;text-align:center;padding:4px 2px;background:#fff;border-radius:5px;border:1px solid #DCEBE2;"><div style="font-size:0.9em;color:var(--muted);">' + tj + ' jaar</div><div style="font-weight:800;color:var(--navy);">' + euro(wfMaandbedrag(w.lening, w.rente[tj], tj)) + '<span style="font-weight:400;font-size:0.85em;color:var(--muted);"> p/m</span></div></div>';
   });
   h += '</div>';
-  h += '<div style="font-size:0.8em;color:var(--muted);margin-top:4px;line-height:1.35;">Indicatief, vaste rente ' + nf(rMin, 2) + '&ndash;' + nf(rMax, 2) + '% (peildatum ' + esc(wfWaarde("wfPeildatum")) + '). Voor eigenaar-bewoners; 0% rente mogelijk bij inkomen onder &euro; 60.000. Definitieve voorwaarden via het Nationaal Warmtefonds.</div>';
+  h += '<div style="font-size:0.8em;color:var(--muted);margin-top:4px;line-height:1.35;">' + (w.eigenInbreng > 0.5 ? '<b style="color:var(--navy);">Zelf te betalen: ' + euro(w.eigenInbreng) + '</b> (' + esc(w.redenen.join(", ") || "niet te financieren deel") + '). ' : '') + 'Indicatief, vaste rente ' + nf(rMin, 2) + '&ndash;' + nf(rMax, 2) + '% (peildatum ' + esc(wfWaarde("wfPeildatum")) + '). Voor eigenaar-bewoners; 0% rente mogelijk bij inkomen onder &euro; 60.000. Definitieve voorwaarden via het Nationaal Warmtefonds.</div>';
   h += '</div>';
   return h;
 }
@@ -4624,9 +4639,8 @@ function EO_renderConfig(o) {
   if (s.batterijActief) h += eoBerekendVeld("Investering batterij (&euro;)", s.investeringBatterij, "batterij");
   if (s.wpActief) h += eoBerekendVeld("Investering warmtepomp (&euro;)", s.investeringWP, "warmtepomp");
   h += '</div>';
-  h += '<div class="toggle-row" style="margin-top:10px;"><input type="checkbox" ' + (s.wfActief !== false ? "checked" : "") + ' onchange="eoVeldRender(\'' + oid + '\',\'wfActief\', this.checked)" style="width:20px;height:20px;" /><span>Warmtefonds-vak op pagina 1 baseren op deze installaties</span></div>';
-  var wfCfg = wfBereken(s, 0);
-  if (s.wfActief !== false) h += eoImpactRegel(wfCfg ? ('Warmtefonds: te financieren ' + euro(wfCfg.lening) + ' &mdash; vanaf ' + euro(wfMaandbedrag(wfCfg.lening, wfCfg.rente[wfCfg.termijnen[wfCfg.termijnen.length-1]], wfCfg.termijnen[wfCfg.termijnen.length-1])) + ' per maand (' + wfCfg.termijnen[wfCfg.termijnen.length-1] + ' jaar)') : 'Warmtefonds: nog niets om te financieren (minimaal ' + euro(wfGetal("wfMinLening")).replace(",00","") + ' via zon, batterij of warmtepomp)');
+  var wfCfg = wfBasisVoorOfferte(o, factuurTotalen(o));
+  h += eoImpactRegel(wfCfg ? ('Warmtefonds: te financieren ' + euro(wfCfg.lening) + ' &mdash; vanaf ' + euro(wfMaandbedrag(wfCfg.lening, wfCfg.rente[wfCfg.termijnen[wfCfg.termijnen.length-1]], wfCfg.termijnen[wfCfg.termijnen.length-1])) + ' per maand (' + wfCfg.termijnen[wfCfg.termijnen.length-1] + ' jaar)') : 'Warmtefonds: nog niets om te financieren (minimaal ' + euro(wfGetal("wfMinLening")).replace(",00","") + ' via zon, batterij of warmtepomp)');
   h += '</div>';
 
   h += '<div class="stats-row">';
