@@ -2228,6 +2228,11 @@ function EO_wpVanZonRegel(r) {
 function EO_synchroniseerZonEnWp(o) {
   if (!o || !o.energie) return;
   var s = o.energie, totaalAantal = 0, totaalWp = 0;
+  // Het gekozen product in de keuzelijsten meebewegen met de offerteregel (eerste regel met een gekoppeld product)
+  var eersteProduct = function(cat, categorieNaam){ var gev = ""; (o.regels || []).forEach(function(r){ if (gev || !r.productId) return; var p = getProduct(r.productId); if (p && p.categorie === categorieNaam) gev = r.productId; }); return gev; };
+  var pz = eersteProduct("zon", "Zonnepanelen"); if (pz) s.paneelProductId = pz;
+  var pb = eersteProduct("batterij", "Thuisbatterijen"); if (pb) s.batterijProductId = pb;
+  var pw = eersteProduct("wp", "Warmtepompen"); if (pw) s.warmtepompProductId = pw;
   (o.regels || []).forEach(function(r){
     if (EO_categorieVanRegel(r) !== "zon") return;
     var per = EO_wpVanZonRegel(r); if (!per) return;
