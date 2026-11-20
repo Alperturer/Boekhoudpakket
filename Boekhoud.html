@@ -452,8 +452,8 @@ function wfBasisVoorOfferte(o, t) {
     if (wE) return wE;
   }
   var regels = o.regels || [];
-  var re = /paneel|panelen|batterij|accu|warmtepomp/i;
-  if (!regels.some(function(r){ return re.test(r.omschrijving || ""); })) return null;
+  var re = /paneel|panelen|zonne|solar|\bpv\b|omvormer|batterij|accu|opslag|warmtepomp/i;
+  if (o.wfPagina1Modus !== "aan" && !regels.some(function(r){ return re.test(r.omschrijving || ""); })) return null;
   var incl = function(r){ return (parseFloat(r.aantal)||0) * (parseFloat(r.prijs)||0) * (1 + (parseFloat(r.btw)||0) / 100); };
   var totaal = t && t.totaalIncl ? t.totaalIncl : 0;
   var minL = wfGetal("wfMinLening"), maxL = wfGetal("wfMaxLening");
@@ -468,7 +468,7 @@ function wfBasisVoorOfferte(o, t) {
     rente: { 7: wfGetal("wfRente7"), 10: wfGetal("wfRente10"), 15: wfGetal("wfRente15"), 20: wfGetal("wfRente20") }, maandBesparing: 0 };
 }
 function wfBlokPagina1Html(o, t, accent) {
-  if (o && o.wfPagina1 === false) return "";
+  if (o && o.wfPagina1Modus === "uit") return "";
   var w = wfBasisVoorOfferte(o, t); if (!w) return "";
   var laatste = w.termijnen[w.termijnen.length - 1];
   var kleur = accent || "#2F6B4F";
@@ -4208,6 +4208,15 @@ function renderOfferteWerkblad() {
     h += '<div class="file-chip" style="background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.25);color:#fff;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg> ' + esc(d.naam||"Bestand") + ' <button class="del-x" style="padding:0;font-size:12px;" onclick="removeOfferteDatasheet(\'' + o.id + '\',' + idx + ')">&times;</button></div><br/>';
   });
   h += '<label class="photo-add" style="color:#fff;border-color:rgba(255,255,255,0.35);"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px;flex-shrink:0;"><path d="M20 12.5L11.5 21a4.5 4.5 0 0 1-6.4-6.4l9-9a3 3 0 0 1 4.3 4.3l-8.6 8.6a1.5 1.5 0 0 1-2.1-2.1l7.9-7.9"/></svg> Bijlage toevoegen<input type="file" accept="image/*,application/pdf" multiple style="display:none;" onchange="addOfferteDatasheets(\'' + o.id + '\', this.files)" /></label>';
+  h += '</div>';
+
+  h += '<div class="ow-step"><div class="ow-step-head"><span class="ow-step-num">6</span><span class="ow-step-title">Warmtefonds op pagina 1</span></div>';
+  h += '<select class="f" onchange="updateOfferteField(\'' + o.id + '\',\'wfPagina1Modus\',this.value); render();">';
+  h += '<option value="auto"' + ((o.wfPagina1Modus||"auto")==="auto"?" selected":"") + '>Automatisch (als er zon, batterij of warmtepomp in staat)</option>';
+  h += '<option value="aan"' + (o.wfPagina1Modus==="aan"?" selected":"") + '>Altijd tonen</option>';
+  h += '<option value="uit"' + (o.wfPagina1Modus==="uit"?" selected":"") + '>Niet tonen</option>';
+  h += '</select>';
+  h += '<p class="subtitle" style="margin:6px 0 0;">Toont maandbedragen bij 7, 10, 15 en eventueel 20 jaar onder de totalen op pagina 1. Rente en grenzen staan in Instellingen.</p>';
   h += '</div>';
 
   h += '<div class="ow-step"><div class="ow-step-head"><span class="ow-step-num">6</span><span class="ow-step-title">Energieberekening</span></div>';
