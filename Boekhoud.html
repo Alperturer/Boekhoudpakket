@@ -486,7 +486,7 @@ function wfBlokPagina1Html(o, t, accent) {
   return h;
 }
 function wfPaginaActief(s) { return !!wfBereken(s, 0); }
-function EO_paginaAantal(s) { return 4 + (wfPaginaActief(s) ? 1 : 0); }
+function EO_paginaAantal(s) { return 4; } // Warmtefonds staat als klein vak op pagina 1, geen eigen pagina meer
 function wfPaginaHtml(s, r, bedrijfOverride, pn, totaalPaginas) {
   var w = wfBereken(s, r.totaleJaarlijkseBesparing); if (!w) return "";
   var h = '<div class="r-page">' + paginaLogoHeader(bedrijfOverride) + '<div class="r-h">Financieren via het Warmtefonds</div>';
@@ -4605,7 +4605,7 @@ function EO_renderConfig(o) {
   if (s.batterijActief) h += eoBerekendVeld("Investering batterij (&euro;)", s.investeringBatterij, "batterij");
   if (s.wpActief) h += eoBerekendVeld("Investering warmtepomp (&euro;)", s.investeringWP, "warmtepomp");
   h += '</div>';
-  h += '<div class="toggle-row" style="margin-top:10px;"><input type="checkbox" ' + (s.wfActief !== false ? "checked" : "") + ' onchange="eoVeldRender(\'' + oid + '\',\'wfActief\', this.checked)" style="width:20px;height:20px;" /><span>Warmtefonds-financiering tonen in de offerte (automatisch berekend)</span></div>';
+  h += '<div class="toggle-row" style="margin-top:10px;"><input type="checkbox" ' + (s.wfActief !== false ? "checked" : "") + ' onchange="eoVeldRender(\'' + oid + '\',\'wfActief\', this.checked)" style="width:20px;height:20px;" /><span>Warmtefonds-vak op pagina 1 baseren op deze installaties</span></div>';
   var wfCfg = wfBereken(s, 0);
   if (s.wfActief !== false) h += eoImpactRegel(wfCfg ? ('Warmtefonds: te financieren ' + euro(wfCfg.lening) + ' &mdash; vanaf ' + euro(wfMaandbedrag(wfCfg.lening, wfCfg.rente[wfCfg.termijnen[wfCfg.termijnen.length-1]], wfCfg.termijnen[wfCfg.termijnen.length-1])) + ' per maand (' + wfCfg.termijnen[wfCfg.termijnen.length-1] + ' jaar)') : 'Warmtefonds: nog niets om te financieren (minimaal ' + euro(wfGetal("wfMinLening")).replace(",00","") + ' via zon, batterij of warmtepomp)');
   h += '</div>';
@@ -4931,9 +4931,6 @@ function EO_renderZonRapportPaginas(o, startPaginaNr, totaalPaginas, bedrijfOver
   h += '<tr style="font-weight:800;border-top:2px solid var(--border);"><td>Totale investering</td><td class="num">' + euro(r.investering) + '</td></tr>';
   h += '</tbody></table>';
   h += paginaVoetnoot(pn++, totaalPaginas) + '</div>';
-
-  // Pagina: financieren via het Warmtefonds (automatisch, alleen als er iets te financieren valt)
-  if (wfPaginaActief(s)) { h += wfPaginaHtml(s, r, bedrijfOverride, pn, totaalPaginas); pn++; }
 
   // Pagina: "Uw besparing" 25-jaars overzicht -- ALLE 25 rijen op 1 pagina, met compacte tabelstijl.
   h += '<div class="r-page">' + paginaLogoHeader(bedrijfOverride) + '<div class="r-h">Uw besparing</div>';
