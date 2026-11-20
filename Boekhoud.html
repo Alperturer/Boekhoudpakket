@@ -2213,6 +2213,42 @@ function EO_categorieVanRegel(r) {
   if (/airco|air.?conditioning|split.?unit|multisplit/.test(tekst)) return "airco";
   return null;
 }
+function EO_wpVanZonRegel(r) {
+  var per = 0;
+  if (r.productId) { var p = getProduct(r.productId); if (p && p.categorie === "Zonnepanelen" && parseFloat(p.specWaarde) > 0) per = parseFloat(p.specWaarde); }
+  if (!per) {
+    var t = (r.omschrijving || "").toLowerCase();
+    var m = t.match(/(\d{2,4}(?:[.,]\d+)?)\s*wp\b/) || t.match(/(?:^|[^k0-9])(\d{2,4}(?:[.,]\d+)?)\s*w\b(?!h)/);
+    if (m) per = parseFloat(m[1].replace(",", "."));
+  }
+  return (per >= 100 && per <= 800) ? per : 0;
+}
+// Zonnepanelen (aantal + Wp per paneel) en COP van de warmtepomp altijd automatisch uit de offerteregels
+// (gekozen product of tekst in de omschrijving), tenzij bewust handmatig in de rekentool aangepast.
+function EO_synchroniseerZonEnWp(o) {
+  if (!o || !o.energie) return;
+  var s = o.energie, totaalAantal = 0, totaalWp = 0;
+  (o.regels || []).forEach(function(r){
+    if (EO_categorieVanRegel(r) !== "zon") return;
+    var per = EO_wpVanZonRegel(r); if (!per) return;
+    var n = parseFloat(r.aantal) || 0; if (n <= 0) return;
+    totaalAantal += n; totaalWp += n * per;
+  });
+  if (totaalAantal > 0) {
+    s.zonActief = true;
+    s.aantalPanelen = String(Math.round(totaalAantal * 100) / 100);
+    s.wpPerPaneel = String(Math.round(totaalWp / totaalAantal * 10) / 10);
+  }
+  if (!s.wpHandmatig) {
+    (o.regels || []).forEach(function(r){
+      if (EO_categorieVanRegel(r) !== "wp") return;
+      var cop = 0;
+      if (r.productId) { var p = getProduct(r.productId); if (p && p.categorie === "Warmtepompen" && parseFloat(p.specWaarde) > 0) cop = parseFloat(p.specWaarde); }
+      if (!cop) { var m = (r.omschrijving || "").toLowerCase().match(/cop\s*(\d+(?:[.,]\d+)?)/); if (m) cop = parseFloat(m[1].replace(",", ".")); }
+      if (cop >= 1 && cop <= 8) { s.wpActief = true; s.wpCOP = String(cop); }
+    });
+  }
+}
 function EO_kwhVanBatterijRegel(r) {
   var aantal = parseFloat(r.aantal) || 1, per = 0;
   if (r.productId) { var p = getProduct(r.productId); if (p && p.categorie === "Thuisbatterijen" && parseFloat(p.specWaarde) > 0) per = parseFloat(p.specWaarde); }
@@ -2243,6 +2279,7 @@ function EO_herberekenInvesteringenVanuitRegels(o) {
   o.energie.investeringBatterij = String(totalen.batterij);
   o.energie.investeringWP = String(totalen.wp);
   EO_synchroniseerBatterijCapaciteit(o);
+  EO_synchroniseerZonEnWp(o);
   if (o.energie.aircoInstallaties && o.energie.aircoInstallaties.length) {
     o.energie.aircoInstallaties.forEach(function(inst){
       if (inst.gekoppeldAanRegelId && aircoPrijsPerRegel.hasOwnProperty(inst.gekoppeldAanRegelId)) {
@@ -4434,7 +4471,7 @@ function EO_synchroniseerRegelsMetConfig(o, key, val) {
   if (key === "wpPerPaneel" && /^\d{2,4}$/.test(v)) r.omschrijving = (r.omschrijving || "").replace(/(\d{2,4})(\s*wp\b)/i, v + "$2");
   EO_herberekenInvesteringenVanuitRegels(o);
 }
-function eoVeld(offerteId, key, val) { var o = getOfferte(offerteId); if (o && o.energie) { o.energie[key] = val; if (key === "batterijCapaciteit") o.energie.batterijHandmatig = true; EO_synchroniseerRegelsMetConfig(o, key, val); } persistOffertes(); }
+function eoVeld(offerteId, key, val) { var o = getOfferte(offerteId); if (o && o.energie) { o.energie[key] = val; if (key === "batterijCapaciteit") o.energie.batterijHandmatig = true; if (key === "wpCOP") o.energie.wpHandmatig = true; EO_synchroniseerRegelsMetConfig(o, key, val); } persistOffertes(); }
 function eoVeldRender(offerteId, key, val) { var o = getOfferte(offerteId); if (o && o.energie) o.energie[key] = val; persistOffertes(); render(); }
 function eoField(offerteId, key, label, val) {
   return '<div><label class="fl">' + label + '</label><input class="f" inputmode="decimal" value="' + esc(val) + '" oninput="eoVeld(\'' + offerteId + '\',\'' + key + '\',this.value)" onblur="render()" /></div>';
@@ -4850,6 +4887,7 @@ function legplanPagina(o, paginaNr, totaalPaginas, bedrijfOverride) {
 function EO_renderRapportPaginas(o, startPaginaNr, totaalPaginas, bedrijfOverride) {
   if (!o || !o.energieActief || !o.energie) return "";
   EO_synchroniseerBatterijCapaciteit(o);
+  EO_synchroniseerZonEnWp(o);
   var pn = startPaginaNr || 2, h = "";
   if (o.energie.zonActief) { h += EO_renderZonRapportPaginas(o, pn, totaalPaginas, bedrijfOverride); pn += EO_paginaAantal(o.energie); }
   if (o.energie.aircoActief) h += EO_renderAircoPaginas(o, pn, totaalPaginas, bedrijfOverride);
