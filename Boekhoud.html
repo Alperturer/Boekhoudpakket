@@ -136,7 +136,7 @@
   .ow-form .ow-mini-totals { color:#fff; }
   .ow-form .ow-mini-totals .row.final { color:#fff; border-top-color:rgba(255,255,255,0.25); }
 
-  .r-page { background:#fff; padding:28px; margin:0 auto 14px; width:100%; max-width:700px; min-height:950px; box-sizing:border-box; position:relative; overflow-x:hidden; }
+  .r-page { background:#fff; padding:28px; margin:0 auto 14px; width:100%; max-width:650px; min-height:919px; box-sizing:border-box; position:relative; overflow-x:hidden; }
   .r-brand { font-size:11px; color:var(--muted); letter-spacing:0.08em; text-transform:uppercase; font-weight:700; }
   .r-title { font-size:22px; font-weight:800; margin-top:4px; }
   .r-rule { border:none; border-top:2px solid var(--blue); margin:12px 0 18px; }
@@ -206,7 +206,7 @@
   .ow-mini-totals .row { display:flex; justify-content:space-between; padding:1px 0; }
   .ow-mini-totals .row.final { color:var(--text); font-weight:700; border-top:1px solid var(--border); margin-top:4px; padding-top:4px; }
 
-  #ow-print-area, #r-page-factuur { width:100%; max-width:700px; min-height:950px; margin:0 auto; background:#fff; box-sizing:border-box; position:relative; overflow-x:hidden; }
+  #ow-print-area, #r-page-factuur { width:100%; max-width:650px; min-height:919px; margin:0 auto; background:#fff; box-sizing:border-box; position:relative; overflow-x:hidden; }
   .ow-stripe { height:6px; }
   .ow-letterhead { padding:18px 22px 14px; border-bottom:1px solid #EFF6F5; display:flex; justify-content:space-between; align-items:flex-start; }
   .ow-wordmark { font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; font-size:calc(19px * var(--tekst-schaal, 1)); font-weight:800; letter-spacing:-0.01em; }
@@ -854,7 +854,7 @@ function downloadAlsPDF(elementId, bestandsnaam, knopId) {
   var jsPDF = window.jspdf.jsPDF;
   var pdf = new jsPDF("p", "mm", "a4");
   var pageWidth = 210, pageHeight = 297;
-  var DOEL_HOOGTE_PX = 950; // zelfde veilige hoogte als de andere pagina's (.r-page min-height) -- ruim onder de rekenkundige 1-pagina-grens
+  var DOEL_HOOGTE_PX = 919; // zelfde veilige hoogte als de andere pagina's (.r-page min-height) -- ruim onder de rekenkundige 1-pagina-grens
 
   function verkleinTotEenPagina(paginaEl) {
     // De hoofdpagina (offerte/factuur zelf) mag NOOIT over 2 pagina's lopen: past de inhoud niet vanzelf,
@@ -867,7 +867,7 @@ function downloadAlsPDF(elementId, bestandsnaam, knopId) {
     for (var poging = 0; poging < 8; poging++) {
       var huidigeHoogte = paginaEl.scrollHeight;
       if (huidigeHoogte <= DOEL_HOOGTE_PX || schaal <= 0.55) break;
-      schaal = schaal * (DOEL_HOOGTE_PX / huidigeHoogte) * 0.94;
+      schaal = schaal * (DOEL_HOOGTE_PX / huidigeHoogte) * 0.975;
       schaal = Math.max(schaal, 0.55);
       paginaEl.style.setProperty("--tekst-schaal", String(schaal));
     }
