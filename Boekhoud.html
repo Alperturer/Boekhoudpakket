@@ -492,8 +492,9 @@ function wfBlokPagina1Html(o, t, accent) {
   h += '<span style="font-size:0.9em;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:' + kleur + ';">Financieren via het Warmtefonds</span>';
   h += '<span style="font-size:0.95em;color:var(--muted);">Te financieren ' + euro(w.lening) + (w.eigenInbreng > 0.5 ? ' van ' + euro(w.totaalInvestering) + ' (incl. btw)' : ' (incl. btw)') + '</span></div>';
   h += '<div style="display:flex;gap:6px;margin-top:5px;">';
-  w.termijnen.forEach(function(tj){
-    h += '<div style="flex:1;text-align:center;padding:4px 2px;background:#fff;border-radius:5px;border:1px solid #DCEBE2;"><div style="font-size:0.9em;color:var(--muted);">' + tj + ' jaar' + (tj === 20 ? '*' : '') + '</div><div style="font-weight:800;color:var(--navy);">' + euro(wfMaandbedrag(w.lening, w.rente[tj], tj)) + '<span style="font-weight:400;font-size:0.85em;color:var(--muted);"> p/m</span></div></div>';
+  [7, 10, 15, 20].forEach(function(tj){
+    var nvt = (w.termijnen.indexOf(tj) < 0);
+    h += '<div style="flex:1;text-align:center;padding:4px 2px;background:#fff;border-radius:5px;border:1px solid #DCEBE2;"><div style="font-size:0.9em;color:var(--muted);">' + tj + ' jaar' + (tj === 20 && !nvt ? '*' : '') + '</div><div style="font-weight:800;color:var(--navy);">' + (nvt ? '<span style="font-weight:600;color:var(--muted);">n.v.t.</span>' : euro(wfMaandbedrag(w.lening, w.rente[tj], tj)) + '<span style="font-weight:400;font-size:0.85em;color:var(--muted);"> p/m</span>') + '</div></div>';
   });
   h += '</div>';
   h += '<div style="font-size:0.8em;color:var(--muted);margin-top:4px;line-height:1.35;">' + (w.eigenInbreng > 0.5 ? '<b style="color:var(--navy);">Zelf te betalen: ' + euro(w.eigenInbreng) + '</b> (' + esc(w.redenen.join(", ") || "niet te financieren deel") + '). ' : '') + '' + (w.termijnen.indexOf(20) >= 0 ? '* 20 jaar alleen mogelijk met een Combinatielening. ' : '') + 'Indicatief, vaste rente ' + nf(rMin, 2) + '&ndash;' + nf(rMax, 2) + '% (peildatum ' + esc(wfWaarde("wfPeildatum")) + '). Voor eigenaar-bewoners; 0% rente mogelijk bij inkomen onder &euro; 60.000. Definitieve voorwaarden via het Nationaal Warmtefonds.</div>';
