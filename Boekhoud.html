@@ -908,7 +908,7 @@ function downloadAlsPDF(elementId, bestandsnaam, knopId) {
       // De PDF is op elk toestel (iPhone, iPad, laptop) exact hetzelfde: de pagina wordt tijdens het fotograferen altijd op de
       // vaste papierbreedte van 700px gezet, los van hoe smal het scherm is. Zo klopt ook de 1-pagina-berekening altijd.
       var origStijl = { w: paginaEl.style.width, mx: paginaEl.style.maxWidth, mn: paginaEl.style.minWidth, fl: paginaEl.style.flex };
-      paginaEl.style.setProperty("width", "700px", "important"); paginaEl.style.setProperty("max-width", "700px", "important"); paginaEl.style.setProperty("min-width", "700px", "important"); paginaEl.style.flex = "none";
+      paginaEl.style.setProperty("width", "600px", "important"); paginaEl.style.setProperty("max-width", "600px", "important"); paginaEl.style.setProperty("min-width", "600px", "important"); paginaEl.style.flex = "none";
       var herstelBreedte = function() { paginaEl.style.removeProperty("width"); paginaEl.style.removeProperty("max-width"); paginaEl.style.removeProperty("min-width"); if (origStijl.w) paginaEl.style.width = origStijl.w; if (origStijl.mx) paginaEl.style.maxWidth = origStijl.mx; if (origStijl.mn) paginaEl.style.minWidth = origStijl.mn; paginaEl.style.flex = origStijl.fl; };
       breedteHersteller.push(herstelBreedte);
       var herstelFn = isHoofdpagina ? verkleinTotEenPagina(paginaEl) : null;
@@ -1653,11 +1653,13 @@ function cloudSlankeOffertes(offertes) {
     return kopie;
   });
 }
-function slaOpInCloudSectie(tabel, waarde) {
+function slaOpInCloudSectie(tabel, waarde, poging) {
+  poging = poging || 0;
   if (tabel === "org_offertes") waarde = cloudSlankeOffertes(waarde);
   state.cloudSaving = true;
   supabaseClient.from(tabel).upsert({ organisatie_id: state.organisatieId, data: waarde, updated_at: new Date().toISOString() }, { onConflict: "organisatie_id" }).then(function(res){
     state.cloudSaving = false;
+    if (res.error && poging < 3 && /load failed|failed to fetch|network|timeout/i.test(res.error.message)) { setTimeout(function(){ slaOpInCloudSectie(tabel, waarde, poging + 1); }, 2500 * (poging + 1)); return; } // stil opnieuw proberen op trage verbinding
     if (res.error) {
       console.error("Cloud-opslag mislukt voor " + tabel + ":", res.error.message);
       laatsteMislukteSync = { tabel: tabel, waarde: waarde };
@@ -1671,6 +1673,7 @@ function slaOpInCloudSectie(tabel, waarde) {
     if (state.cloudSyncFout) { state.cloudSyncFout = null; laatsteMislukteSync = null; render(); }
   }).catch(function(err){
     state.cloudSaving = false;
+    if (poging < 3) { setTimeout(function(){ slaOpInCloudSectie(tabel, waarde, poging + 1); }, 2500 * (poging + 1)); return; }
     console.error("Cloud-opslag mislukt voor " + tabel + ":", err);
     laatsteMislukteSync = { tabel: tabel, waarde: waarde };
     state.cloudSyncFout = "(verbinding te traag of weggevallen)";
